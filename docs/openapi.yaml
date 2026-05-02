@@ -3,7 +3,7 @@ openapi: 3.0.3
 info:
   title: Express ESM 接口文档
   version: 1.0.0
-  description: 注册登录 CRUD
+  description: 注册、登录与用户查询（列表与按 id，与本仓库 `src/app.js` 一致）
 
 servers:
   - url: http://localhost:3000
@@ -12,6 +12,8 @@ servers:
 tags:
   - name: 认证
     description: 注册与登录
+  - name: 用户
+    description: 用户查询（列表、按 id）
 
 components:
   schemas:
@@ -21,7 +23,7 @@ components:
       properties:
         code:
           type: integer
-          description: 业务状态码；本服务错误响应中与 HTTP 状态码一致（如 400/401/409/500）。
+          description: 业务状态码；本服务错误响应中与 HTTP 状态码一致（如 400/401/404/409/500）。
         msg:
           type: string
     RegisterSuccess:
@@ -46,6 +48,49 @@ components:
         token:
           type: string
           description: JWT，成功时返回
+    UserItem:
+      type: object
+      description: Sequelize 用户行序列化结果；当前实现未剔除 password 字段
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        password:
+          type: string
+          description: bcrypt 哈希（接口当前会一并返回）
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    UsersListSuccess:
+      allOf:
+        - $ref: "#/components/schemas/MsgBody"
+        - type: object
+          required: [users]
+          properties:
+            code:
+              example: 200
+            msg:
+              example: 获取用户列表成功
+            users:
+              type: array
+              items:
+                $ref: "#/components/schemas/UserItem"
+    UserOneSuccess:
+      allOf:
+        - $ref: "#/components/schemas/MsgBody"
+        - type: object
+          required: [user]
+          properties:
+            code:
+              example: 200
+            msg:
+              example: 获取用户成功
+            user:
+              $ref: "#/components/schemas/UserItem"
 
 paths:
   /api/register:
@@ -152,3 +197,64 @@ paths:
               example:
                 code: 500
                 msg: 登录失败
+
+  /api/users:
+    get:
+      tags: [用户]
+      summary: 获取用户列表
+      description: 查询全部用户；未做分页与鉴权，与当前实现一致
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsersListSuccess"
+        "500":
+          description: 服务端异常（如数据库错误）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+              example:
+                code: 500
+                msg: 获取用户列表失败
+
+  /api/users/{id}:
+    get:
+      tags: [用户]
+      summary: 按主键获取单个用户
+      description: 使用路径参数 `id` 调用 `User.findByPk`；未做鉴权，与当前实现一致
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 用户主键（与库中 id 一致）
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserOneSuccess"
+        "404":
+          description: 未找到该 id 对应用户
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+              example:
+                code: 404
+                msg: 用户不存在
+        "500":
+          description: 服务端异常（如数据库错误）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+              example:
+                code: 500
+                msg: 获取用户失败

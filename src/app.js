@@ -54,6 +54,7 @@ app.post("/api/register", async (req, res) => {
   }
 });
 
+//异步路由(包含async 和 await)需要加try catch
 app.post("/api/login", async (req, res) => {
   try {
     let { username, password } = req.body;
@@ -82,6 +83,46 @@ app.post("/api/login", async (req, res) => {
   } catch (error) {
     console.error(error); //打印服务端日志，帮助排查错误
     res.status(500).json({ code: 500, msg: "登录失败" });
+  }
+});
+
+//查询所有用户列表
+//这些带 async 的才是「异步路由（async/await）」；你这段是同步签名的 handler + 内部异步 Promise，
+// try/catch 只能兜住同步抛错，兜不住 findAll() 在 Promise 里 reject 的情况（所以错误要靠
+// .catch 处理，你代码里已经写了）。若改//成 async + await + try/catch，就和上面注册/登录风格一致了。
+app.get("/api/users", (req, res) => {
+  try {
+    //触发一个同步错误
+    //throw new Error("这是一个同步错误");
+
+    User.findAll()
+      .then((users) => {
+        res.json({ code: 200, msg: "获取用户列表成功", users });
+      })
+      .catch((error) => {
+        console.error(error); //打印服务端日志，帮助排查错误
+        res.status(500).json({ code: 500, msg: "获取用户列表失败" });
+      });
+  } catch (error) {
+    //try catch 只能捕获同步错误，不能捕获异步错误， User.findAll()返回的是一个Promise，如果这个Promise被拒绝
+    //则只会走  User.findAll() 自带的catch块，而不是走 try 的 catch块
+    console.error(error); //打印服务端日志，帮助排查错误
+    res.status(500).json({ code: 500, msg: "获取用户列表失败" });
+  }
+});
+
+//查询单个用户
+app.get("/api/users/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({ code: 404, msg: "用户不存在" });
+    }
+    res.json({ code: 200, msg: "获取用户成功", user });
+  } catch (error) {
+    console.error(error); //打印服务端日志，帮助排查错误
+    res.status(500).json({ code: 500, msg: "获取用户失败" });
   }
 });
 
