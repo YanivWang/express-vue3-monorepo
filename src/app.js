@@ -33,14 +33,14 @@ app.post("/api/register", async (req, res) => {
   res.json({ code: 200, msg: "注册成功" });
 });
 
-app.post("/api/login", (req, res) => {
+app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
-  const user = User.findOne({ where: { username } });
+  const user = await User.findOne({ where: { username } });
   if (!user) {
     return res.json({ code: 401, msg: "用户不存在" });
   }
 
-  const isRight = bcrypt.compare(password, user.password);
+  const isRight = await bcrypt.compare(password, user.password);
   if (!isRight) {
     return res.json({ code: 401, msg: "密码错误" });
   }
