@@ -39,7 +39,7 @@ app.post("/api/register", async (req, res) => {
 
     //入参校验（请求入参必须校验，防止非法数据进入数据库）
     if (!username || !password) {
-      return res.json({ code: 400, msg: "用户名或密码不能为空" });
+      return res.status(400).json({ code: 400, msg: "用户名或密码不能为空" });
     }
 
     const hashPwd = await bcrypt.hash(password, 10);
@@ -48,7 +48,7 @@ app.post("/api/register", async (req, res) => {
     res.json({ code: 200, msg: "注册成功" });
   } catch (error) {
     console.error(error); //打印服务端日志，帮助排查错误
-    res.json({ code: 500, msg: "注册失败" });
+    res.status(500).json({ code: 500, msg: "注册失败" });
   }
 });
 
@@ -60,7 +60,7 @@ app.post("/api/login", async (req, res) => {
 
     //入参校验（请求入参必须校验，防止非法数据进入数据库）
     if (!username || !password) {
-      return res.status(401).json({ code: 400, msg: "用户名或密码不能为空" });
+      return res.status(400).json({ code: 400, msg: "用户名或密码不能为空" });
     }
 
     const user = await User.findOne({ where: { username } });
@@ -80,7 +80,7 @@ app.post("/api/login", async (req, res) => {
     res.json({ code: 200, msg: "登录成功", token });
   } catch (error) {
     console.error(error); //打印服务端日志，帮助排查错误
-    res.json({ code: 500, msg: "登录失败" });
+    res.status(500).json({ code: 500, msg: "登录失败" });
   }
 });
 
