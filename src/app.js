@@ -25,30 +25,53 @@ setupSwagger(app);
 
 // 业务接口 ======================================
 
+//异步路由需要加 try,catch 处理错误, 否则一旦出错会变成 未处理的 Promise 拒绝
+//客户端可能一直等不到响应或进程日志里报错
 app.post("/api/register", async (req, res) => {
-  const { username, password, nickname } = req.body;
-  const hashPwd = await bcrypt.hash(password, 10);
-  await User.create({ username, password: hashPwd, nickname });
+  try {
+    const { username, password } = req.body;
 
-  res.json({ code: 200, msg: "注册成功" });
+    //入参校验（请求入参必须校验，防止非法数据进入数据库）
+    if (!username || !password) {
+      return res.json({ code: 400, msg: "用户名或密码不能为空" });
+    }
+
+    const hashPwd = await bcrypt.hash(password, 10);
+    await User.create({ username, password: hashPwd });
+
+    res.json({ code: 200, msg: "注册成功" });
+  } catch (error) {
+    res.json({ code: 500, msg: "注册失败" });
+  }
 });
 
 app.post("/api/login", async (req, res) => {
-  const { username, password } = req.body;
-  const user = await User.findOne({ where: { username } });
-  if (!user) {
-    return res.json({ code: 401, msg: "用户不存在" });
-  }
+  try {
+    const { username, password } = req.body;
 
-  const isRight = await bcrypt.compare(password, user.password);
-  if (!isRight) {
-    return res.json({ code: 401, msg: "密码错误" });
-  }
+    //入参校验（请求入参必须校验，防止非法数据进入数据库）
+    if (!username || !password) {
+      return res.json({ code: 400, msg: "用户名或密码不能为空" });
+    }
 
-  const token = jwt.sign({ id: user.id, username: user.username }, process.env.JWT_SECRET, {
-    expiresIn: "7d",
-  });
-  res.json({ code: 200, msg: "登录成功", token });
+    const user = await User.findOne({ where: { username } });
+    if (!user) {
+      //HTTP 状态码习惯
+      return res.status(401).json({ code: 401, msg: "用户不存在" });
+    }
+
+    const isRight = await bcrypt.compare(password, user.password);
+    if (!isRight) {
+      return res.json({ code: 401, msg: "密码错误" });
+    }
+
+    const token = jwt.sign({ id: user.id, username: user.username }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
+    res.json({ code: 200, msg: "登录成功", token });
+  } catch (error) {
+    res.json({ code: 500, msg: "登录失败" });
+  }
 });
 
 app.listen(process.env.PORT, () => {

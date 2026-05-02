@@ -31,8 +31,6 @@ paths:
                   description: 用户名（与库字段一致）
                 password:
                   type: string
-                nickname:
-                  type: string
       responses:
         "200":
           description: 注册成功
