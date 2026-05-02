@@ -1,0 +1,80 @@
+# 接口契约：可提交仓库，团队共用；Apifox 选择「导入」→ OpenAPI → 本文件（或开发环境用 http://localhost:<PORT>/openapi.yaml）
+openapi: 3.0.3
+info:
+  title: Express ESM 接口文档
+  version: 1.0.0
+  description: 注册登录 CRUD
+
+servers:
+  - url: http://localhost:3000
+    description: 本地（端口以 .env 中 PORT 为准时可先在 Apifox 里改环境地址）
+
+tags:
+  - name: 认证
+    description: 注册与登录
+
+paths:
+  /api/register:
+    post:
+      tags: [认证]
+      summary: 用户注册
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                  description: 用户名（与库字段一致）
+                password:
+                  type: string
+                nickname:
+                  type: string
+      responses:
+        "200":
+          description: 注册成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  msg:
+                    type: string
+
+  /api/login:
+    post:
+      tags: [认证]
+      summary: 用户登录
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "200":
+          description: 登录结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                  msg:
+                    type: string
+                  token:
+                    type: string
+                    description: 成功时返回 JWT
