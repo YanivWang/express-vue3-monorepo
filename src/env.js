@@ -15,7 +15,31 @@ function requireEnv(name) {
   return String(raw).trim();
 }
 
-export const JWT_SECRET = requireEnv("JWT_SECRET");
+export const JWT_SECRET = (() => {
+  const secret = requireEnv("JWT_SECRET");
+  const minLen = 32;
+  if (secret.length < minLen) {
+    console.error(`[env] JWT_SECRET 长度至少 ${minLen} 字符（当前 ${secret.length}），请使用足够长的随机串`);
+    process.exit(1);
+  }
+  const weak = new Set([
+    "secret",
+    "jwt_secret",
+    "jwtsecret",
+    "changeme",
+    "password",
+    "123456",
+    "your-secret-key",
+    "your_secret_key",
+    "supersecret",
+    "please_change_me",
+  ]);
+  if (weak.has(secret.toLowerCase())) {
+    console.error("[env] JWT_SECRET 不能使用常见弱默认值，请换成随机生成的密钥");
+    process.exit(1);
+  }
+  return secret;
+})();
 export const DB_HOST = requireEnv("DB_HOST");
 export const DB_USER = requireEnv("DB_USER");
 export const DB_PWD = requireEnv("DB_PWD");
