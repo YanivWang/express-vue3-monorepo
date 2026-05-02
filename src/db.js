@@ -1,13 +1,7 @@
 // 数据库文件: 连接mysql + 创建用户表
 
 import { Sequelize, DataTypes } from "sequelize";
-import dotenv from "dotenv";
-
-//加载 .env 文件中环境变量到 process.env 中
-//为了安全的管理敏感信息
-dotenv.config();
-
-const { DB_HOST, DB_USER, DB_PWD, DB_NAME } = process.env;
+import { DB_HOST, DB_USER, DB_PWD, DB_NAME } from "./env.js";
 
 // 创建 sequelize 实例
 // 并没有立即连接数据库
