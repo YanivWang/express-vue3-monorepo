@@ -29,10 +29,16 @@ setupSwagger(app);
 //客户端可能一直等不到响应或进程日志里报错
 app.post("/api/register", async (req, res) => {
   try {
-    const { username, password } = req.body;
+    let { username, password } = req.body;
+
+    //和 || 的差别：|| 会把所有「假值」换成默认值（""、0、false 都会触发）；
+    // ?? 只在 null / undefined 时换，更适合「缺字段时用默认字符串」这种场景，
+    // 避免把合法的 0 或空字符串误当成「没传」
+    username = String(username ?? "").trim();
+    password = String(password ?? "").trim();
 
     //入参校验（请求入参必须校验，防止非法数据进入数据库）
-    if (!username.trim() || !password.trim()) {
+    if (!username || !password) {
       return res.json({ code: 400, msg: "用户名或密码不能为空" });
     }
 
@@ -48,11 +54,13 @@ app.post("/api/register", async (req, res) => {
 
 app.post("/api/login", async (req, res) => {
   try {
-    const { username, password } = req.body;
+    let { username, password } = req.body;
+    username = String(username ?? "").trim();
+    password = String(password ?? "").trim();
 
     //入参校验（请求入参必须校验，防止非法数据进入数据库）
-    if (!username.trim() || !password.trim()) {
-      return res.json({ code: 400, msg: "用户名或密码不能为空" });
+    if (!username || !password) {
+      return res.status(401)({ code: 400, msg: "用户名或密码不能为空" });
     }
 
     const user = await User.findOne({ where: { username } });
