@@ -1,0 +1,24 @@
+{
+  "ignore": [
+    "node_modules/**",
+    "public/**",
+    "dist/**",
+    "*.test.js",
+    "*.spec.js",
+    "**/*.d.ts",
+    "logs/**",
+    ".git/**",
+    ".DS_Store",
+    "tmp/**",
+    "coverage/**",
+    ".gitignore",
+    "pnpm-lock.yaml"
+  ],
+  "events": {
+    "start": "echo 'Starting app...'",
+    "restart": "echo 'App restarted due to file changes'",
+    "crash": "echo 'Application crashed!' && node send-alert.js",
+    "exit": "echo 'Application exited cleanly'",
+    "config:update": "echo 'nodemon config updated'"
+  }
+}

@@ -116,6 +116,7 @@ app.get("/api/users", (req, res) => {
 //查询单个用户(从接口路径中拿id)
 app.get("/api/users/:id", async (req, res) => {
   try {
+    console.log("req.params11111111111BBBBBBB>>>>", req.params); //拿路径参数
     const { id } = req.params; // 拿路径参数
     const user = await User.findByPk(id);
     if (!user) {
