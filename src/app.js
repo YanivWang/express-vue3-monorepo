@@ -14,8 +14,10 @@ import { setupSwagger } from "./swagger.js";
 //创建服务
 const app = express();
 
-//使用中间件
+//使用中间件=====
+//cors 解决跨域问题
 app.use(cors());
+//express.json() 解析请求体中的json数据
 app.use(express.json());
 
 // Swagger UI：/api-docs ；契约文件：docs/openapi.yaml ，运行时可 GET /openapi.yaml 给 Apifox 导入
@@ -57,7 +59,7 @@ app.post("/api/register", async (req, res) => {
 //异步路由(包含async 和 await)需要加try catch
 app.post("/api/login", async (req, res) => {
   try {
-    let { username, password } = req.body;
+    let { username, password } = req.body; //从请求体中拿参数
     username = String(username ?? "").trim();
     password = String(password ?? "").trim();
 
@@ -111,10 +113,26 @@ app.get("/api/users", (req, res) => {
   }
 });
 
-//查询单个用户
+//查询单个用户(从接口路径中拿id)
 app.get("/api/users/:id", async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params; // 拿路径参数
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({ code: 404, msg: "用户不存在" });
+    }
+    res.json({ code: 200, msg: "获取用户成功", user });
+  } catch (error) {
+    console.error(error); //打印服务端日志，帮助排查错误
+    res.status(500).json({ code: 500, msg: "获取用户失败" });
+  }
+});
+
+//查询单个用户(从地址栏查询参数中取id)
+app.get("/api/getOneUser", async (req, res) => {
+  try {
+    console.log("req.query>>>>", req.query); //拿查询参数
+    const { id } = req.query; // 接口路径参数
     const user = await User.findByPk(id);
     if (!user) {
       return res.status(404).json({ code: 404, msg: "用户不存在" });
@@ -129,7 +147,7 @@ app.get("/api/users/:id", async (req, res) => {
 //删除单个用户
 app.delete("/api/users/:id", async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params; // 接口路径参数
     //按主键查找用户
     const user = await User.findByPk(id);
     if (!user) {
@@ -147,7 +165,7 @@ app.delete("/api/users/:id", async (req, res) => {
 //修改用户信息
 app.put("/api/users/:id", async (req, res) => {
   try {
-    const { id } = req.params; //从请求头中拿id
+    const { id } = req.params; // 接口路径参数
     const user = await User.findByPk(id);
     if (!user) {
       return res.status(404).json({ code: 404, msg: "用户不存在" });

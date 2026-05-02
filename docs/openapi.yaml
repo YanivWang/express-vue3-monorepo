@@ -2,8 +2,8 @@
 openapi: 3.0.3
 info:
   title: Express ESM 接口文档
-  version: 1.0.0
-  description: 注册、登录与用户 CRUD（列表、按 id 查询/更新/删除，与本仓库 `src/app.js` 一致）
+  version: 1.0.1
+  description: 注册、登录与用户 CRUD（列表；`GET /api/users/{id}` 或 `GET /api/getOneUser?id=` 获取单个用户；更新/删除，与本仓库 `src/app.js` 一致）
 
 servers:
   - url: http://localhost:3000
@@ -13,7 +13,7 @@ tags:
   - name: 认证
     description: 注册与登录
   - name: 用户
-    description: 用户列表、按 id 查询/更新/删除
+    description: 用户列表；按路径 id 或 `/api/getOneUser` 查询参数 id 查单个；按 id 更新/删除
 
 components:
   schemas:
@@ -247,6 +247,49 @@ paths:
               example:
                 code: 500
                 msg: 获取用户列表失败
+
+  /api/getOneUser:
+    get:
+      tags: [用户]
+      summary: 按查询参数获取单个用户
+      description: |
+        `GET /api/getOneUser?id=1`。查询参数中的 `id` 由 `req.query` 解构得到（与 `app.js` 中 `const { id } = req.query` 一致），再传给 `User.findByPk`。
+        成功响应与 `GET /api/users/{id}` 相同。未做鉴权。
+        路径独立于 `/api/users/{id}`，不与 `:id` 动态段冲突。
+        **缺省 `id`**：实现未单独校验；通常查不到记录而返回 404「用户不存在」（非 400）。
+      parameters:
+        - name: id
+          in: query
+          required: true
+          description: 用户主键（查询字符串，服务端会传给 `findByPk`）
+          schema:
+            type: string
+          example: "1"
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserOneSuccess"
+        "404":
+          description: 未找到该 id 对应用户
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+              example:
+                code: 404
+                msg: 用户不存在
+        "500":
+          description: 服务端异常（如数据库错误）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+              example:
+                code: 500
+                msg: 获取用户失败
 
   /api/users/{id}:
     get:
