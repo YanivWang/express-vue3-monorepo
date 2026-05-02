@@ -60,7 +60,7 @@ app.post("/api/login", async (req, res) => {
 
     //入参校验（请求入参必须校验，防止非法数据进入数据库）
     if (!username || !password) {
-      return res.status(401)({ code: 400, msg: "用户名或密码不能为空" });
+      return res.status(401).json({ code: 400, msg: "用户名或密码不能为空" });
     }
 
     const user = await User.findOne({ where: { username } });
