@@ -3,7 +3,7 @@ openapi: 3.0.3
 info:
   title: Express ESM 接口文档
   version: 1.0.0
-  description: 注册、登录与用户查询（列表与按 id，与本仓库 `src/app.js` 一致）
+  description: 注册、登录与用户 CRUD（列表、按 id 查询/更新/删除，与本仓库 `src/app.js` 一致）
 
 servers:
   - url: http://localhost:3000
@@ -13,7 +13,7 @@ tags:
   - name: 认证
     description: 注册与登录
   - name: 用户
-    description: 用户查询（列表、按 id）
+    description: 用户列表、按 id 查询/更新/删除
 
 components:
   schemas:
@@ -91,6 +91,34 @@ components:
               example: 获取用户成功
             user:
               $ref: "#/components/schemas/UserItem"
+    UpdateUserBody:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          description: 新用户名（与 `app.js` 一致：请求体未 trim）
+        password:
+          type: string
+          description: 明文新密码（服务端 bcrypt 后写入）
+    UpdateUserSuccess:
+      allOf:
+        - $ref: "#/components/schemas/MsgBody"
+        - type: object
+          properties:
+            code:
+              example: 200
+            msg:
+              example: 更新用户成功
+    DeleteUserSuccess:
+      allOf:
+        - $ref: "#/components/schemas/MsgBody"
+        - type: object
+          properties:
+            code:
+              example: 200
+            msg:
+              example: 删除用户成功
 
 paths:
   /api/register:
@@ -258,3 +286,94 @@ paths:
               example:
                 code: 500
                 msg: 获取用户失败
+
+    put:
+      tags: [用户]
+      summary: 按主键更新用户
+      description: 请求体须同时提供 username、password；密码会重新 bcrypt 后入库。未做鉴权，与当前实现一致。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 用户主键（与库中 id 一致）
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserBody"
+      responses:
+        "200":
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateUserSuccess"
+        "400":
+          description: 参数校验失败（用户名或密码为空）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+              example:
+                code: 400
+                msg: 用户名或密码不能为空
+        "404":
+          description: 未找到该 id 对应用户
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+              example:
+                code: 404
+                msg: 用户不存在
+        "500":
+          description: 服务端异常（如数据库错误）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+              example:
+                code: 500
+                msg: 更新用户失败
+
+    delete:
+      tags: [用户]
+      summary: 按主键删除用户
+      description: 先 `findByPk` 再 `destroy`；未做鉴权，与当前实现一致
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 用户主键（与库中 id 一致）
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteUserSuccess"
+        "404":
+          description: 未找到该 id 对应用户
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+              example:
+                code: 404
+                msg: 用户不存在
+        "500":
+          description: 服务端异常（如数据库错误）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+              example:
+                code: 500
+                msg: 删除用户失败

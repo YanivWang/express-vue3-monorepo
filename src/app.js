@@ -126,6 +126,47 @@ app.get("/api/users/:id", async (req, res) => {
   }
 });
 
+//删除单个用户
+app.delete("/api/users/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    //按主键查找用户
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({ code: 404, msg: "用户不存在" });
+    }
+    //删除数据库里这一行
+    await user.destroy();
+    res.json({ code: 200, msg: "删除用户成功" });
+  } catch (error) {
+    console.error(error); //打印服务端日志，帮助排查错误
+    res.status(500).json({ code: 500, msg: "删除用户失败" });
+  }
+});
+
+//修改用户信息
+app.put("/api/users/:id", async (req, res) => {
+  try {
+    const { id } = req.params; //从请求头中拿id
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({ code: 404, msg: "用户不存在" });
+    }
+
+    const { username, password } = req.body; //从请求体中拿username和password
+    if (!username || !password) {
+      return res.status(400).json({ code: 400, msg: "用户名或密码不能为空" });
+    }
+    const hashPwd = await bcrypt.hash(password, 10);
+    await user.update({ username, password: hashPwd });
+    res.json({ code: 200, msg: "更新用户成功" });
+  } catch (error) {
+    console.error(error); //打印服务端日志，帮助排查错误
+    res.status(500).json({ code: 500, msg: "更新用户失败" });
+  }
+});
+
+// 启动服务
 app.listen(PORT, () => {
   console.log(`服务运行: http://localhost:${PORT} `);
 });
