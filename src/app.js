@@ -66,14 +66,13 @@ app.post("/api/login", async (req, res) => {
     }
 
     const user = await User.findOne({ where: { username } });
-    if (!user) {
-      //HTTP 状态码习惯
-      return res.status(401).json({ code: 401, msg: "用户不存在" });
+    let credentialOk = false;
+    if (user) {
+      credentialOk = await bcrypt.compare(password, user.password);
     }
-
-    const isRight = await bcrypt.compare(password, user.password);
-    if (!isRight) {
-      return res.status(401).json({ code: 401, msg: "密码错误" });
+    // 统一文案，避免区分「用户不存在 / 密码错误」导致用户名枚举
+    if (!credentialOk) {
+      return res.status(401).json({ code: 401, msg: "用户名或密码错误" });
     }
 
     const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, {
