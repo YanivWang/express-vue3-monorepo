@@ -7,6 +7,7 @@ import bcrypt from "bcrypt";
 // es 模块中导入本地文件时，必须包含完整的文件扩展名，node.js 不会自动解析 .js .json 等扩展名
 import { User } from "./db.js";
 import dotenv from "dotenv";
+import { UniqueConstraintError } from "sequelize";
 
 import { setupSwagger } from "./swagger.js";
 
@@ -47,6 +48,10 @@ app.post("/api/register", async (req, res) => {
 
     res.json({ code: 200, msg: "注册成功" });
   } catch (error) {
+    //精准识别错误，并提出友好提示
+    if (error instanceof UniqueConstraintError) {
+      return res.status(409).json({ code: 409, msg: "用户名已存在" });
+    }
     console.error(error); //打印服务端日志，帮助排查错误
     res.status(500).json({ code: 500, msg: "注册失败" });
   }

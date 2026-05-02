@@ -74,9 +74,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/RegisterSuccess"
         "400":
-          description: |
-            参数校验失败（用户名或密码为空），body 含 code 400。
-            若服务端未调用 `res.status(400)`，则 HTTP 可能仍为 200，仅以 body.code 区分。
+          description: 参数校验失败（用户名或密码为空）
           content:
             application/json:
               schema:
@@ -84,10 +82,17 @@ paths:
               example:
                 code: 400
                 msg: 用户名或密码不能为空
+        "409":
+          description: 冲突 — 用户名已被占用（违反唯一约束）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+              example:
+                code: 409
+                msg: 用户名已存在
         "500":
-          description: |
-            服务端异常（如数据库错误），body 含 code 500。
-            若未设置 HTTP 状态码，HTTP 可能仍为 200。
+          description: 服务端异常（如数据库连接失败等非预期错误）
           content:
             application/json:
               schema:
