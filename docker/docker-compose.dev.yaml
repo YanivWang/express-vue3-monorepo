@@ -1,0 +1,56 @@
+# 开发专用：与 docker-compose.yaml 完全独立（无 include / 无双 -f）。
+# MySQL 暴露 MYSQL_PORT；app 使用 bind mount + nodemon 热重载。
+# 仓库根目录：docker compose --env-file .env -f docker/docker-compose.dev.yaml up -d --build
+
+name: express-demo-dev
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: express-demo-mysql-dev
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PWD}
+    volumes:
+      - mysql_dev_data:/var/lib/mysql
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'mysqladmin ping -h 127.0.0.1 -uroot -p"$$MYSQL_ROOT_PASSWORD" || exit 1',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    container_name: express-demo-app-dev
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      DB_HOST: mysql
+      NODE_ENV: development
+      CHOKIDAR_USEPOLLING: "1"
+    ports:
+      - "${APP_PORT:-3000}:${PORT:-3000}"
+    volumes:
+      - ..:/app
+      - app_node_modules:/app/node_modules
+    command: pnpm dev
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+volumes:
+  mysql_dev_data:
+  app_node_modules:

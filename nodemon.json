@@ -17,7 +17,7 @@
   "events": {
     "start": "echo 'Starting app...'",
     "restart": "echo 'App restarted due to file changes'",
-    "crash": "echo 'Application crashed!' && node send-alert.js",
+    "crash": "echo 'Application crashed!'",
     "exit": "echo 'Application exited cleanly'",
     "config:update": "echo 'nodemon config updated'"
   }
