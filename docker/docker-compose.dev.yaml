@@ -8,12 +8,12 @@
 #   - logs/app-dev.log       Node / nodemon 标准输出与错误（tee 追加）
 #   - logs/mysql/error.log   mysqld 错误日志（docker/mysql-dev.cnf；权限问题同上）
 
-name: express-demo-dev
+name: express-demo-02-dev
 
 services:
   mysql:
     image: mysql:8.4
-    container_name: express-demo-mysql-dev
+    container_name: express-demo-02-mysql-dev
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
@@ -39,7 +39,7 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.dev
-    container_name: express-demo-app-dev
+    container_name: express-demo-02-app-dev
     restart: unless-stopped
     env_file:
       - ../.env

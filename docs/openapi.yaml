@@ -1,13 +1,13 @@
 # 接口契约：可提交仓库，团队共用；Apifox 选择「导入」→ OpenAPI → 本文件（或开发环境用 http://localhost:<PORT>/openapi.yaml）
 openapi: 3.0.3
 info:
-  title: Express ESM 接口文档
+  title: express-demo-02 · Express ESM 接口文档
   version: 1.0.1
-  description: 注册、登录与用户 CRUD（列表；`GET /api/users/{id}` 或 `GET /api/getOneUser?id=` 获取单个用户；更新/删除，与本仓库 `src/app.js` 一致）
+  description: 项目 express-demo-02；注册、登录与用户 CRUD（列表；`GET /api/users/{id}` 或 `GET /api/getOneUser?id=` 获取单个用户；更新/删除，与本仓库 `src/app.js` 一致）
 
 servers:
   - url: http://localhost:3000
-    description: 本地（端口以 .env 中 PORT 为准时可先在 Apifox 里改环境地址）
+    description: 本地（端口以 .env 中 PORT / APP_PORT 为准时可先在 Apifox 里改环境地址）
 
 tags:
   - name: 认证
