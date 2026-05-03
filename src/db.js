@@ -1,7 +1,8 @@
-// 数据库文件: 连接mysql + 创建用户表
+// 数据库文件: 连接 mysql + 初始化 Sequelize 模型
 
-import { Sequelize, DataTypes } from "sequelize";
+import { Sequelize } from "sequelize";
 import { DB_HOST, DB_USER, DB_PWD, DB_NAME } from "./env.js";
+import { initModels } from "./models/index.js";
 
 // 创建 sequelize 实例
 // 并没有立即连接数据库
@@ -15,19 +16,7 @@ const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PWD, {
   dialect: "mysql",
 });
 
-//定义模型 => 数据库的一张表
-//User 是模型名 => 复数化(Users) 是表名
-const User = sequelize.define("User", {
-  username: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    unique: true, //唯一约束
-  },
-  password: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-});
+const { User } = initModels(sequelize);
 
 // 数据库同步方法
 // 遍历所有已定义模型，根据模型定义自动创建或者更新对应数据库表

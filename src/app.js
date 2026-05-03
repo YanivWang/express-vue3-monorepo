@@ -5,6 +5,7 @@ import cors from "cors";
 import { setupSwagger } from "./swagger.js";
 import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
+import { errorMiddleware } from "./middlewares/error.middleware.js";
 
 //创建express服务
 const app = express();
@@ -21,5 +22,7 @@ setupSwagger(app);
 // 业务路由 ======================================
 app.use("/api", authRoutes);
 app.use("/api", userRoutes);
+
+app.use(errorMiddleware);
 
 export default app;
