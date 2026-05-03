@@ -18,6 +18,7 @@ function normalizeCredentials(username, password) {
 export async function registerUser(payload) {
   const { username, password } = normalizeCredentials(payload.username, payload.password);
 
+  //业务错误在 service 里抛
   if (!username || !password) {
     throw createHttpError(400, "用户名或密码不能为空");
   }

@@ -5,6 +5,7 @@ import { success } from "../utils/response.js";
 //注册功能方法实现
 export async function register(req, res) {
   await registerUser(req.body);
+  //HTTP 响应在 controller 里发
   return success(res, "注册成功");
 }
 

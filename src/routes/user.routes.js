@@ -2,10 +2,14 @@ import express from "express";
 import { deleteUser, getOneUser, getUserById, getUsers, updateUser } from "../controllers/user.controller.js";
 import { asyncHandler } from "../middlewares/asyncHandler.js";
 
+import { authMiddleware } from "../middlewares/auth.middleware.js";
+
 const router = express.Router();
 
-//负责用户管理的路由与 user controller中方法的绑定
+//保护路由，需要登录才能访问(这里只保护user相关路由)
+router.use(authMiddleware);
 
+//负责用户管理的路由与 user controller中方法的绑定
 router.get("/users", asyncHandler(getUsers, "获取用户列表失败"));
 router.get("/users/:id", asyncHandler(getUserById, "获取用户失败"));
 router.get("/getOneUser", asyncHandler(getOneUser, "获取用户失败"));
