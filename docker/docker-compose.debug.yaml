@@ -1,0 +1,9 @@
+# 与 docker-compose.dev.yaml 叠加使用，在容器内启用 Node Inspector。
+# docker compose --env-file .env -f docker/docker-compose.dev.yaml -f docker/docker-compose.debug.yaml up -d --build
+
+services:
+  app:
+    command:
+      - sh
+      - -c
+      - mkdir -p /app/logs && pnpm dev:debug 2>&1 | tee -a /app/logs/app-dev.log
