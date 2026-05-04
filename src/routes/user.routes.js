@@ -6,8 +6,9 @@ import { authMiddleware } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
+//注册路由中间件
 //保护路由，需要登录才能访问(这里只保护user相关路由)
-router.use(authMiddleware);
+router.use(authMiddleware); // 路由级别中间件
 
 //负责用户管理的路由与 user controller中方法的绑定
 router.get("/users", asyncHandler(getUsers, "获取用户列表失败"));
