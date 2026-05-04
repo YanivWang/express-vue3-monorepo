@@ -7,6 +7,7 @@ import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "../env.js";
 import { User } from "../db.js";
 import { createHttpError } from "../middlewares/error.middleware.js";
+import { logger } from "../utils/logger.js";
 
 function normalizeCredentials(username, password) {
   return {
@@ -25,6 +26,9 @@ export async function registerUser(payload) {
 
   const hashPwd = await bcrypt.hash(password, 10);
   await User.create({ username, password: hashPwd });
+
+  //记录关键业务操作日志，用于监控业务操作情况
+  logger.info("register_user", { username });
 }
 
 export async function loginUser(payload) {

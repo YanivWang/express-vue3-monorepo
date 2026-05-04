@@ -6,6 +6,7 @@ import { setupSwagger } from "./swagger.js";
 import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import { createHttpError, errorMiddleware } from "./middlewares/error.middleware.js";
+import { logger } from "./utils/logger.js";
 
 //创建express服务
 const app = express();
@@ -16,6 +17,26 @@ const app = express();
 app.use(cors());
 //express.json() 解析请求体中的json数据
 app.use(express.json());
+
+// 加了一个全局中间件，记录每次请求的：
+// 记录每次 HTTP 请求的基础信息和耗时
+app.use((req, res, next) => {
+  const startedAt = Date.now();
+
+  res.on("finish", () => {
+    //记录接口请求日志，用于监控接口请求情况
+    logger.info("http_request", {
+      method: req.method,
+      url: req.originalUrl,
+      statusCode: res.statusCode,
+      durationMs: Date.now() - startedAt,
+      ip: req.ip,
+      userAgent: req.get("user-agent"),
+    });
+  });
+
+  next();
+});
 
 // Swagger UI：/api-docs ；契约文件：docs/openapi.yaml ，运行时可 GET /openapi.yaml 给 Apifox 导入
 setupSwagger(app);

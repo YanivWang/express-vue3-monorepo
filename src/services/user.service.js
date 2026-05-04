@@ -11,6 +11,7 @@ import { createHttpError } from "../middlewares/error.middleware.js";
 async function findUserOrThrow(id) {
   const user = await User.findByPk(id);
 
+  // 业务错误，直接 throw 出去，让全局错误处理中间件处理
   if (!user) {
     throw createHttpError(404, "用户不存在");
   }

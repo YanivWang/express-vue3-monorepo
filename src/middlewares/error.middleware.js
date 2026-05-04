@@ -1,5 +1,6 @@
 import { UniqueConstraintError } from "sequelize";
 import { fail } from "../utils/response.js";
+import { logger, serializeError } from "../utils/logger.js";
 
 //全局错误处理的核心思想: 业务代码只负责发现错误并抛出错误，然后交给全局错误处理中间件去处理
 //全局错误处理中间件，统一决定错误怎么返回给前端，这样前端就不用每个接口单独处理错误了。
@@ -29,10 +30,19 @@ export function errorMiddleware(error, req, res, next) {
     return fail(res, 409, "用户名已存在");
   }
 
-  console.error(error);
-
   const statusCode = error.statusCode ?? 500;
   const msg = error.expose ? error.message : (error.failureMessage ?? "服务器内部错误");
+
+  //记录错误日志
+  //在全局错误中间件中，导入 logger 日志记录器，记录日志
+  logger.error("request_error", {
+    error: serializeError(error),
+    method: req.method,
+    url: req.originalUrl,
+    statusCode: statusCode,
+    msg,
+  });
+
   return fail(res, statusCode, msg);
 }
 
