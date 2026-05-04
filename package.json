@@ -4,6 +4,7 @@
   "main": "src/server.js",
   "type": "module",
   "scripts": {
+    "preinstall": "npx only-allow pnpm",
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon src/server.js",
     "dev:debug": "nodemon --inspect=0.0.0.0:9229 src/server.js",
@@ -27,11 +28,17 @@
     "mysql2": "^3.22.3",
     "sequelize": "^6.37.8",
     "swagger-ui-express": "^5.0.1",
+    "winston": "^3.19.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
   },
+  "engines": {
+    "node": ">=20.19.5",
+    "pnpm": ">=10.17.0"
+  },
+  "packageManager": "pnpm@10.17.0",
   "pnpm": {
     "onlyBuiltDependencies": [
       "bcrypt"
