@@ -2,6 +2,7 @@ import { findAllUsers, findUserById, removeUser, updateUserById } from "../servi
 import { success } from "../utils/response.js";
 
 export async function getUsers(req, res) {
+  console.log("req.user111111>>>", req.user);
   const users = await findAllUsers();
   return success(res, "获取用户列表成功", { users });
 }

@@ -11,6 +11,7 @@ export function authMiddleware(req, res, next) {
   }
 
   try {
+    //jwt.verify() 校验，成功后写入 req.user
     req.user = jwt.verify(token, JWT_SECRET);
     next();
   } catch (error) {
