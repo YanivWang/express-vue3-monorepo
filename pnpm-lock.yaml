@@ -35,6 +35,9 @@ importers:
       swagger-ui-express:
         specifier: ^5.0.1
         version: 5.0.1(express@4.22.1)
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       nodemon:
         specifier: ^3.1.14
@@ -635,6 +638,9 @@ packages:
   wkx@0.5.0:
     resolution: {integrity: sha512-Xng/d4Ichh8uN4l0FToV/258EjMGU9MGcA0HV2d9B/ZpZB3lqQm7nkOdZdm5GhKtLLhAE7PiVQwN4eN+2YJJUg==}
 
+  zod@4.4.3:
+    resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
+
 snapshots:
 
   '@scarf/scarf@1.4.0': {}
@@ -1225,3 +1231,5 @@ snapshots:
   wkx@0.5.0:
     dependencies:
       '@types/node': 25.6.0
+
+  zod@4.4.3: {}

@@ -36,6 +36,8 @@ export async function updateUserById(id, payload) {
   const username = String(payload.username ?? "").trim();
   const password = String(payload.password ?? "").trim();
 
+  //基本上每个controller或者service层都要进行参数校验，业务逻辑中混入很多校验代码
+  // services 层手动进行参数检验
   if (!username || !password) {
     throw createHttpError(400, "用户名或密码不能为空");
   }

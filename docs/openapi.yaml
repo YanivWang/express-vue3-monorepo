@@ -2,20 +2,33 @@
 openapi: 3.0.3
 info:
   title: express-demo-02 · Express ESM 接口文档
-  version: 1.0.1
-  description: 项目 express-demo-02；注册、登录与用户 CRUD（列表；`GET /api/users/{id}` 或 `GET /api/getOneUser?id=` 获取单个用户；更新/删除，与本仓库 `src/app.js` 一致）
+  version: 1.1.0
+  description: |
+    项目 express-demo-02；注册、登录与用户管理路由与 `src/app.js`、`src/routes/*.routes.js` 一致。
+    - 认证：`POST /api/register`、`POST /api/login` 无需登录。
+    - 用户：`src/routes/user.routes.js` 在路由级挂载 `authMiddleware`，须在请求头携带 `Authorization: Bearer <JWT>`（登录成功返回的 token）。
+    - 参数校验：`validate.middleware.js` + Zod schema；失败时 HTTP 400，`msg` 为多条校验信息的英文分号拼接。
+    - 未匹配路由：全局 404，`msg` 为「接口不存在」。
+    - `GET /api/users` 的 `page`、`limit` 已通过校验（缺省为 1、10）；当前 `user.controller` 仍调用全量 `findAllUsers()`，响应体仍返回完整 `users` 数组（分页参数仅占位校验，与实现对齐）。
 
 servers:
   - url: http://localhost:3000
-    description: 本地（端口以 .env 中 PORT / APP_PORT 为准时可先在 Apifox 里改环境地址）
+    description: 本地（端口以 .env 中配置为准时可在 Apifox 里改环境地址）
 
 tags:
   - name: 认证
-    description: 注册与登录
+    description: 注册与登录（无需 Bearer）
   - name: 用户
-    description: 用户列表；按路径 id 或 `/api/getOneUser` 查询参数 id 查单个；按 id 更新/删除
+    description: 用户列表与单条查询、更新、删除（需 Bearer JWT）
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "登录接口返回的 JWT；请求头 Authorization 为「Bearer」+ 空格 + token。过期或未携带返回 401。"
+
   schemas:
     MsgBody:
       type: object
@@ -47,7 +60,21 @@ components:
           example: 登录成功
         token:
           type: string
-          description: JWT，成功时返回
+          description: "JWT（jsonwebtoken）；payload 含 id、username；签发使用 expiresIn 7d。"
+    CredentialsBody:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          description: 非空，trim，最长 100 字符（与 `src/schema/auth.schema.js` 一致）
+          minLength: 1
+          maxLength: 100
+        password:
+          type: string
+          description: 非空，trim，最长 100 字符
+          minLength: 1
+          maxLength: 100
     UserItem:
       type: object
       description: Sequelize 用户行序列化结果；当前实现未剔除 password 字段
@@ -97,10 +124,14 @@ components:
       properties:
         username:
           type: string
-          description: 新用户名（与 `app.js` 一致：请求体未 trim）
+          description: 新用户名；trim，非空，最多 100 字符
+          minLength: 1
+          maxLength: 100
         password:
           type: string
-          description: 明文新密码（服务端 bcrypt 后写入）
+          description: 明文新密码；trim，非空，最多 100 字符；服务端 bcrypt 后写入
+          minLength: 1
+          maxLength: 100
     UpdateUserSuccess:
       allOf:
         - $ref: "#/components/schemas/MsgBody"
@@ -130,15 +161,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [username, password]
-              properties:
-                username:
-                  type: string
-                  description: 用户名（与库字段一致；服务端会 trim）
-                password:
-                  type: string
-                  description: 明文密码（服务端会 trim 后哈希入库）
+              $ref: "#/components/schemas/CredentialsBody"
       responses:
         "200":
           description: 注册成功（HTTP 200）
@@ -147,16 +170,18 @@ paths:
               schema:
                 $ref: "#/components/schemas/RegisterSuccess"
         "400":
-          description: 参数校验失败（用户名或密码为空）
+          description: Zod 或业务校验失败（如用户名为空、超长；`msg` 可能为多条信息用 `; ` 拼接）
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MsgBody"
-              example:
-                code: 400
-                msg: 用户名或密码不能为空
+              examples:
+                empty:
+                  value:
+                    code: 400
+                    msg: 用户名不能为空
         "409":
-          description: 冲突 — 用户名已被占用（违反唯一约束）
+          description: 冲突 — 用户名已被占用（Sequelize `UniqueConstraintError`）
           content:
             application/json:
               schema:
@@ -165,14 +190,11 @@ paths:
                 code: 409
                 msg: 用户名已存在
         "500":
-          description: 服务端异常（如数据库连接失败等非预期错误）
+          description: 服务端异常（未标记 `expose` 时为「服务器内部错误」）
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MsgBody"
-              example:
-                code: 500
-                msg: 注册失败
 
   /api/login:
     post:
@@ -183,14 +205,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [username, password]
-              properties:
-                username:
-                  type: string
-                  description: 服务端会 trim，与注册入库一致方能命中
-                password:
-                  type: string
+              $ref: "#/components/schemas/CredentialsBody"
       responses:
         "200":
           description: 登录成功，返回 JWT
@@ -199,16 +214,13 @@ paths:
               schema:
                 $ref: "#/components/schemas/LoginSuccess"
         "400":
-          description: 参数校验失败（用户名或密码为空）
+          description: 参数校验失败
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MsgBody"
-              example:
-                code: 400
-                msg: 用户名或密码不能为空
         "401":
-          description: 未授权 — 凭证无效（用户名或密码错误；故意不区分是否在册以防用户枚举）
+          description: 凭证无效（用户名或密码错误；不区分是否在册）
           content:
             application/json:
               schema:
@@ -217,20 +229,38 @@ paths:
                 code: 401
                 msg: 用户名或密码错误
         "500":
-          description: 服务端异常（如数据库连接失败等非预期错误）
+          description: 服务端异常
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MsgBody"
-              example:
-                code: 500
-                msg: 登录失败
 
   /api/users:
     get:
       tags: [用户]
       summary: 获取用户列表
-      description: 查询全部用户；未做分页与鉴权，与当前实现一致
+      description: |
+        需在请求头携带 Bearer JWT。
+        查询参数 `page`、`limit` 由 `getUsersSchema` 校验：缺省分别为 `1`、`10`；须为正整数。当前控制器仍返回全量 `users`，与数据库实现一致。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          required: false
+          description: 页码，缺省 1；正整数
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          description: 每页条数，缺省 10；正整数
+          schema:
+            type: integer
+            minimum: 1
+            default: 10
       responses:
         "200":
           description: 成功
@@ -238,32 +268,42 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UsersListSuccess"
-        "500":
-          description: 服务端异常（如数据库错误）
+        "400":
+          description: 分页等参数校验失败（如非正整数）
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MsgBody"
-              example:
-                code: 500
-                msg: 获取用户列表失败
+        "401":
+          description: 未携带或无效 JWT（`msg` 为「未登录或登录已过期」）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "500":
+          description: 服务端异常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
 
   /api/getOneUser:
     get:
       tags: [用户]
       summary: 按查询参数获取单个用户
       description: |
-        `GET /api/getOneUser?id=1`。查询参数中的 `id` 由 `req.query` 解构得到（与 `app.js` 中 `const { id } = req.query` 一致），再传给 `User.findByPk`。
-        成功响应与 `GET /api/users/{id}` 相同。未做鉴权。
-        路径独立于 `/api/users/{id}`，不与 `:id` 动态段冲突。
-        **缺省 `id`**：实现未单独校验；通常查不到记录而返回 404「用户不存在」（非 400）。
+        `GET /api/getOneUser?id=1`。查询参数 `id` 必填，须为不含前导零的正整数字符串（与 `user.schema.js` 中 `idSchema` 一致，如 `1` 合法，`01` 不合法）。
+        需 Bearer JWT。成功响应与 `GET /api/users/{id}` 相同。
+      security:
+        - bearerAuth: []
       parameters:
         - name: id
           in: query
           required: true
-          description: 用户主键（查询字符串，服务端会传给 `findByPk`）
+          description: 用户主键字符串，匹配 `^[1-9]\d*$`
           schema:
             type: string
+            pattern: "^[1-9]\\d*$"
           example: "1"
       responses:
         "200":
@@ -272,6 +312,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UserOneSuccess"
+        "400":
+          description: 缺少或非法 `id`、或其它 Zod 校验失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "401":
+          description: 未携带或无效 JWT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
         "404":
           description: 未找到该 id 对应用户
           content:
@@ -282,28 +334,29 @@ paths:
                 code: 404
                 msg: 用户不存在
         "500":
-          description: 服务端异常（如数据库错误）
+          description: 服务端异常
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MsgBody"
-              example:
-                code: 500
-                msg: 获取用户失败
 
   /api/users/{id}:
     get:
       tags: [用户]
-      summary: 按主键获取单个用户
-      description: 使用路径参数 `id` 调用 `User.findByPk`；未做鉴权，与当前实现一致
+      summary: 按路径主键获取单个用户
+      description: |
+        路径参数 `id` 为不含前导零的正整数字符串。需 Bearer JWT。
+      security:
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
           required: true
-          description: 用户主键（与库中 id 一致）
+          description: 用户主键，匹配 `^[1-9]\d*$`（Express 以字符串传入 Zod）
           schema:
-            type: integer
-            minimum: 1
+            type: string
+            pattern: "^[1-9]\\d*$"
+          example: "1"
       responses:
         "200":
           description: 成功
@@ -311,6 +364,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UserOneSuccess"
+        "400":
+          description: 路径 `id` 格式不合法
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "401":
+          description: 未携带或无效 JWT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
         "404":
           description: 未找到该 id 对应用户
           content:
@@ -321,27 +386,27 @@ paths:
                 code: 404
                 msg: 用户不存在
         "500":
-          description: 服务端异常（如数据库错误）
+          description: 服务端异常
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MsgBody"
-              example:
-                code: 500
-                msg: 获取用户失败
 
     put:
       tags: [用户]
       summary: 按主键更新用户
-      description: 请求体须同时提供 username、password；密码会重新 bcrypt 后入库。未做鉴权，与当前实现一致。
+      description: |
+        请求体须提供 username、password（长度与注册一致）；密码会重新 bcrypt 后入库。需 Bearer JWT。
+      security:
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
           required: true
-          description: 用户主键（与库中 id 一致）
           schema:
-            type: integer
-            minimum: 1
+            type: string
+            pattern: "^[1-9]\\d*$"
+          example: "1"
       requestBody:
         required: true
         content:
@@ -356,14 +421,17 @@ paths:
               schema:
                 $ref: "#/components/schemas/UpdateUserSuccess"
         "400":
-          description: 参数校验失败（用户名或密码为空）
+          description: 参数校验失败（Zod 或 service 层「用户名或密码不能为空」）
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MsgBody"
-              example:
-                code: 400
-                msg: 用户名或密码不能为空
+        "401":
+          description: 未携带或无效 JWT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
         "404":
           description: 未找到该 id 对应用户
           content:
@@ -374,27 +442,26 @@ paths:
                 code: 404
                 msg: 用户不存在
         "500":
-          description: 服务端异常（如数据库错误）
+          description: 服务端异常
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MsgBody"
-              example:
-                code: 500
-                msg: 更新用户失败
 
     delete:
       tags: [用户]
       summary: 按主键删除用户
-      description: 先 `findByPk` 再 `destroy`；未做鉴权，与当前实现一致
+      description: 先 `findByPk` 再 `destroy`。需 Bearer JWT。
+      security:
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
           required: true
-          description: 用户主键（与库中 id 一致）
           schema:
-            type: integer
-            minimum: 1
+            type: string
+            pattern: "^[1-9]\\d*$"
+          example: "1"
       responses:
         "200":
           description: 删除成功
@@ -402,6 +469,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DeleteUserSuccess"
+        "400":
+          description: 路径 `id` 格式不合法
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "401":
+          description: 未携带或无效 JWT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
         "404":
           description: 未找到该 id 对应用户
           content:
@@ -412,11 +491,8 @@ paths:
                 code: 404
                 msg: 用户不存在
         "500":
-          description: 服务端异常（如数据库错误）
+          description: 服务端异常
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MsgBody"
-              example:
-                code: 500
-                msg: 删除用户失败

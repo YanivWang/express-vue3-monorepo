@@ -30,6 +30,7 @@ export async function registerUser(payload) {
 export async function loginUser(payload) {
   const { username, password } = normalizeCredentials(payload.username, payload.password);
 
+  // services 层手动进行参数检验
   if (!username || !password) {
     throw createHttpError(400, "用户名或密码不能为空");
   }
