@@ -25,3 +25,21 @@ const { User } = initModels(sequelize);
 sequelize.sync({ alter: true });
 
 export { sequelize, User };
+
+/**
+ * 开发环境给 sequelize.sync 配上 alter: true，主要的好处是：不用手写迁移，也能让「库里已有的表」尽量跟模型定义对上。
+
+具体来说：
+
+改模型就能改表结构
+给字段改名、加减字段、改类型、allowNull、defaultValue、简单 unique 等，启动时 Sequelize 会尝试用 ALTER TABLE 把表对齐，
+省掉「改一次模型就写一段 SQL/迁移」的摩擦。
+
+适合原型和自学项目
+表还没定型、数据结构经常大变时，alter 能快速迭代，减少来回切终端跑 migration 的步骤。
+
+表已存在时仍能「修补」结构
+默认 sync() 不会做破坏性对齐；alter: true 才有「对齐现有表」的行为（实现上是一直查 INFORMATION_SCHEMA，再决定要改哪些列）。
+ * 
+ * 简明结论：好处 = 开发阶段省事、迭代快；代价 = 行为有时不可预期、出问题难排查。
+ */
