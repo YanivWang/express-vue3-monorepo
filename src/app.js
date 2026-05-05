@@ -2,6 +2,7 @@
 
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
 import { setupSwagger } from "./swagger.js";
 import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
@@ -11,13 +12,27 @@ import { logger } from "./utils/logger.js";
 //创建express服务
 const app = express();
 
-//注册 / 挂载中间件=====(全局中间件，对所有路由都生效)
+//注册 / 挂载中间件 ======================================
+// (全局中间件，对所有路由都生效)
 //之后进来的每个请求（在匹配规则下）会按 app.use 的先后顺序依次经过这些中间件。
+
+// helmet 是 Express 里的安全中间件，用来自动设置一组常见的 HTTP 安全响应头，降低一些 Web 攻击风险
+// 使用helmet中间件来增强安全性
+// Helmet 默认会启用 Content-Security-Policy，有时会影响 Swagger UI
+app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+  }),
+);
+
 //cors 解决跨域问题
 app.use(cors());
+
 //express.json() 解析请求体中的json数据
 app.use(express.json());
 
+// 记录请求日志:
 // 加了一个全局中间件，记录每次请求的：
 // 记录每次 HTTP 请求的基础信息和耗时
 app.use((req, res, next) => {
@@ -38,16 +53,14 @@ app.use((req, res, next) => {
   next();
 });
 
+// 配置 Swagger UI 和契约文件
 // Swagger UI：/api-docs ；契约文件：docs/openapi.yaml ，运行时可 GET /openapi.yaml 给 Apifox 导入
 setupSwagger(app);
 
 // 业务路由 ======================================
 // 往往是「路由里最靠后的那个处理函数」（例如 controller）在响应，而不是 app.js 里最后那一行 app.use
-
 //"/api"：挂载路径前缀，所有路由都会以"/api"开头
-
 // authRoutes / userRoutes：都是 express.Router()，当成一整块中间件挂在 /api 下面
-
 // app.use("/api", xxx) = 把 xxx 这套路由表接到 /api 后面；真实路径 = /api + 子路由里的 path。
 app.use("/api", authRoutes);
 app.use("/api", userRoutes);
