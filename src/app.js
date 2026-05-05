@@ -7,6 +7,7 @@ import { setupSwagger } from "./swagger.js";
 import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import { createHttpError, errorMiddleware } from "./middlewares/error.middleware.js";
+import { globalRateLimitMiddleware } from "./middlewares/rateLimit.middleware.js";
 import { logger } from "./utils/logger.js";
 
 //创建express服务
@@ -28,6 +29,9 @@ app.use(
 
 //cors 解决跨域问题
 app.use(cors());
+
+//全局请求频率限制（对所有路由都生效）
+app.use(globalRateLimitMiddleware);
 
 //express.json() 解析请求体中的json数据
 app.use(express.json());
