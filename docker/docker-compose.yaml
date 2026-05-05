@@ -1,40 +1,25 @@
-# 生产专用。开发热重载见 docker-compose.dev.yaml（彼此独立，勿双 -f 叠加）。
+# 生产覆盖层：必须配合 docker-compose.base.yaml。
+# pnpm docker:prod
+
 name: express-demo-02-prod
 
 services:
   mysql:
-    image: mysql:8.4
     container_name: express-demo-02-mysql
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${DB_NAME}
-      MYSQL_USER: ${DB_USER}
-      MYSQL_PASSWORD: ${DB_PWD}
+    # 不映射 MySQL 到宿主机，仅容器网络内访问（与 dev 不同）
     volumes:
       - mysql_data:/var/lib/mysql
-    healthcheck:
-      test: [ "CMD-SHELL", 'mysqladmin ping -h 127.0.0.1 -uroot -p"$$MYSQL_ROOT_PASSWORD" || exit 1' ]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-      start_period: 30s
 
   app:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
     container_name: express-demo-02-app
-    restart: unless-stopped
     env_file:
-      - ../.env
+      - ../.env.production
     environment:
-      DB_HOST: mysql
+      APP_ENV: production
+      NODE_ENV: production
+      PORT: ${PORT:-3000}
     ports:
-      - "${APP_PORT:-3000}:${PORT:-3000}"
-    depends_on:
-      mysql:
-        condition: service_healthy
+      - "${APP_HOST_PORT:-3000}:${PORT:-3000}"
 
 volumes:
   mysql_data:

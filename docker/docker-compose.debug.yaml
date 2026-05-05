@@ -1,5 +1,5 @@
-# 与 docker-compose.dev.yaml 叠加使用，在容器内启用 Node Inspector。
-# docker compose --env-file .env -f docker/docker-compose.dev.yaml -f docker/docker-compose.debug.yaml up -d --build
+# 在 base + dev 之上再叠加本文件，在容器内启用 Node Inspector。
+# pnpm docker:dev:debug
 
 services:
   app:

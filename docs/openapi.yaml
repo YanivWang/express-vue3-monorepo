@@ -1,4 +1,4 @@
-# 接口契约：可提交仓库，团队共用；Apifox 选择「导入」→ OpenAPI → 本文件（或开发环境用 http://localhost:<PORT>/openapi.yaml）
+# 接口契约：可提交仓库，团队共用；Apifox 选择「导入」→ OpenAPI → 本文件（文档地址一般为 http://localhost:<PORT>/openapi.yaml，PORT 缺省 3000）。
 openapi: 3.0.3
 info:
   title: express-demo-02 · Express ESM 接口文档
@@ -12,8 +12,14 @@ info:
     - `GET /api/users` 的 `page`、`limit` 已通过校验（缺省为 1、10）；当前 `user.controller` 仍调用全量 `findAllUsers()`，响应体仍返回完整 `users` 数组（分页参数仅占位校验，与实现对齐）。
 
 servers:
-  - url: http://localhost:3000
-    description: 本地（端口以 .env 中配置为准时可在 Apifox 里改环境地址）
+  - url: http://localhost:{port}
+    description: |
+      端口与进程环境变量 PORT 一致（缺省 3000）。Docker Compose 下宿主机侧为 APP_HOST_PORT → 容器 PORT。
+      导入 Apifox 时可在 server variables 中改 port。
+    variables:
+      port:
+        default: "3000"
+        description: 应用监听端口（环境变量 PORT）
 
 tags:
   - name: 认证

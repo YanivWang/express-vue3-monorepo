@@ -1,0 +1,25 @@
+# 测试/预发覆盖层：必须配合 docker-compose.base.yaml。生产镜像形态。
+# pnpm docker:test
+
+name: express-demo-02-test
+
+services:
+  mysql:
+    container_name: express-demo-02-mysql-test
+    # 不映射 MySQL 到宿主机，仅容器网络内访问（与 dev 不同）
+    volumes:
+      - mysql_test_data:/var/lib/mysql
+
+  app:
+    container_name: express-demo-02-app-test
+    env_file:
+      - ../.env.test
+    environment:
+      APP_ENV: test
+      NODE_ENV: test
+      PORT: ${PORT:-3000}
+    ports:
+      - "${APP_HOST_PORT:-3000}:${PORT:-3000}"
+
+volumes:
+  mysql_test_data:

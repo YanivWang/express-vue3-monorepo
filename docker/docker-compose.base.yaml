@@ -1,0 +1,35 @@
+# 共享定义：与 docker-compose.{yaml,dev,test}.yaml 组合使用（须后接环境文件，后者覆盖同名项）。
+# 示例：docker compose --env-file .env.development -f docker/docker-compose.base.yaml -f docker/docker-compose.dev.yaml up -d
+#
+# mysql 不在此声明 volumes / ports / container_name，避免多环境卷合并时挂载重复路径。
+# 开发栈在 docker-compose.dev.yaml 为 mysql 补充 ports（宿主机 ${MYSQL_HOST_PORT}）；prod/test 覆盖层不映射 MySQL。
+# app 不声明 ports / env_file / APP_ENV，由各环境覆盖。
+
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PWD}
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - mysqladmin ping -h 127.0.0.1 -uroot -p"$$MYSQL_ROOT_PASSWORD" || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    restart: unless-stopped
+    environment:
+      DB_HOST: mysql
+    depends_on:
+      mysql:
+        condition: service_healthy

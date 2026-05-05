@@ -14,10 +14,12 @@ COPY package.json pnpm-lock.yaml ./
 COPY .npmrc ./
 RUN pnpm install --frozen-lockfile --prod
 
+COPY scripts ./scripts
 COPY src ./src
 COPY docs ./docs
 
 ENV NODE_ENV=production
+ENV PORT=3000
 
 EXPOSE 3000
 
