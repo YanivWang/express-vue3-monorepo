@@ -8,7 +8,8 @@ import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import { createHttpError, errorMiddleware } from "./middlewares/error.middleware.js";
 import { globalRateLimitMiddleware } from "./middlewares/rateLimit.middleware.js";
-import { logger } from "./utils/logger.js";
+import { compressionMiddleware } from "./middlewares/compression.middleware.js";
+import { httpRequestLogMiddleware } from "./middlewares/httpRequestLog.middleware.js";
 
 //创建express服务
 const app = express();
@@ -19,43 +20,33 @@ const app = express();
 
 // helmet 是 Express 里的安全中间件，用来自动设置一组常见的 HTTP 安全响应头，降低一些 Web 攻击风险
 // 使用helmet中间件来增强安全性
-// Helmet 默认会启用 Content-Security-Policy，有时会影响 Swagger UI
-app.use(helmet());
-app.use(
-  helmet({
-    contentSecurityPolicy: false,
-  }),
-);
+// Helmet 默认会启用 Content-Security-Policy，有时会影响 Swagger UI，所以只对 Swagger 文档页关闭 CSP
+const defaultHelmet = helmet();
+const swaggerHelmet = helmet({
+  contentSecurityPolicy: false,
+});
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api-docs")) {
+    return swaggerHelmet(req, res, next);
+  }
+  return defaultHelmet(req, res, next);
+});
 
 //cors 解决跨域问题
 app.use(cors());
 
+// 记录每次 HTTP 请求的基础信息和耗时（用于监控）
+// 放在限流、body 解析之前，以便访问日志覆盖 429、JSON 解析失败等仍会正常结束响应的请求
+app.use(httpRequestLogMiddleware);
+
 //全局请求频率限制（对所有路由都生效）
 app.use(globalRateLimitMiddleware);
 
+// 仅压缩较大的 API JSON（阈值见 compression 中间件）；HTML/CSS/JS 等由 CDN/Nginx 处理
+app.use(compressionMiddleware);
+
 //express.json() 解析请求体中的json数据
 app.use(express.json());
-
-// 记录请求日志:
-// 加了一个全局中间件，记录每次请求的：
-// 记录每次 HTTP 请求的基础信息和耗时
-app.use((req, res, next) => {
-  const startedAt = Date.now();
-
-  res.on("finish", () => {
-    //记录接口请求日志，用于监控接口请求情况
-    logger.info("http_request", {
-      method: req.method,
-      url: req.originalUrl,
-      statusCode: res.statusCode,
-      durationMs: Date.now() - startedAt,
-      ip: req.ip,
-      userAgent: req.get("user-agent"),
-    });
-  });
-
-  next();
-});
 
 // 配置 Swagger UI 和契约文件
 // Swagger UI：/api-docs ；契约文件：docs/openapi.yaml ，运行时可 GET /openapi.yaml 给 Apifox 导入
@@ -69,16 +60,14 @@ setupSwagger(app);
 app.use("/api", authRoutes);
 app.use("/api", userRoutes);
 
-// 专门的 404 not found 兜底中间件，
-// 所以访问不存在的接口时可能还是 Express 默认 404，不一定走统一响应格式
-// 做法就是：在所有业务路由之后、errorMiddleware 之前，加一个兜底中间件：
-// 这样就会走统一的响应
+// 错误处理中间件 ======================================
+// 404 兜底：未匹配任何已注册路由时进入此处，交给 errorMiddleware 输出统一错误格式
+//（若去掉本段，则会落到 Express 默认 404，响应格式与业务错误不一致）
 app.use((req, res, next) => {
   next(createHttpError(404, "接口不存在"));
 });
 
-// 注册全局错误处理中间件
-//它在所有路由后面，所以能作为最后兜底。
+// 全局错误处理（含上一步传入的 404），放在所有路由与 404 兜底之后
 app.use(errorMiddleware);
 
 export default app;
