@@ -28,6 +28,8 @@ const { User } = initModels(sequelize);
 export async function connectDatabase() {
   await sequelize.authenticate();
   if (APP_ENV === "development") {
+    // sync 按你代码里的Model定义，尝试让数据库表与模型定义保持一致（建表）
+    // alter: true 表示如果表不存在，则创建表；如果表存在，则更新表结构
     await sequelize.sync({ alter: true });
   }
 }

@@ -13,6 +13,7 @@
     "docker:pnpm": "cross-env APP_ENV=development docker compose --env-file .env.development -f docker/docker-compose.base.yaml -f docker/docker-compose.dev.yaml exec -e CI=true -T app pnpm",
     "docker:dev:debug": "cross-env APP_ENV=development docker compose --env-file .env.development -f docker/docker-compose.base.yaml -f docker/docker-compose.dev.yaml -f docker/docker-compose.debug.yaml up -d --build",
     "docker:dev": "cross-env APP_ENV=development docker compose --env-file .env.development -f docker/docker-compose.base.yaml -f docker/docker-compose.dev.yaml up -d --build",
+    "docker:dev:down": "cross-env APP_ENV=development docker compose --env-file .env.development -f docker/docker-compose.base.yaml -f docker/docker-compose.dev.yaml down",
     "docker:test": "cross-env APP_ENV=test docker compose --env-file .env.test -f docker/docker-compose.base.yaml -f docker/docker-compose.test.yaml up -d --build",
     "docker:prod": "cross-env APP_ENV=production docker compose --env-file .env.production -f docker/docker-compose.base.yaml -f docker/docker-compose.yaml up -d --build"
   },
