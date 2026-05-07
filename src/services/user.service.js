@@ -19,8 +19,19 @@ async function findUserOrThrow(id) {
   return user;
 }
 
-export async function findAllUsers() {
-  return User.findAll();
+// 一定要注意 service 中只接收controller调用并传递参数，不能操作req和res对象
+export async function findUsersPage(page, limit) {
+  const offset = (page - 1) * limit;
+  const [users, total] = await Promise.all([
+    User.findAll({
+      limit,
+      offset,
+      order: [["id", "ASC"]],
+    }),
+    User.count(),
+  ]);
+  const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
+  return { users, total, totalPages };
 }
 
 export async function findUserById(id) {

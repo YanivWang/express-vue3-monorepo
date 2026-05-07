@@ -1,10 +1,15 @@
-import { findAllUsers, findUserById, removeUser, updateUserById } from "../services/user.service.js";
+import { findUsersPage, findUserById, removeUser, updateUserById } from "../services/user.service.js";
 import { success } from "../utils/response.js";
 
 export async function getUsers(req, res) {
-  console.log("req.user111111>>>", req.user);
-  const users = await findAllUsers();
-  return success(res, "获取用户列表成功", { users });
+  //从请求查询参数中取出被 getUsersSchema 校验(清洗)过的 page 和 limit
+  const { page, limit } = req.query;
+  const { users, total, totalPages } = await findUsersPage(page, limit);
+  const hasNext = totalPages > 0 && page < totalPages;
+  return success(res, "获取用户列表成功", {
+    users,
+    pagination: { page, limit, total, totalPages, hasNext },
+  });
 }
 
 export async function getUserById(req, res) {

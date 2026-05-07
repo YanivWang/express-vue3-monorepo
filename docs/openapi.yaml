@@ -2,14 +2,14 @@
 openapi: 3.0.3
 info:
   title: express-demo-02 · Express ESM 接口文档
-  version: 1.1.0
+  version: 1.2.0
   description: |
     项目 express-demo-02；注册、登录与用户管理路由与 `src/app.js`、`src/routes/*.routes.js` 一致。
     - 认证：`POST /api/register`、`POST /api/login` 无需登录。
     - 用户：`src/routes/user.routes.js` 在路由级挂载 `authMiddleware`，须在请求头携带 `Authorization: Bearer <JWT>`（登录成功返回的 token）。
     - 参数校验：`validate.middleware.js` + Zod schema；失败时 HTTP 400，`msg` 为多条校验信息的英文分号拼接。
     - 未匹配路由：全局 404，`msg` 为「接口不存在」。
-    - `GET /api/users` 的 `page`、`limit` 已通过校验（缺省为 1、10）；当前 `user.controller` 仍调用全量 `findAllUsers()`，响应体仍返回完整 `users` 数组（分页参数仅占位校验，与实现对齐）。
+    - `GET /api/users` 使用 `findUsersPage`：`page`、`limit` 经 `getUsersSchema` 校验（缺省 1、10，`limit` 最大 100）；响应含当前页 `users` 与 `pagination`（total、totalPages、hasNext 等）。
 
 servers:
   - url: http://localhost:{port}
@@ -98,11 +98,38 @@ components:
         updatedAt:
           type: string
           format: date-time
+    UsersListPagination:
+      type: object
+      description: 与 `user.controller#getUsers` 返回的 `pagination` 字段一致
+      required: [page, limit, total, totalPages, hasNext]
+      properties:
+        page:
+          type: integer
+          description: 当前页码（从 1 开始）
+          minimum: 1
+          example: 1
+        limit:
+          type: integer
+          description: 每页条数（最大 100，与 Zod schema 一致）
+          minimum: 1
+          maximum: 100
+          example: 10
+        total:
+          type: integer
+          description: 用户总条数
+          minimum: 0
+        totalPages:
+          type: integer
+          description: 总页数；无数据时为 0
+          minimum: 0
+        hasNext:
+          type: boolean
+          description: 是否还有下一页
     UsersListSuccess:
       allOf:
         - $ref: "#/components/schemas/MsgBody"
         - type: object
-          required: [users]
+          required: [users, pagination]
           properties:
             code:
               example: 200
@@ -112,6 +139,8 @@ components:
               type: array
               items:
                 $ref: "#/components/schemas/UserItem"
+            pagination:
+              $ref: "#/components/schemas/UsersListPagination"
     UserOneSuccess:
       allOf:
         - $ref: "#/components/schemas/MsgBody"
@@ -247,7 +276,8 @@ paths:
       summary: 获取用户列表
       description: |
         需在请求头携带 Bearer JWT。
-        查询参数 `page`、`limit` 由 `getUsersSchema` 校验：缺省分别为 `1`、`10`；须为正整数。当前控制器仍返回全量 `users`，与数据库实现一致。
+        查询参数 `page`、`limit` 由 `getUsersSchema` 校验：缺省分别为 `1`、`10`；须为正整数；`limit` 不超过 100。
+        列表按用户 `id` 升序分页；响应体含 `users`（当前页）与 `pagination`（total、totalPages、hasNext）。
       security:
         - bearerAuth: []
       parameters:
@@ -262,10 +292,11 @@ paths:
         - name: limit
           in: query
           required: false
-          description: 每页条数，缺省 10；正整数
+          description: 每页条数，缺省 10；正整数，最大 100
           schema:
             type: integer
             minimum: 1
+            maximum: 100
             default: 10
       responses:
         "200":
