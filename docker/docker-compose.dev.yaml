@@ -17,9 +17,9 @@ services:
       - mysql_dev_data:/var/lib/mysql
       - ../logs/mysql:/var/log/mysql
       - ./mysql-dev.cnf:/etc/mysql/conf.d/dev-logging.cnf:ro
-    # 仅此栈映射 MySQL 到宿主机（${MYSQL_HOST_PORT}，由 --env-file 提供）；prod/test 无 mysql.ports
+    # 仅此栈映射 MySQL（3306:3306）；prod/test 不暴露 MySQL 到宿主机
     ports:
-      - "${MYSQL_HOST_PORT:-3306}:3306"
+      - "3306:3306"
 
   app:
     build:

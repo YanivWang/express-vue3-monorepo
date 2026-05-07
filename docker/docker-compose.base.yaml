@@ -2,7 +2,7 @@
 # 示例：docker compose --env-file .env.development -f docker/docker-compose.base.yaml -f docker/docker-compose.dev.yaml up -d
 #
 # mysql 不在此声明 volumes / ports / container_name，避免多环境卷合并时挂载重复路径。
-# 开发栈在 docker-compose.dev.yaml 为 mysql 补充 ports（宿主机 ${MYSQL_HOST_PORT}）；prod/test 覆盖层不映射 MySQL。
+# 开发栈在 docker-compose.dev.yaml 为 mysql 补充 ports（3306:3306）；prod/test 覆盖层不映射 MySQL。
 # app 不声明 ports / env_file / APP_ENV，由各环境覆盖。
 
 services:
