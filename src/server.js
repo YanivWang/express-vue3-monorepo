@@ -2,8 +2,10 @@
 import { PORT } from "./env.js";
 import app from "./app.js";
 import { connectDatabase } from "./db.js";
+import { ensureUploadsRoot } from "./config/upload.config.js";
 
 await connectDatabase();
+ensureUploadsRoot();
 
 // HTTP 服务应该在「数据库已就绪」之后再 listen
 app.listen(PORT, () => {

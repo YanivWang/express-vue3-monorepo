@@ -1,13 +1,16 @@
 // 应用文件: 创建 Express 服务 + 注册中间件 + 注册路由
 
-import express from "express";
 import cors from "cors";
 import helmet from "helmet";
+import express from "express";
+import { uploadsRoot } from "./config/upload.config.js";
 import { setupSwagger } from "./swagger.js";
 import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import postRoutes from "./routes/post.routes.js";
 import commentRoutes from "./routes/comment.routes.js";
+import categoryRoutes from "./routes/category.routes.js";
+import uploadRoutes from "./routes/upload.routes.js";
 import { createHttpError, errorMiddleware } from "./middlewares/error.middleware.js";
 import { globalRateLimitMiddleware } from "./middlewares/rateLimit.middleware.js";
 import { compressionMiddleware } from "./middlewares/compression.middleware.js";
@@ -41,6 +44,9 @@ app.use(cors());
 // 放在限流、body 解析之前，以便访问日志覆盖 429、JSON 解析失败等仍会正常结束响应的请求
 app.use(httpRequestLogMiddleware);
 
+// 用户上传的图片静态资源，不参与 API 全局限流
+app.use("/uploads", express.static(uploadsRoot));
+
 //全局请求频率限制（对所有路由都生效）
 app.use(globalRateLimitMiddleware);
 
@@ -63,8 +69,8 @@ app.use("/api", authRoutes);
 app.use("/api", userRoutes);
 app.use("/api", postRoutes);
 app.use("/api", commentRoutes);
-
-// 错误处理中间件 ======================================
+app.use("/api", categoryRoutes);
+app.use("/api", uploadRoutes);
 // 404 兜底：未匹配任何已注册路由时进入此处，交给 errorMiddleware 输出统一错误格式
 //（若去掉本段，则会落到 Express 默认 404，响应格式与业务错误不一致）
 app.use((req, res, next) => {

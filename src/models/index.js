@@ -1,4 +1,5 @@
 import { defineUserModel } from "./user.model.js";
+import { defineCategoryModel } from "./category.model.js";
 import { definePostModel } from "./post.model.js";
 import { defineCommentModel } from "./comment.model.js";
 
@@ -8,13 +9,14 @@ import { defineCommentModel } from "./comment.model.js";
 //sequelize 是 Sequelize 实例
 export function initModels(sequelize) {
   const User = defineUserModel(sequelize);
-  //注册Post模型类
-  const Post = definePostModel(sequelize, User);
+  const Category = defineCategoryModel(sequelize);
+  const Post = definePostModel(sequelize, User, Category);
   const Comment = defineCommentModel(sequelize, User, Post);
 
   return {
     User,
-    Post, //导出Post模型类
+    Category,
+    Post,
     Comment,
   };
 }

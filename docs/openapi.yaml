@@ -2,17 +2,19 @@
 openapi: 3.0.3
 info:
   title: express-demo-02 · Express ESM 接口文档
-  version: 1.5.0
+  version: 1.7.0
   description: |
-    项目 express-demo-02；注册、登录、用户、文章与评论路由与 `src/app.js`、`src/routes/*.routes.js` 一致。
+    项目 express-demo-02；注册、登录、用户、文章、分类、图片上传与评论路由与 `src/app.js`、`src/routes/*.routes.js` 一致。
     - 认证：`POST /api/register`、`POST /api/login` 无需登录。
     - 用户：`src/routes/user.routes.js` 在路由级挂载 `authMiddleware`，须在请求头携带 `Authorization: Bearer <JWT>`（登录成功返回的 token）。
-    - 文章：`src/routes/post.routes.js` — `GET /api/posts` 公开分页（仅 `published: true`，按 id 降序）；`GET /api/posts/{id}` 公开读详情，路由未挂载可选 JWT，`req.user` 恒为空，故未发布文章对匿名用户为 404（与 `findPostByIdPublic` 一致）；`GET /api/posts/mine/list` 及创建/更新/删除需 Bearer；更新/删除须为作者或 `role === 1` 的管理员。
+    - 分类：`GET /api/categories` 公开；返回两级树（仅 `id`/`name`，根为一级、children 为二级叶子）。文章创建时 `categoryId` 必须为二级叶子 id；`GET /api/posts` 可选 `parentId`（一级 id）或 `categoryId`（叶子 id），二者不得同传。
+    - 上传：`POST /api/uploads` 需 Bearer；`multipart/form-data` 字段名 `files`（可多文件），单文件最大 5MB，类型 jpeg/png/gif/webp；响应 `urls` 为可写入文章 `images` 的 `/uploads/...` 路径。静态访问 `GET /uploads/...`。
+    - 文章：`Post.images` 为配图 URL 字符串数组（最多 24 条，须为 `/uploads/` 前缀）；无独立 slug/摘要字段。`src/routes/post.routes.js` — `GET /api/posts` 公开分页（仅 `published: true`）；`GET /api/posts/{id}` 公开读详情；`GET /api/posts/mine/list` 及创建/更新/删除需 Bearer；更新/删除须为作者或 `role === 1` 的管理员。
     - 评论：`src/routes/comment.routes.js` — `GET /api/posts/{postId}/comments` 挂载 `optionalAuthMiddleware`，无 token 不报错；有合法 Bearer 时 `req.user` 可用于文章可见性（作者可访问自己未发布文章下的评论列表）。`POST` 发评与 `DELETE` 删评需 Bearer；删除限评论作者、文章作者或管理员（`role === 1`）。
     - 参数校验：`validate.middleware.js` + Zod schema；失败时 HTTP 400，`msg` 为多条校验信息的英文分号拼接。
     - 未匹配路由：全局 404，`msg` 为「接口不存在」。
     - `GET /api/users` 使用 `findUsersPage`：`page`、`limit` 经 `getUsersSchema` 校验（缺省 1、10，`limit` 最大 100）；响应含当前页 `users` 与 `pagination`（total、totalPages、hasNext 等）。
-    - `GET /api/posts`、`GET /api/posts/mine/list`：`page`、`limit` 经 `listPostsSchema` / `listMyPostsSchema`（缺省 1、10，`limit` 最大 100）；响应含 `posts` 与 `pagination`。
+    - `GET /api/posts`、`GET /api/posts/mine/list`：`page`、`limit` 与可选 `parentId`/`categoryId` 经 `listPostsSchema` / `listMyPostsSchema`（缺省 1、10，`limit` 最大 100）；响应含 `posts` 与 `pagination`。
     - `GET /api/posts/{postId}/comments`：`page`、`limit` 经 `listCommentsSchema`（缺省 1、20，`limit` 最大 100）；列表仅顶层评论（`parentId` 为 null），按 id 降序分页；每条含嵌套 `replies`（该层下全部直接回复、按 id 升序）；删文章时评论随 `postId` 外键 `ON DELETE CASCADE` 一并删除（见 `Comment`→`Post` 关联）。
 
 servers:
@@ -32,6 +34,10 @@ tags:
     description: 用户列表与单条查询、更新、删除（需 Bearer JWT）
   - name: 文章
     description: 文章列表、详情、我的文章与增删改（部分接口需 Bearer JWT）
+  - name: 分类
+    description: 两级分类树（公开 GET）
+  - name: 上传
+    description: 正文配图多文件上传（需 Bearer JWT）
   - name: 评论
     description: 文章下的评论列表、发表与删除（列表可选 Bearer，发评/删评需 Bearer JWT）
 
@@ -206,9 +212,48 @@ components:
           type: string
           nullable: true
           description: 头像 URL 或路径，可为 null
+    PostCategory:
+      type: object
+      description: 文章所属叶子分类（id/name）；与 `post.service.js` 中 `categoryAttributes` 一致
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+    CategoryTreeNode:
+      type: object
+      description: 分类节点；根节点含 `children` 为二级列表，叶子无 `children`
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        parentId:
+          type: integer
+          nullable: true
+        sortOrder:
+          type: integer
+        children:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoryTreeNode"
+    CategoriesListSuccess:
+      allOf:
+        - $ref: "#/components/schemas/MsgBody"
+        - type: object
+          required: [categories]
+          properties:
+            code:
+              example: 200
+            msg:
+              example: 获取分类成功
+            categories:
+              type: array
+              items:
+                $ref: "#/components/schemas/CategoryTreeNode"
     PostItem:
       type: object
-      description: Sequelize Post 行序列化结果，含嵌套 `author`
+      description: Sequelize Post 行序列化结果，含嵌套 `author` 与 `category`
       properties:
         id:
           type: integer
@@ -220,6 +265,15 @@ components:
           type: boolean
         authorId:
           type: integer
+        categoryId:
+          type: integer
+          description: 所属二级（叶子）分类 id
+        images:
+          type: array
+          description: 正文配图路径列表，与 `POST /api/uploads` 返回及入库规则一致
+          items:
+            type: string
+            example: "/uploads/2026/05/1712345678901-a1b2c3d4e5f67890.jpg"
         createdAt:
           type: string
           format: date-time
@@ -228,6 +282,8 @@ components:
           format: date-time
         author:
           $ref: "#/components/schemas/PostAuthor"
+        category:
+          $ref: "#/components/schemas/PostCategory"
     PostsListPagination:
       type: object
       description: 与文章列表接口返回的 `pagination` 一致（结构与用户分页相同）
@@ -296,7 +352,7 @@ components:
               $ref: "#/components/schemas/PostItem"
     CreatePostBody:
       type: object
-      required: [title, content]
+      required: [title, content, categoryId]
       properties:
         title:
           type: string
@@ -307,9 +363,19 @@ components:
           type: string
           description: trim，非空
           minLength: 1
+        categoryId:
+          type: integer
+          minimum: 1
+          description: 必须为二级叶子分类 id（见 `GET /api/categories`）
         published:
           type: boolean
           description: 可选；缺省由服务端处理（当前实现为 `Boolean(payload.published)`，未传则为 false）
+        images:
+          type: array
+          description: 可选；缺省为 `[]`。每项须为 `/uploads/` 开头的本站路径（见上传接口）
+          maxItems: 24
+          items:
+            type: string
     UpdatePostBody:
       type: object
       description: 部分更新；至少提供一个字段（否则服务端 400「没有要更新的字段」）
@@ -321,8 +387,17 @@ components:
         content:
           type: string
           minLength: 1
+        categoryId:
+          type: integer
+          minimum: 1
+          description: 可选；若传则须为二级叶子分类 id
         published:
           type: boolean
+        images:
+          type: array
+          maxItems: 24
+          items:
+            type: string
     CreatePostSuccess:
       allOf:
         - $ref: "#/components/schemas/MsgBody"
@@ -356,6 +431,22 @@ components:
               example: 200
             msg:
               example: 删除文章成功
+
+    UploadImagesSuccess:
+      allOf:
+        - $ref: "#/components/schemas/MsgBody"
+        - type: object
+          required: [urls]
+          properties:
+            code:
+              example: 200
+            msg:
+              example: 上传成功
+            urls:
+              type: array
+              description: 可写入文章 `images` 的公开路径（`/uploads/年/月/文件名`）
+              items:
+                type: string
 
     CommentReplyItem:
       type: object
@@ -790,13 +881,83 @@ paths:
               schema:
                 $ref: "#/components/schemas/MsgBody"
 
+  /api/uploads:
+    post:
+      tags: [上传]
+      summary: 上传正文配图（多文件）
+      description: |
+        需 Bearer JWT。`Content-Type: multipart/form-data`，字段名 **`files`**，可选多个文件。
+        单文件最大 5MB；类型限 jpeg / png / gif / webp。响应体根级字段 **`urls`** 填入 `POST/PATCH /api/posts` 的 `images` 数组。
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [files]
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadImagesSuccess"
+        "400":
+          description: 未选择文件、类型不符或超出大小/数量限制
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "401":
+          description: 未携带或无效 JWT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "500":
+          description: 服务端异常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+
+  /api/categories:
+    get:
+      tags: [分类]
+      summary: 获取两级分类树
+      description: |
+        无需 JWT。根节点为一级分类（`parentId` 为 null），`children` 为二级叶子；与启动后种子数据或自建数据一致。
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoriesListSuccess"
+        "500":
+          description: 服务端异常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+
   /api/posts:
     get:
       tags: [文章]
       summary: 获取已发布文章列表（分页）
       description: |
         无需 JWT。仅查询 `published: true`；排序为 id 降序。
-        查询参数 `page`、`limit` 与 `post.schema.js` 中 `listPostsSchema` 一致：缺省 `1`、`10`；须为正整数；`limit` 最大 100。
+        查询参数 `page`、`limit`、`parentId`、`categoryId` 与 `post.schema.js` 中 `listPostsQuerySchema` 一致：缺省 `1`、`10`；须为正整数；`limit` 最大 100。
+        `parentId` 为**一级分类 id** 时返回归属其下任一叶子的文章；`categoryId` 为**叶子分类 id**；二者不得同时传递。
+        传 `categoryId` 时若不是有效叶子则 400。
       parameters:
         - name: page
           in: query
@@ -813,6 +974,20 @@ paths:
             minimum: 1
             maximum: 100
             default: 10
+        - name: parentId
+          in: query
+          required: false
+          description: 一级分类 id；与 categoryId 二选一
+          schema:
+            type: integer
+            minimum: 1
+        - name: categoryId
+          in: query
+          required: false
+          description: 二级叶子分类 id；与 parentId 二选一
+          schema:
+            type: integer
+            minimum: 1
       responses:
         "200":
           description: 成功
@@ -821,7 +996,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/PostsListSuccess"
         "400":
-          description: 分页参数校验失败
+          description: 分页或分类筛选参数校验失败（含 parentId 与 categoryId 同传、一级 id 无效等）
           content:
             application/json:
               schema:
@@ -875,7 +1050,7 @@ paths:
       tags: [文章]
       summary: 获取当前用户的全部文章（分页）
       description: |
-        需在请求头携带 Bearer JWT。返回当前登录用户作为作者的所有文章（含未发布）；分页规则与公开列表相同。
+        需在请求头携带 Bearer JWT。返回当前登录用户作为作者的所有文章（含未发布）；分页与分类筛选规则同公开列表（`parentId` / `categoryId` 二选一，与 `listPostsQuerySchema` 一致）。
       security:
         - bearerAuth: []
       parameters:
@@ -894,6 +1069,18 @@ paths:
             minimum: 1
             maximum: 100
             default: 10
+        - name: parentId
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - name: categoryId
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
       responses:
         "200":
           description: 成功
@@ -902,7 +1089,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/MyPostsListSuccess"
         "400":
-          description: 分页参数校验失败
+          description: 分页或分类筛选参数校验失败
           content:
             application/json:
               schema:

@@ -2,8 +2,8 @@ import { createPost, findMyPostsPage, findPostByIdPublic, findPostsPagePublic, r
 import { success } from "../utils/response.js";
 
 export async function getPosts(req, res) {
-  const { page, limit } = req.query;
-  const { posts, total, totalPages } = await findPostsPagePublic(page, limit);
+  const { page, limit, parentId, categoryId } = req.query;
+  const { posts, total, totalPages } = await findPostsPagePublic(page, limit, { parentId, categoryId });
   const hasNext = totalPages > 0 && page < totalPages;
   return success(res, "获取文章列表成功", {
     posts,
@@ -12,8 +12,8 @@ export async function getPosts(req, res) {
 }
 
 export async function getMyPosts(req, res) {
-  const { page, limit } = req.query;
-  const { posts, total, totalPages } = await findMyPostsPage(req.user.id, page, limit);
+  const { page, limit, parentId, categoryId } = req.query;
+  const { posts, total, totalPages } = await findMyPostsPage(req.user.id, page, limit, { parentId, categoryId });
   const hasNext = totalPages > 0 && page < totalPages;
   return success(res, "获取我的文章成功", {
     posts,

@@ -1,3 +1,4 @@
+import multer from "multer";
 import { UniqueConstraintError } from "sequelize";
 import { fail } from "../utils/response.js";
 import { logger, serializeError } from "../utils/logger.js";
@@ -24,6 +25,19 @@ export function errorMiddleware(error, req, res, next) {
 
   if (res.headersSent) {
     return next(error);
+  }
+
+  if (error instanceof multer.MulterError) {
+    const map = {
+      LIMIT_FILE_SIZE: "单文件不超过 5MB",
+      LIMIT_FILE_COUNT: "上传文件数量过多",
+      LIMIT_UNEXPECTED_FILE: "请使用表单字段名 files 上传",
+    };
+    return fail(res, 400, map[error.code] || error.message);
+  }
+
+  if (typeof error?.message === "string" && error.message.startsWith("仅支持 jpeg")) {
+    return fail(res, 400, error.message);
   }
 
   if (error instanceof UniqueConstraintError) {

@@ -18,7 +18,37 @@ const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PWD, {
   dialect: "mysql",
 });
 
-const { User, Post, Comment } = initModels(sequelize);
+const { User, Category, Post, Comment } = initModels(sequelize);
+
+/** Categories 表为空时写入示例两级类目（与新库 / reset-db 配合） */
+async function seedDefaultCategoriesIfEmpty() {
+  const n = await Category.count();
+  if (n > 0) return;
+
+  const root = await Category.create({
+    name: "IT技术",
+    parentId: null,
+    sortOrder: 0,
+  });
+
+  const children = [
+    ["后端", 0],
+    ["前端", 1],
+    ["Android", 2],
+    ["iOS", 3],
+    ["人工智能", 4],
+    ["数据库", 5],
+    ["程序开发", 6],
+  ];
+
+  await Category.bulkCreate(
+    children.map(([name, sortOrder]) => ({
+      name,
+      parentId: root.id,
+      sortOrder,
+    })),
+  );
+}
 
 /**
  * 启动时 `authenticate()` 校验连通性（账号、库名、网络等）；失败则抛错，避免拖到首条业务 SQL 才暴露。
@@ -31,7 +61,10 @@ export async function connectDatabase() {
     // sync 按你代码里的Model定义，尝试让数据库表与模型定义保持一致（建表）
     // alter: true 表示如果表不存在，则创建表；如果表存在，则更新表结构
     await sequelize.sync({ alter: true });
+  } else {
+    await sequelize.sync();
   }
+  await seedDefaultCategoriesIfEmpty();
 }
 
-export { sequelize, User, Post, Comment };
+export { sequelize, User, Category, Post, Comment };
