@@ -6,6 +6,7 @@ import helmet from "helmet";
 import { setupSwagger } from "./swagger.js";
 import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
+import postRoutes from "./routes/post.routes.js";
 import { createHttpError, errorMiddleware } from "./middlewares/error.middleware.js";
 import { globalRateLimitMiddleware } from "./middlewares/rateLimit.middleware.js";
 import { compressionMiddleware } from "./middlewares/compression.middleware.js";
@@ -59,6 +60,7 @@ setupSwagger(app);
 // app.use("/api", xxx) = 把 xxx 这套路由表接到 /api 后面；真实路径 = /api + 子路由里的 path。
 app.use("/api", authRoutes);
 app.use("/api", userRoutes);
+app.use("/api", postRoutes);
 
 // 错误处理中间件 ======================================
 // 404 兜底：未匹配任何已注册路由时进入此处，交给 errorMiddleware 输出统一错误格式
