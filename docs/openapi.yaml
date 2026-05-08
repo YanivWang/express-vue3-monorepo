@@ -2,16 +2,18 @@
 openapi: 3.0.3
 info:
   title: express-demo-02 · Express ESM 接口文档
-  version: 1.3.0
+  version: 1.5.0
   description: |
-    项目 express-demo-02；注册、登录、用户与文章路由与 `src/app.js`、`src/routes/*.routes.js` 一致。
+    项目 express-demo-02；注册、登录、用户、文章与评论路由与 `src/app.js`、`src/routes/*.routes.js` 一致。
     - 认证：`POST /api/register`、`POST /api/login` 无需登录。
     - 用户：`src/routes/user.routes.js` 在路由级挂载 `authMiddleware`，须在请求头携带 `Authorization: Bearer <JWT>`（登录成功返回的 token）。
-    - 文章：`src/routes/post.routes.js` — `GET /api/posts` 公开分页（仅 `published: true`，按 id 降序）；`GET /api/posts/{id}` 公开读详情，当前实现仅返回已发布文章（未发布一律 404，`post.controller` 虽传入 `req.user?.id` 但该路由未挂载可选 JWT，`req.user` 实际恒为空）；`GET /api/posts/mine/list` 及创建/更新/删除需 Bearer；更新/删除须为作者或 `role === 1` 的管理员。
+    - 文章：`src/routes/post.routes.js` — `GET /api/posts` 公开分页（仅 `published: true`，按 id 降序）；`GET /api/posts/{id}` 公开读详情，路由未挂载可选 JWT，`req.user` 恒为空，故未发布文章对匿名用户为 404（与 `findPostByIdPublic` 一致）；`GET /api/posts/mine/list` 及创建/更新/删除需 Bearer；更新/删除须为作者或 `role === 1` 的管理员。
+    - 评论：`src/routes/comment.routes.js` — `GET /api/posts/{postId}/comments` 挂载 `optionalAuthMiddleware`，无 token 不报错；有合法 Bearer 时 `req.user` 可用于文章可见性（作者可访问自己未发布文章下的评论列表）。`POST` 发评与 `DELETE` 删评需 Bearer；删除限评论作者、文章作者或管理员（`role === 1`）。
     - 参数校验：`validate.middleware.js` + Zod schema；失败时 HTTP 400，`msg` 为多条校验信息的英文分号拼接。
     - 未匹配路由：全局 404，`msg` 为「接口不存在」。
     - `GET /api/users` 使用 `findUsersPage`：`page`、`limit` 经 `getUsersSchema` 校验（缺省 1、10，`limit` 最大 100）；响应含当前页 `users` 与 `pagination`（total、totalPages、hasNext 等）。
     - `GET /api/posts`、`GET /api/posts/mine/list`：`page`、`limit` 经 `listPostsSchema` / `listMyPostsSchema`（缺省 1、10，`limit` 最大 100）；响应含 `posts` 与 `pagination`。
+    - `GET /api/posts/{postId}/comments`：`page`、`limit` 经 `listCommentsSchema`（缺省 1、20，`limit` 最大 100）；列表仅顶层评论（`parentId` 为 null），按 id 降序分页；每条含嵌套 `replies`（该层下全部直接回复、按 id 升序）；删文章时评论随 `postId` 外键 `ON DELETE CASCADE` 一并删除（见 `Comment`→`Post` 关联）。
 
 servers:
   - url: http://localhost:{port}
@@ -30,6 +32,8 @@ tags:
     description: 用户列表与单条查询、更新、删除（需 Bearer JWT）
   - name: 文章
     description: 文章列表、详情、我的文章与增删改（部分接口需 Bearer JWT）
+  - name: 评论
+    description: 文章下的评论列表、发表与删除（列表可选 Bearer，发评/删评需 Bearer JWT）
 
 components:
   securitySchemes:
@@ -352,6 +356,91 @@ components:
               example: 200
             msg:
               example: 删除文章成功
+
+    CommentReplyItem:
+      type: object
+      description: 单条评论（含嵌套回复时不含 `replies` 字段）；与 Sequelize 序列化一致
+      properties:
+        id:
+          type: integer
+        postId:
+          type: integer
+        authorId:
+          type: integer
+        parentId:
+          type: integer
+          nullable: true
+          description: 顶层为 null；回复时为父评论 id
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        author:
+          $ref: "#/components/schemas/PostAuthor"
+    CommentThreadItem:
+      allOf:
+        - $ref: "#/components/schemas/CommentReplyItem"
+        - type: object
+          properties:
+            replies:
+              type: array
+              description: 仅列表接口顶层评论含此字段；该顶层下的全部直接回复（按 id 升序，`comment.service.js` 不再截断条数）
+              items:
+                $ref: "#/components/schemas/CommentReplyItem"
+    CommentsListSuccess:
+      allOf:
+        - $ref: "#/components/schemas/MsgBody"
+        - type: object
+          required: [comments, pagination]
+          properties:
+            code:
+              example: 200
+            msg:
+              example: 获取评论列表成功
+            comments:
+              type: array
+              items:
+                $ref: "#/components/schemas/CommentThreadItem"
+            pagination:
+              $ref: "#/components/schemas/PostsListPagination"
+    CreateCommentBody:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          description: trim，非空，最长 5000 字符（与 `comment.schema.js` 一致）
+          minLength: 1
+          maxLength: 5000
+        parentId:
+          type: integer
+          minimum: 1
+          description: 可选；回复时传入父评论 id，且该评论须属于路径中的文章。可与 `comment.schema.js` 一致地传字符串数字或 `null`（视为未回复）。
+    CreateCommentSuccess:
+      allOf:
+        - $ref: "#/components/schemas/MsgBody"
+        - type: object
+          required: [comment]
+          properties:
+            code:
+              example: 200
+            msg:
+              example: 发表评论成功
+            comment:
+              $ref: "#/components/schemas/CommentReplyItem"
+    DeleteCommentSuccess:
+      allOf:
+        - $ref: "#/components/schemas/MsgBody"
+        - type: object
+          properties:
+            code:
+              example: 200
+            msg:
+              example: 删除评论成功
 
 paths:
   /api/register:
@@ -836,7 +925,7 @@ paths:
       tags: [文章]
       summary: 按 id 获取文章详情
       description: |
-        无需 JWT。当前实现仅返回已发布文章；id 不存在或未发布时均为 404，`msg` 为「文章不存在」。
+        无需 JWT。`findPostByIdPublic`：仅已发布可匿名浏览；未发布时仅当「当前请求的 JWT payload 中的用户 id」与作者一致时可读，但本路由未挂载可选 JWT，`req.user` 恒为空，故未发布文章一律 404。id 不存在或未发布时均为 404，`msg` 为「文章不存在」。
       parameters:
         - name: id
           in: path
@@ -979,6 +1068,185 @@ paths:
                 msg: 无权删除该文章
         "404":
           description: 文章不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "500":
+          description: 服务端异常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+
+  /api/posts/{postId}/comments:
+    get:
+      tags: [评论]
+      summary: 获取某篇文章的评论列表（分页）
+      description: |
+        文章可见性与 `post.service.js` 中 `findPostByIdPublic` 一致：公开访客仅可读**已发布**文章下的评论；路径中文章不存在或未发布时为 404「文章不存在」（作者访问自己**未发布**文章时，须在请求头携带合法 Bearer JWT，由 `optionalAuthMiddleware` 写入 `req.user`）。
+        查询参数：`page` 缺省 `1`，`limit` 缺省 `20`、最大 `100`（与 `listCommentsSchema` 一致）。
+        分页数据为顶层评论（`parentId` 为 null），每条下的 `replies` 为该顶层下的全部直接回复（按 id 升序，不截断）。
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          description: 文章主键，不含前导零的正整数字符串
+          schema:
+            type: string
+            pattern: "^[1-9]\\d*$"
+          example: "1"
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommentsListSuccess"
+        "400":
+          description: 路径或分页参数校验失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "404":
+          description: 文章不存在或当前访问者无权查看（未发布且非作者等）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+              example:
+                code: 404
+                msg: 文章不存在
+        "500":
+          description: 服务端异常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+    post:
+      tags: [评论]
+      summary: 发表评论（可回复某条评论）
+      description: 需在请求头携带 Bearer JWT；`content` 必填；可选 `parentId` 表示回复（父评论须属于该文章）。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[1-9]\\d*$"
+          example: "1"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCommentBody"
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateCommentSuccess"
+        "400":
+          description: 参数校验失败、内容为空、父评论不存在或不属于该文章等
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "401":
+          description: 未携带或无效 JWT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "404":
+          description: 文章不存在或无权访问（与公开读详情规则一致）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+              example:
+                code: 404
+                msg: 文章不存在
+        "500":
+          description: 服务端异常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+
+  /api/posts/{postId}/comments/{commentId}:
+    delete:
+      tags: [评论]
+      summary: 删除评论
+      description: |
+        需在请求头携带 Bearer JWT。评论作者、文章作者或管理员（`role === 1`）可删除。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[1-9]\\d*$"
+          example: "1"
+        - name: commentId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[1-9]\\d*$"
+          example: "1"
+      responses:
+        "200":
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteCommentSuccess"
+        "400":
+          description: 路径参数格式不合法
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "401":
+          description: 未携带或无效 JWT（含 service 中用户记录缺失时的「未登录或登录已过期」）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "403":
+          description: 非评论作者且非文章作者且非管理员
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+              example:
+                code: 403
+                msg: 无权删除该评论
+        "404":
+          description: 文章不存在，或评论不存在/不属于该文章
           content:
             application/json:
               schema:

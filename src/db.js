@@ -18,7 +18,7 @@ const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PWD, {
   dialect: "mysql",
 });
 
-const { User, Post } = initModels(sequelize);
+const { User, Post, Comment } = initModels(sequelize);
 
 /**
  * 启动时 `authenticate()` 校验连通性（账号、库名、网络等）；失败则抛错，避免拖到首条业务 SQL 才暴露。
@@ -34,4 +34,4 @@ export async function connectDatabase() {
   }
 }
 
-export { sequelize, User, Post };
+export { sequelize, User, Post, Comment };
