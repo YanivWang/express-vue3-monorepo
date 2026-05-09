@@ -1,9 +1,24 @@
 /**
- * 两端共享的 API 请求/响应基础类型
- * 具体业务接口类型应各自放在 apps 或领域包内
+ * 与 apps/backend/rest-api 默认 JSON 形态对齐（见 `src/utils/response.js`）
+ * 具体业务 DTO 在 openapi / 各 app 中扩展
  */
 
-/** 统一后端响应结构 */
+/** 失败体：`fail(res, statusCode, msg)` → `{ code: statusCode, msg }` */
+export interface ApiFailJson {
+  code: number;
+  msg: string;
+}
+
+/** 成功体：`success(res, msg, data)` → `{ code: 200, msg, ...data }`（data 扁平展开） */
+export type ApiSuccessJson<T extends Record<string, unknown> = Record<string, unknown>> = {
+  code: 200;
+  msg: string;
+} & T;
+
+/**
+ * @deprecated 历史命名；请使用 ApiSuccessJson / ApiFailJson。
+ * 与 `@express-vue3-monorepo/request-core` 的 `nested-data` 模式或旧后端一致时为 `{ code, message, data }`
+ */
 export interface ApiResponse<T = unknown> {
   code: number;
   message: string;
@@ -22,16 +37,28 @@ export interface UserInfo {
   permissions: string[];
 }
 
-/** 登录请求参数 */
+/** 登录请求参数（rest-api：`schema/auth.schema.js`） */
 export interface LoginParams {
   username: string;
   password: string;
-  captcha?: string;
-  captchaKey?: string;
 }
 
-/** 登录响应数据 */
+/** 注册请求参数 */
+export interface RegisterParams {
+  username: string;
+  password: string;
+}
+
+/**
+ * 登录接口 `POST /api/login` 解包后的载荷（经 `HttpRequest` 去掉 code/msg 后）
+ * 对应 `success(res, \"登录成功\", { token })`
+ */
 export interface LoginResult {
+  token: string;
+}
+
+/** @deprecated 旧版双 token 形态；rest-api 当前仅返回 `token` */
+export interface LegacyOAuthLoginResult {
   accessToken: string;
   refreshToken: string;
   expiresIn: number;

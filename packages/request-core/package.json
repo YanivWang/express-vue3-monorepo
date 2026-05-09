@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "UI-free HTTP client core（axios + 注入式 hooks）",
+  "description": "UI-free HTTP client core（axios + 注入式 hooks）；默认响应形态对齐 apps/backend/rest-api `{ code, msg, ...payload }`",
   "sideEffects": false,
   "exports": {
     ".": {

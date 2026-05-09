@@ -31,7 +31,8 @@ export interface CreatePcHttpOptions
 }
 
 /**
- * 创建 PC 端 HttpRequest：集成 Element Plus 默认 UI 反馈
+ * 创建 PC 端 HttpRequest：集成 Element Plus 默认 UI 反馈。
+ * 默认与 monorepo `rest-api` 的 `{ code, msg, ...payload }` 响应一致（见 `@express-vue3-monorepo/request-core` 的 `responseStyle`）。
  */
 export function createPcHttp(options: CreatePcHttpOptions = {}): HttpRequest {
   const {
@@ -67,6 +68,9 @@ export type { TokenStorage } from "@express-vue3-monorepo/shared/utils";
 export type {
   RequestConfig,
   ResponseData,
+  ResponseStyle,
+  NestedResponseData,
+  RestApiSuccessJson,
   CreateHttpOptions,
   HttpRequest,
   RefreshTokenResult,

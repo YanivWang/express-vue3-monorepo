@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "PC / H5 共享源码（类型、工具、请求 preset、hooks、组件、指令、i18n）；依赖 **`@express-vue3-monorepo/request-core`**、**`@express-vue3-monorepo/js-bridge`**；**`@express-vue3-monorepo/web-monitor`** 由应用直连",
+  "description": "PC / H5 共享源码（类型、工具、请求 preset、hooks、组件、指令、i18n）；HTTP 默认与 apps/backend/rest-api 对齐；依赖 **`@express-vue3-monorepo/request-core`**、**`@express-vue3-monorepo/js-bridge`**；**`@express-vue3-monorepo/web-monitor`** 由应用直连",
   "sideEffects": [
     "**/*.css",
     "**/*.scss",

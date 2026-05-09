@@ -31,7 +31,8 @@ export interface CreateH5HttpOptions
 }
 
 /**
- * 创建 H5 端 HttpRequest：集成 Vant 默认 UI 反馈
+ * 创建 H5 端 HttpRequest：集成 Vant 默认 UI 反馈。
+ * 默认与 monorepo `rest-api` 的 `{ code, msg, ...payload }` 响应一致（见 `@express-vue3-monorepo/request-core` 的 `responseStyle`）。
  */
 export function createH5Http(options: CreateH5HttpOptions = {}): HttpRequest {
   const {
@@ -74,6 +75,9 @@ export type { TokenStorage } from "@express-vue3-monorepo/shared/utils";
 export type {
   RequestConfig,
   ResponseData,
+  ResponseStyle,
+  NestedResponseData,
+  RestApiSuccessJson,
   CreateHttpOptions,
   HttpRequest,
   RefreshTokenResult,

@@ -4,14 +4,24 @@ import type { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from "a
 import type {
   RequestConfig,
   ResponseData,
+  ResponseStyle,
   CreateHttpOptions,
   TokenProvider,
   LoadingHandler,
   RequestHooks,
   RefreshTokenResult,
+  NormalizedError,
 } from "./types";
 import { HttpCode } from "./types";
-import { createNormalizedError, getRequestKey, isSuccessPayload, retryDelay } from "./utils";
+import {
+  createNormalizedError,
+  getRequestKey,
+  getRestApiMessage,
+  isNestedSuccessPayload,
+  isRecord,
+  stripRestApiEnvelope,
+  retryDelay,
+} from "./utils";
 
 /**
  * UI 无关的 HTTP 核心。
@@ -21,11 +31,14 @@ import { createNormalizedError, getRequestKey, isSuccessPayload, retryDelay } fr
  * 2. 通过依赖注入：tokenProvider / loading / hooks 将副作用交给 UI 绑定层
  * 3. 刷新 Token 使用「单例 Promise」，并发的 401 请求共享同一次刷新流程
  * 4. 请求/响应异常归一化为 NormalizedError
+ *
+ * 默认 `responseStyle: 'rest-api'`，与 apps/backend/rest-api 的 `success`/`fail` JSON 对齐。
  */
 export class HttpRequest {
   private instance: AxiosInstance;
   private baseURL: string;
   private successCode: number;
+  private responseStyle: ResponseStyle;
   private refreshPath: string;
   private tokenProvider?: TokenProvider;
   private loading?: LoadingHandler;
@@ -43,6 +56,7 @@ export class HttpRequest {
       timeout = 10000,
       headers = { "Content-Type": "application/json;charset=UTF-8" },
       successCode = 200,
+      responseStyle = "rest-api",
       refreshPath = "/auth/refresh",
       tokenProvider,
       loading,
@@ -51,6 +65,7 @@ export class HttpRequest {
 
     this.baseURL = baseURL;
     this.successCode = successCode;
+    this.responseStyle = responseStyle;
     this.refreshPath = refreshPath;
     this.tokenProvider = tokenProvider;
     this.loading = loading;
@@ -129,11 +144,27 @@ export class HttpRequest {
       },
     );
     if (status !== 200) throw createNormalizedError("Token 刷新失败", { type: "auth" });
+
+    if (this.responseStyle === "rest-api" && isRecord(data) && data.code === this.successCode) {
+      const rest = stripRestApiEnvelope(data);
+      const access =
+        typeof rest.accessToken === "string"
+          ? rest.accessToken
+          : typeof rest.token === "string"
+            ? rest.token
+            : undefined;
+      if (!access) throw createNormalizedError("Token 刷新失败", { type: "auth" });
+      return {
+        accessToken: access,
+        refreshToken: typeof rest.refreshToken === "string" ? rest.refreshToken : undefined,
+      };
+    }
+
     if (
-      !isSuccessPayload<RefreshTokenResult>(data) ||
+      !isNestedSuccessPayload<RefreshTokenResult>(data) ||
       (data as ResponseData<RefreshTokenResult>).code !== this.successCode
     ) {
-      const msg = isSuccessPayload<RefreshTokenResult>(data)
+      const msg = isNestedSuccessPayload<RefreshTokenResult>(data)
         ? (data as ResponseData<RefreshTokenResult>).message
         : "Token 刷新失败";
       throw createNormalizedError(msg, { type: "auth" });
@@ -180,13 +211,33 @@ export class HttpRequest {
         if (customConfig.cancelDuplicate) this.removePending(customConfig);
         if (customConfig.showLoading) this.loading?.onEnd();
 
-        if (!isSuccessPayload(data) || (data as ResponseData).code !== this.successCode) {
-          const msg = isSuccessPayload(data) ? (data as ResponseData).message : "请求失败";
-          const err = createNormalizedError(msg || "请求失败", {
-            type: "business",
-            code: isSuccessPayload(data) ? (data as ResponseData).code : undefined,
-            config: customConfig,
-          });
+        const businessErr = (): NormalizedError | null => {
+          if (this.responseStyle === "rest-api") {
+            if (!isRecord(data) || typeof data.code !== "number") {
+              return createNormalizedError("请求失败", { type: "business", config: customConfig });
+            }
+            if (data.code !== this.successCode) {
+              return createNormalizedError(getRestApiMessage(data), {
+                type: "business",
+                code: data.code,
+                config: customConfig,
+              });
+            }
+            return null;
+          }
+          if (!isNestedSuccessPayload(data) || (data as ResponseData).code !== this.successCode) {
+            const msg = isNestedSuccessPayload(data) ? (data as ResponseData).message : "请求失败";
+            return createNormalizedError(msg || "请求失败", {
+              type: "business",
+              code: isNestedSuccessPayload(data) ? (data as ResponseData).code : undefined,
+              config: customConfig,
+            });
+          }
+          return null;
+        };
+
+        const err = businessErr();
+        if (err) {
           if (customConfig.showError !== false) {
             this.hooks.onBusinessError?.({ error: err, config: customConfig, response });
             this.hooks.onError?.({ error: err, config: customConfig, response });
@@ -248,8 +299,18 @@ export class HttpRequest {
         const { status } = response;
 
         if (status === HttpCode.UNAUTHORIZED) {
+          const unauthorizedMsg = (): string => {
+            if (isRecord(response.data) && typeof response.data.msg === "string") {
+              return response.data.msg;
+            }
+            if (isRecord(response.data) && typeof response.data.message === "string") {
+              return response.data.message;
+            }
+            return "登录已过期";
+          };
+
           if (customConfig.skipAuthRefresh) {
-            const authErr = createNormalizedError("未授权", {
+            const authErr = createNormalizedError(unauthorizedMsg() || "未授权", {
               type: "auth",
               status,
               config: customConfig,
@@ -274,7 +335,7 @@ export class HttpRequest {
             } catch (e) {
               this.tokenProvider!.removeToken();
               this.tokenProvider!.removeRefreshToken();
-              const authErr = createNormalizedError((e as Error)?.message || "登录已过期", {
+              const authErr = createNormalizedError((e as Error)?.message || unauthorizedMsg(), {
                 type: "auth",
                 status,
                 config: customConfig,
@@ -284,7 +345,7 @@ export class HttpRequest {
               return Promise.reject(authErr);
             }
           } else {
-            const authErr = createNormalizedError("登录已过期", {
+            const authErr = createNormalizedError(unauthorizedMsg(), {
               type: "auth",
               status,
               config: customConfig,
@@ -308,8 +369,10 @@ export class HttpRequest {
           [HttpCode.NOT_FOUND]: "请求的资源不存在",
           [HttpCode.SERVER_ERROR]: "服务器内部错误，请稍后重试",
         };
+        const body = isRecord(response.data) ? response.data : null;
         const message =
           msgMap[status] ||
+          (body ? getRestApiMessage(body) : undefined) ||
           (response.data as { message?: string })?.message ||
           `请求失败（${status}）`;
 
@@ -327,10 +390,18 @@ export class HttpRequest {
     );
   }
 
+  /** 将拦截器已校验过的 JSON 体解包为业务类型 */
+  private unwrapResponseBody(data: unknown): unknown {
+    if (this.responseStyle === "rest-api") {
+      if (!isRecord(data)) return data;
+      const rest = stripRestApiEnvelope(data);
+      return Object.keys(rest).length === 0 ? undefined : rest;
+    }
+    return (data as ResponseData<unknown>).data;
+  }
+
   request<T = unknown>(config: RequestConfig): Promise<T> {
-    return this.instance
-      .request<ResponseData<T>>(config)
-      .then((res) => (res.data as ResponseData<T>).data);
+    return this.instance.request(config).then((res) => this.unwrapResponseBody(res.data) as T);
   }
 
   get<T = unknown>(

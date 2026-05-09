@@ -29,12 +29,29 @@ export interface RequestConfig extends AxiosRequestConfig {
   requestKey?: string;
 }
 
-/** 统一后端响应结构 */
-export interface ResponseData<T = unknown> {
+/** 与 monorepo 内 apps/backend/rest-api 默认 JSON 形态对齐（success / fail） */
+export type ResponseStyle = "rest-api" | "nested-data";
+
+/**
+ * rest-api：扁平载荷，`success(res, msg, data)` 展开为 `code` + `msg` + data 内字段。
+ * 参见 `apps/backend/rest-api/src/utils/response.js`
+ */
+export type RestApiSuccessJson = Record<string, unknown> & {
+  code: number;
+  msg: string;
+};
+
+/**
+ * 旧版或第三方后端：{ code, message, data } 嵌套结构（仍可经 `responseStyle: 'nested-data'` 使用）
+ */
+export interface NestedResponseData<T = unknown> {
   code: number;
   message: string;
   data: T;
 }
+
+/** @deprecated 请使用 NestedResponseData */
+export type ResponseData<T = unknown> = NestedResponseData<T>;
 
 /** HTTP 状态码（供核心逻辑/绑定层共享） */
 export const enum HttpCode {
@@ -110,6 +127,12 @@ export interface CreateHttpOptions {
   headers?: Record<string, string>;
   /** 业务成功码 */
   successCode?: number;
+  /**
+   * rest-api：`{ code, msg, ...payload }`（本仓库 express rest-api）
+   * nested-data：`{ code, message, data }`
+   * @default 'rest-api'
+   */
+  responseStyle?: ResponseStyle;
   /** 刷新 Token 请求的路径（相对 baseURL），默认 '/auth/refresh' */
   refreshPath?: string;
   /** Token 提供者，默认不注入即禁用自动 Token 注入 */
