@@ -29,6 +29,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "verify": "pnpm run typecheck && pnpm run lint && pnpm run lint:style && pnpm run format:check && pnpm run test",
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui",
+    "e2e:install": "playwright install chromium",
     "docker:install": "cross-env APP_ENV=development docker compose --env-file .env.development -f docker/docker-compose.base.yaml -f docker/docker-compose.dev.yaml exec -e CI=true -T app pnpm install --frozen-lockfile",
     "docker:pnpm": "cross-env APP_ENV=development docker compose --env-file .env.development -f docker/docker-compose.base.yaml -f docker/docker-compose.dev.yaml exec -e CI=true -T app pnpm",
     "docker:dev:debug": "cross-env APP_ENV=development docker compose --env-file .env.development -f docker/docker-compose.base.yaml -f docker/docker-compose.dev.yaml -f docker/docker-compose.debug.yaml up -d --build",
@@ -46,6 +49,7 @@
     "*.{json,md,yaml,yml,css,scss,vue,ts,js,mjs}": "prettier --write"
   },
   "devDependencies": {
+    "@playwright/test": "catalog:",
     "@commitlint/cli": "catalog:",
     "@commitlint/config-conventional": "catalog:",
     "@eslint/js": "catalog:",

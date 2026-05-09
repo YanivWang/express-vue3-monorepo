@@ -18,6 +18,32 @@ pnpm rest-api:dev
 
 其他常用脚本见根目录 `package.json` 的 `scripts`（如 `pc-portal:dev`、`pc-admin:dev`、`verify`）。
 
+## 端到端测试（Playwright）
+
+覆盖 **pc-portal**：真实 Chromium 驱动首页、登录/注册导航、未登录访问 `/mine` 重定向（见仓库根目录 `e2e/` 与 `playwright.config.ts`）。
+
+**前提**：`rest-api` 必须在启动监听前成功连接 MySQL（与日常开发相同）。请先起数据库栈，例如：
+
+```bash
+pnpm docker:test
+# 或使用你已配置好的本地 MySQL + .env.* ，保证 API 能正常 listen
+```
+
+首跑一次需安装浏览器引擎：
+
+```bash
+pnpm e2e:install
+```
+
+运行：
+
+```bash
+pnpm e2e       # headless
+pnpm e2e:ui    # 带 UI 调试
+```
+
+本地若已在 3000/5173 上运行 API 与门户，Playwright 会复用现有进程（非 `CI` 环境下 `reuseExistingServer` 为 true）。在 CI 中应固定 `CI=1` 并保证由 `webServer` 独占端口或由流水线编排服务就绪。
+
 ## Docker 开发
 
 使用仓库根目录下的 `.env.development`（由本机维护，已从版本库忽略）：

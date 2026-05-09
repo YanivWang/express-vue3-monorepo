@@ -53,6 +53,7 @@ catalog:
   husky: ^9.1.7
   lint-staged: ^16.4.0
   vitest: ^2.1.9
+  "@playwright/test": ^1.50.1
   happy-dom: ^20.9.0
   "@types/node": ^20.14.9
   "@types/js-cookie": ^3.0.6
