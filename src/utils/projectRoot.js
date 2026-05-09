@@ -14,3 +14,5 @@ console.log("path.dirname=>", path.dirname(fileURLToPath(import.meta.url))); //�
 export const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 console.log("projectRoot=>", projectRoot);
 // Users/wangcheng/Documents/workSpace/backEnd/nodeJsProjectSpace/expressProject/express-demo-02
+
+//es模块中不能用 __dirname
