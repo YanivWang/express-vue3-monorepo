@@ -44,7 +44,9 @@ app.use(cors());
 // 放在限流、body 解析之前，以便访问日志覆盖 429、JSON 解析失败等仍会正常结束响应的请求
 app.use(httpRequestLogMiddleware);
 
+// 使用express内置中间件函数提供静态资源服务
 // 用户上传的图片静态资源，不参与 API 全局限流
+// 现在可以访问具有/uploads路径前缀的 uploadsRoot 目录下的文件
 app.use("/uploads", express.static(uploadsRoot));
 
 //全局请求频率限制（对所有路由都生效）
