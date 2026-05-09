@@ -10,10 +10,18 @@
     "typecheck": "vue-tsc --noEmit -p tsconfig.app.json"
   },
   "dependencies": {
-    "vue": "catalog:"
+    "@element-plus/icons-vue": "catalog:",
+    "@express-vue3-monorepo/request-core": "workspace:*",
+    "@express-vue3-monorepo/shared": "workspace:*",
+    "@vueuse/core": "catalog:",
+    "element-plus": "catalog:",
+    "pinia": "catalog:",
+    "vue": "catalog:",
+    "vue-router": "catalog:"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "catalog:",
+    "sass": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vue-tsc": "catalog:"

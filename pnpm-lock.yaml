@@ -75,6 +75,9 @@ catalogs:
     lodash-es:
       specifier: ^4.17.21
       version: 4.18.1
+    pinia:
+      specifier: ^2.2.6
+      version: 2.3.1
     postcss-html:
       specifier: ^1.8.1
       version: 1.8.1
@@ -305,13 +308,37 @@ importers:
 
   apps/frontend/pc-portal:
     dependencies:
+      '@element-plus/icons-vue':
+        specifier: 'catalog:'
+        version: 2.3.2(vue@3.5.34(typescript@5.5.4))
+      '@express-vue3-monorepo/request-core':
+        specifier: workspace:*
+        version: link:../../../packages/request-core
+      '@express-vue3-monorepo/shared':
+        specifier: workspace:*
+        version: link:../../../packages/shared
+      '@vueuse/core':
+        specifier: 'catalog:'
+        version: 10.11.1(vue@3.5.34(typescript@5.5.4))
+      element-plus:
+        specifier: 'catalog:'
+        version: 2.14.0(vue@3.5.34(typescript@5.5.4))
+      pinia:
+        specifier: 'catalog:'
+        version: 2.3.1(typescript@5.5.4)(vue@3.5.34(typescript@5.5.4))
       vue:
         specifier: 'catalog:'
         version: 3.5.34(typescript@5.5.4)
+      vue-router:
+        specifier: 'catalog:'
+        version: 4.6.4(vue@3.5.34(typescript@5.5.4))
     devDependencies:
       '@vitejs/plugin-vue':
         specifier: 'catalog:'
         version: 5.2.4(vite@5.4.21(@types/node@25.6.0)(sass@1.99.0))(vue@3.5.34(typescript@5.5.4))
+      sass:
+        specifier: 'catalog:'
+        version: 1.99.0
       typescript:
         specifier: 'catalog:'
         version: 5.5.4
@@ -2908,6 +2935,15 @@ packages:
   picomatch@4.0.4:
     resolution: {integrity: sha512-QP88BAKvMam/3NxH6vj2o21R6MjxZUAd6nlwAS/pnGvN9IVLocLHxGYIzFhg6fUQ+5th6P4dv4eW9jX3DSIj7A==}
     engines: {node: '>=12'}
+
+  pinia@2.3.1:
+    resolution: {integrity: sha512-khUlZSwt9xXCaTbbxFYBKDc/bWAGWJjOgvxETwkTN7KRm66EeT1ZdZj6i2ceh9sP2Pzqsbc704r2yngBrxBVug==}
+    peerDependencies:
+      typescript: '>=4.4.4'
+      vue: ^2.7.0 || ^3.5.11
+    peerDependenciesMeta:
+      typescript:
+        optional: true
 
   possible-typed-array-names@1.1.0:
     resolution: {integrity: sha512-/+5VFTchJDoVj3bhoqi6UeymcD00DAwb1nJwamzPvHEszJ4FpF6SNNbUbOS8yI56qHzdV8eK0qEfOSiodkTdxg==}
@@ -6313,6 +6349,16 @@ snapshots:
   picomatch@2.3.2: {}
 
   picomatch@4.0.4: {}
+
+  pinia@2.3.1(typescript@5.5.4)(vue@3.5.34(typescript@5.5.4)):
+    dependencies:
+      '@vue/devtools-api': 6.6.4
+      vue: 3.5.34(typescript@5.5.4)
+      vue-demi: 0.14.10(vue@3.5.34(typescript@5.5.4))
+    optionalDependencies:
+      typescript: 5.5.4
+    transitivePeerDependencies:
+      - '@vue/composition-api'
 
   possible-typed-array-names@1.1.0: {}
 

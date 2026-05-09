@@ -1,15 +1,17 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import AppShell from "@/components/AppShell.vue";
+import { RouterView } from "vue-router";
+</script>
 
 <template>
-  <main>
-    <h1>pc-portal</h1>
-    <p>Vue 3 + Vite + TypeScript 占位应用</p>
-  </main>
+  <AppShell>
+    <RouterView />
+  </AppShell>
 </template>
 
-<style scoped>
-main {
-  padding: 2rem;
-  font-family: system-ui, sans-serif;
+<style>
+html,
+body {
+  margin: 0;
 }
 </style>
