@@ -1,21 +1,24 @@
-# 接口契约：可提交仓库，团队共用；Apifox 选择「导入」→ OpenAPI → 本文件（文档地址一般为 http://localhost:<PORT>/openapi.yaml，PORT 缺省 3000）。
+# 接口契约：可提交仓库，团队共用；运行时可 GET /openapi.yaml（与 apps/backend/rest-api/src/swagger.js 一致）；Swagger UI：/api-docs。Apifox 可导入本文件。
 openapi: 3.0.3
 info:
-  title: express-demo-02 · Express ESM 接口文档
-  version: 1.7.0
+  title: vue3-express-monorepo · REST API（@vue3-express-monorepo/rest-api）
+  version: 1.0.0
   description: |
-    项目 express-demo-02；注册、登录、用户、文章、分类、图片上传与评论路由与 `src/app.js`、`src/routes/*.routes.js` 一致。
-    - 认证：`POST /api/register`、`POST /api/login` 无需登录。
-    - 用户：`src/routes/user.routes.js` 在路由级挂载 `authMiddleware`，须在请求头携带 `Authorization: Bearer <JWT>`（登录成功返回的 token）。
-    - 分类：`GET /api/categories` 公开；返回两级树（仅 `id`/`name`，根为一级、children 为二级叶子）。文章创建时 `categoryId` 必须为二级叶子 id；`GET /api/posts` 可选 `parentId`（一级 id）或 `categoryId`（叶子 id），二者不得同传。
-    - 上传：`POST /api/uploads` 需 Bearer；`multipart/form-data` 字段名 `files`（可多文件），单文件最大 5MB，类型 jpeg/png/gif/webp；响应 `urls` 为可写入文章 `images` 的 `/uploads/...` 路径。静态访问 `GET /uploads/...`。
-    - 文章：`Post.images` 为配图 URL 字符串数组（最多 24 条，须为 `/uploads/` 前缀）；无独立 slug/摘要字段。`src/routes/post.routes.js` — `GET /api/posts` 公开分页（仅 `published: true`）；`GET /api/posts/{id}` 公开读详情；`GET /api/posts/mine/list` 及创建/更新/删除需 Bearer；更新/删除须为作者或 `role === 1` 的管理员。
-    - 评论：`src/routes/comment.routes.js` — `GET /api/posts/{postId}/comments` 挂载 `optionalAuthMiddleware`，无 token 不报错；有合法 Bearer 时 `req.user` 可用于文章可见性（作者可访问自己未发布文章下的评论列表）。`POST` 发评与 `DELETE` 删评需 Bearer；删除限评论作者、文章作者或管理员（`role === 1`）。
-    - 参数校验：`validate.middleware.js` + Zod schema；失败时 HTTP 400，`msg` 为多条校验信息的英文分号拼接。
+    后端包 `apps/backend/rest-api`（Express ESM）；业务路由挂载于 `/api`，与 `src/app.js`、`src/routes/*.routes.js` 一致。
+    - 文档：`GET /openapi.yaml`、`GET /api-docs`（Swagger UI）。
+    - 追踪：中间件写入响应头 `X-Request-Id`；客户端可传入同名请求头透传（最长 128 字符）。
+    - 限流（`rateLimit.middleware.js`）：`/health`、`/ready` 不参与全局限流；其余路由 15 分钟内最多 100 次，`msg` 为「请求过于频繁，请稍后再试」。`POST /api/register`、`POST /api/login` 另有 1 分钟内最多 5 次。
+    - 认证：`POST /api/register`、`POST /api/login` 无需登录。注册/登录请求体校验见 `schema/auth.schema.js`（用户名 trim 后长度 2～100；密码 6～100）；用户更新接口见 `schema/user.schema.js`（username/password 为另一套规则）。
+    - 用户：`src/routes/user.routes.js` 在路由级挂载 `authMiddleware`，须在请求头携带 `Authorization: Bearer <JWT>`。
+    - 分类：`GET /api/categories` 公开；返回两级树，节点含 `id`、`name`、`parentId`、`sortOrder`，根的 `children` 为二级叶子。文章创建时 `categoryId` 必须为二级叶子 id；`GET /api/posts` 可选 `parentId`（一级 id）或 `categoryId`（叶子 id），二者不得同传。
+    - 上传：`POST /api/uploads` 需 Bearer；`multipart/form-data` 字段名 `files`，**单次最多 12 个文件**，单文件最大 5MB，类型 jpeg/png/gif/webp；响应 `urls` 可写入文章 `images`。静态访问 `GET /uploads/...`（不走全局限流）。
+    - 文章：`Post.images` 为 URL 字符串数组（最多 24 条，须为 `/uploads/` 前缀）。`GET /api/posts` 公开分页（仅 `published: true`）；`GET /api/posts/{id}` 公开读详情（未挂载可选 JWT，未发布文章匿名一律 404）；`GET /api/posts/mine/list` 及创建/更新/删除需 Bearer；更新/删除须为作者或 `role === 1` 的管理员。
+    - 评论：`GET /api/posts/{postId}/comments` 挂载 `optionalAuthMiddleware`；`POST` 发评与 `DELETE` 删评需 Bearer；删除限评论作者、文章作者或管理员。
+    - 参数校验：`validate.middleware.js` + Zod；失败时 HTTP 400，`msg` 为多条校验信息以 `; ` 拼接。
     - 未匹配路由：全局 404，`msg` 为「接口不存在」。
-    - `GET /api/users` 使用 `findUsersPage`：`page`、`limit` 经 `getUsersSchema` 校验（缺省 1、10，`limit` 最大 100）；响应含当前页 `users` 与 `pagination`（total、totalPages、hasNext 等）。
-    - `GET /api/posts`、`GET /api/posts/mine/list`：`page`、`limit` 与可选 `parentId`/`categoryId` 经 `listPostsSchema` / `listMyPostsSchema`（缺省 1、10，`limit` 最大 100）；响应含 `posts` 与 `pagination`。
-    - `GET /api/posts/{postId}/comments`：`page`、`limit` 经 `listCommentsSchema`（缺省 1、20，`limit` 最大 100）；列表仅顶层评论（`parentId` 为 null），按 id 降序分页；每条含嵌套 `replies`（该层下全部直接回复、按 id 升序）；删文章时评论随 `postId` 外键 `ON DELETE CASCADE` 一并删除（见 `Comment`→`Post` 关联）。
+    - `GET /api/users`：`page`、`limit` 缺省 1、10，`limit` 最大 100；响应含 `users` 与 `pagination`。
+    - `GET /api/posts`、`GET /api/posts/mine/list`：分页与同上分类筛选参数；响应含 `posts` 与 `pagination`。
+    - `GET /api/posts/{postId}/comments`：`page`、`limit` 缺省 1、20，`limit` 最大 100；顶层评论按 id 降序分页，每条含 `replies`（直接回复、按 id 升序）。删文章时评论随 Post 关联 `ON DELETE CASCADE`。
 
 servers:
   - url: http://localhost:{port}
@@ -28,6 +31,8 @@ servers:
         description: 应用监听端口（环境变量 PORT）
 
 tags:
+  - name: 探针
+    description: 存活 / 就绪检查（不参与全局限流）
   - name: 认证
     description: 注册与登录（无需 Bearer）
   - name: 用户
@@ -80,20 +85,20 @@ components:
           example: 登录成功
         token:
           type: string
-          description: "JWT（jsonwebtoken）；payload 含 id、username；签发使用 expiresIn 7d。"
+          description: "JWT（jsonwebtoken）；`jwt.verify` 结果写入 `req.user`，payload 含 id、username；签发 expiresIn 7d。"
     CredentialsBody:
       type: object
       required: [username, password]
       properties:
         username:
           type: string
-          description: 非空，trim，最长 100 字符（与 `src/schema/auth.schema.js` 一致）
-          minLength: 1
+          description: trim，长度 2～100 字符（与 `schema/auth.schema.js` 中 `credentialsBodySchema` 一致）
+          minLength: 2
           maxLength: 100
         password:
           type: string
-          description: 非空，trim，最长 100 字符
-          minLength: 1
+          description: trim，长度 6～100 字符
+          minLength: 6
           maxLength: 100
     UserItem:
       type: object
@@ -106,12 +111,43 @@ components:
         password:
           type: string
           description: bcrypt 哈希（接口当前会一并返回）
+        avatar:
+          type: string
+          nullable: true
+          description: 头像 URL 或路径
+        role:
+          type: integer
+          description: "0 普通用户，1 管理员（与 User 模型一致）"
         createdAt:
           type: string
           format: date-time
         updatedAt:
           type: string
           format: date-time
+    HealthLiveness:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          example: ok
+    ReadinessOk:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          example: ready
+    ReadinessFail:
+      type: object
+      required: [status, message]
+      properties:
+        status:
+          type: string
+          example: not_ready
+        message:
+          type: string
+          example: database unavailable
     UsersListPagination:
       type: object
       description: 与 `user.controller#getUsers` 返回的 `pagination` 字段一致
@@ -169,6 +205,7 @@ components:
               $ref: "#/components/schemas/UserItem"
     UpdateUserBody:
       type: object
+      description: 与 `schema/user.schema.js` 中 `userBodySchema` 一致（非注册 credential 规则）
       required: [username, password]
       properties:
         username:
@@ -356,7 +393,7 @@ components:
       properties:
         title:
           type: string
-          description: trim，非空，最多 200 字符（与 `post.schema.js` 一致）
+          description: trim，非空，最多 200 字符（与 `schema/post.schema.js` 一致）
           minLength: 1
           maxLength: 200
         content:
@@ -510,7 +547,7 @@ components:
         parentId:
           type: integer
           minimum: 1
-          description: 可选；回复时传入父评论 id，且该评论须属于路径中的文章。可与 `comment.schema.js` 一致地传字符串数字或 `null`（视为未回复）。
+          description: 可选；回复时传入父评论 id，且该评论须属于路径中的文章。可与 `schema/comment.schema.js` 一致地传字符串数字或 `null`（视为未回复）。
     CreateCommentSuccess:
       allOf:
         - $ref: "#/components/schemas/MsgBody"
@@ -534,6 +571,38 @@ components:
               example: 删除评论成功
 
 paths:
+  /health:
+    get:
+      tags: [探针]
+      summary: 存活检查
+      description: 不访问数据库；不参与全局限流。
+      responses:
+        "200":
+          description: 进程存活
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthLiveness"
+
+  /ready:
+    get:
+      tags: [探针]
+      summary: 就绪检查
+      description: 尝试 `sequelize.authenticate()`；不参与全局限流。
+      responses:
+        "200":
+          description: 数据库可连接
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessOk"
+        "503":
+          description: 数据库不可用
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessFail"
+
   /api/register:
     post:
       tags: [认证]
@@ -571,6 +640,15 @@ paths:
               example:
                 code: 409
                 msg: 用户名已存在
+        "429":
+          description: 登录/注册路由限流（1 分钟内超过 5 次）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+              example:
+                code: 429
+                msg: 请求过于频繁，请稍后再试
         "500":
           description: 服务端异常（未标记 `expose` 时为「服务器内部错误」）
           content:
@@ -610,6 +688,15 @@ paths:
               example:
                 code: 401
                 msg: 用户名或密码错误
+        "429":
+          description: 登录/注册路由限流（1 分钟内超过 5 次）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+              example:
+                code: 429
+                msg: 请求过于频繁，请稍后再试
         "500":
           description: 服务端异常
           content:
@@ -780,7 +867,7 @@ paths:
       tags: [用户]
       summary: 按主键更新用户
       description: |
-        请求体须提供 username、password（长度与注册一致）；密码会重新 bcrypt 后入库。需 Bearer JWT。
+        请求体 `username`、`password` 规则见 `UpdateUserBody`（`user.schema.js` / `userBodySchema`）；密码会 bcrypt 后入库。需 Bearer JWT。
       security:
         - bearerAuth: []
       parameters:
@@ -886,8 +973,8 @@ paths:
       tags: [上传]
       summary: 上传正文配图（多文件）
       description: |
-        需 Bearer JWT。`Content-Type: multipart/form-data`，字段名 **`files`**，可选多个文件。
-        单文件最大 5MB；类型限 jpeg / png / gif / webp。响应体根级字段 **`urls`** 填入 `POST/PATCH /api/posts` 的 `images` 数组。
+        需 Bearer JWT。`Content-Type: multipart/form-data`，字段名 **`files`**。
+        **`files` 单次请求最多 12 个**（multer）；单文件最大 5MB；类型限 jpeg / png / gif / webp。响应体 **`urls`** 可填入 `POST/PUT /api/posts` 的 `images`。未选择文件时 400「请选择要上传的图片文件…」。
       security:
         - bearerAuth: []
       requestBody:
@@ -900,6 +987,8 @@ paths:
               properties:
                 files:
                   type: array
+                  maxItems: 12
+                  description: 可多选；最多 12 个文件
                   items:
                     type: string
                     format: binary
@@ -922,6 +1011,15 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MsgBody"
+        "429":
+          description: 触发全局限流（15 分钟窗口内超限等）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+              example:
+                code: 429
+                msg: 请求过于频繁，请稍后再试
         "500":
           description: 服务端异常
           content:
@@ -934,7 +1032,7 @@ paths:
       tags: [分类]
       summary: 获取两级分类树
       description: |
-        无需 JWT。根节点为一级分类（`parentId` 为 null），`children` 为二级叶子；与启动后种子数据或自建数据一致。
+        无需 JWT。一级根节点（`parentId` 为 null），`children` 为同级排序后的二级叶子；响应节点含 `sortOrder`。与数据库种子或自建数据一致。
       responses:
         "200":
           description: 成功
@@ -955,7 +1053,7 @@ paths:
       summary: 获取已发布文章列表（分页）
       description: |
         无需 JWT。仅查询 `published: true`；排序为 id 降序。
-        查询参数 `page`、`limit`、`parentId`、`categoryId` 与 `post.schema.js` 中 `listPostsQuerySchema` 一致：缺省 `1`、`10`；须为正整数；`limit` 最大 100。
+        查询参数 `page`、`limit`、`parentId`、`categoryId` 与 `schema/post.schema.js` 中 `listPostsQuerySchema` 一致：缺省 `1`、`10`；须为正整数；`limit` 最大 100。
         `parentId` 为**一级分类 id** 时返回归属其下任一叶子的文章；`categoryId` 为**叶子分类 id**；二者不得同时传递。
         传 `categoryId` 时若不是有效叶子则 400。
       parameters:
@@ -1010,7 +1108,7 @@ paths:
     post:
       tags: [文章]
       summary: 创建文章
-      description: 需在请求头携带 Bearer JWT；正文字段见 `post.schema.js` 中 `postBodySchema`。
+      description: 需在请求头携带 Bearer JWT；正文字段见 `schema/post.schema.js`（`createPostSchema`）。
       security:
         - bearerAuth: []
       requestBody:
@@ -1154,7 +1252,7 @@ paths:
       tags: [文章]
       summary: 更新文章（部分字段）
       description: |
-        需在请求头携带 Bearer JWT。请求体为 `postBodySchema.partial()`，至少包含一个字段；作者或管理员（`role === 1`）可修改。
+        需在请求头携带 Bearer JWT。请求体与 `schema/post.schema.js` 中 `updatePostSchema`（`postBodySchema` 的全部字段可选，另可选 `categoryId`）一致，至少提供一个字段；否则 400「没有要更新的字段」。作者或管理员（`role === 1`）可修改。
       security:
         - bearerAuth: []
       parameters:
@@ -1271,9 +1369,12 @@ paths:
       tags: [评论]
       summary: 获取某篇文章的评论列表（分页）
       description: |
-        文章可见性与 `post.service.js` 中 `findPostByIdPublic` 一致：公开访客仅可读**已发布**文章下的评论；路径中文章不存在或未发布时为 404「文章不存在」（作者访问自己**未发布**文章时，须在请求头携带合法 Bearer JWT，由 `optionalAuthMiddleware` 写入 `req.user`）。
-        查询参数：`page` 缺省 `1`，`limit` 缺省 `20`、最大 `100`（与 `listCommentsSchema` 一致）。
+        文章可见性与 `services/post.service.js` 中 `findPostByIdPublic` 一致：公开访客仅可读**已发布**文章下的评论；路径中文章不存在或未发布时为 404「文章不存在」。作者浏览自己**未发布**文章下的评论须携带合法 Bearer JWT（见 `middlewares/optionalAuth.middleware.js`）；**非法或过期 token 静默忽略**，不报错。
+        查询参数：`page` 缺省 `1`，`limit` 缺省 `20`、最大 `100`（与 `schema/comment.schema.js` 一致）。
         分页数据为顶层评论（`parentId` 为 null），每条下的 `replies` 为该顶层下的全部直接回复（按 id 升序，不截断）。
+      security:
+        - {}
+        - bearerAuth: []
       parameters:
         - name: postId
           in: path
