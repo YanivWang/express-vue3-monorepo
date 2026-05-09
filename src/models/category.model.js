@@ -26,7 +26,11 @@ export function defineCategoryModel(sequelize) {
     },
   );
 
-  Category.belongsTo(Category, { foreignKey: "parentId", as: "parent" });
+  Category.belongsTo(Category, {
+    foreignKey: "parentId",
+    as: "parent",
+    onDelete: "RESTRICT",
+  });
   Category.hasMany(Category, { foreignKey: "parentId", as: "children" });
 
   return Category;

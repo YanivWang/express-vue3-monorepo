@@ -15,7 +15,7 @@ export function definePostModel(sequelize, User, Category) {
         comment: "标题", //数据库层面的字段注释
       },
       content: {
-        type: DataTypes.STRING,
+        type: DataTypes.TEXT,
         allowNull: false,
         comment: "内容",
       },
@@ -47,8 +47,17 @@ export function definePostModel(sequelize, User, Category) {
   //按 Sequelize 的约定，外键写在「多」的这一边，也就是 Post 表。
   //foreignKey: "authorId"：Post 表上的外键列明，指定这张表的外键列的名字叫 authorId(（通常对应 User 表的主键 id）)
   //预加载时用 include: { model: User, as: "author" } 时的别名
-  Post.belongsTo(User, { foreignKey: "authorId", as: "author" });
-  Post.belongsTo(Category, { foreignKey: "categoryId", as: "category" });
+  // 删除用户/分类前须先处理关联帖子，避免孤儿数据（RESTRICT 由数据库拒绝删除）
+  Post.belongsTo(User, {
+    foreignKey: "authorId",
+    as: "author",
+    onDelete: "RESTRICT",
+  });
+  Post.belongsTo(Category, {
+    foreignKey: "categoryId",
+    as: "category",
+    onDelete: "RESTRICT",
+  });
 
   //声明 一 对 多，一个User有多个Post，外键仍是Post上的 authorId
   //as: "posts" =>  从 User 查关联 Post 集合时的别名（如 user.getPosts() 或 include as: 'posts'）。

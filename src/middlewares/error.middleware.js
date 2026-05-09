@@ -50,6 +50,7 @@ export function errorMiddleware(error, req, res, next) {
   //记录错误日志
   //在全局错误中间件中，导入 logger 日志记录器，记录日志
   logger.error("request_error", {
+    requestId: req.requestId,
     error: serializeError(error),
     method: req.method,
     url: req.originalUrl,

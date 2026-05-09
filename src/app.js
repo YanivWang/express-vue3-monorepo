@@ -5,19 +5,30 @@ import helmet from "helmet";
 import express from "express";
 import { uploadsRoot } from "./config/upload.config.js";
 import { setupSwagger } from "./swagger.js";
+import { TRUST_PROXY, getCorsOriginOption } from "./env.js";
 import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import postRoutes from "./routes/post.routes.js";
 import commentRoutes from "./routes/comment.routes.js";
 import categoryRoutes from "./routes/category.routes.js";
 import uploadRoutes from "./routes/upload.routes.js";
+import healthRoutes from "./routes/health.routes.js";
 import { createHttpError, errorMiddleware } from "./middlewares/error.middleware.js";
 import { globalRateLimitMiddleware } from "./middlewares/rateLimit.middleware.js";
 import { compressionMiddleware } from "./middlewares/compression.middleware.js";
 import { httpRequestLogMiddleware } from "./middlewares/httpRequestLog.middleware.js";
+import { requestIdMiddleware } from "./middlewares/requestId.middleware.js";
 
 //创建express服务
 const app = express();
+
+// 位于 Nginx/Ingress 之后时设置 TRUST_PROXY（1 或 true = 信任一层代理；纯数字 = hop 数）
+const tp = TRUST_PROXY;
+if (tp === "1" || tp?.toLowerCase() === "true") {
+  app.set("trust proxy", 1);
+} else if (tp && /^\d+$/.test(tp)) {
+  app.set("trust proxy", Number(tp));
+}
 
 //注册 / 挂载中间件 ======================================
 // (全局中间件，对所有路由都生效)
@@ -37,8 +48,11 @@ app.use((req, res, next) => {
   return defaultHelmet(req, res, next);
 });
 
-//cors 解决跨域问题
-app.use(cors());
+// CORS：开发/测试未配置 CORS_ORIGINS 时允许任意 Origin；生产须配置逗号分隔列表，未配置则关闭跨域
+app.use(cors({ origin: getCorsOriginOption() }));
+
+// 请求追踪：入站 X-Request-Id 透传，否则生成并写入响应头
+app.use(requestIdMiddleware);
 
 // 记录每次 HTTP 请求的基础信息和耗时（用于监控）
 // 放在限流、body 解析之前，以便访问日志覆盖 429、JSON 解析失败等仍会正常结束响应的请求
@@ -48,6 +62,9 @@ app.use(httpRequestLogMiddleware);
 // 用户上传的图片静态资源，不参与 API 全局限流
 // 现在可以访问具有/uploads路径前缀的 uploadsRoot 目录下的文件
 app.use("/uploads", express.static(uploadsRoot));
+
+// 存活/就绪（限流中间件已跳过 /health、/ready）
+app.use(healthRoutes);
 
 //全局请求频率限制（对所有路由都生效）
 app.use(globalRateLimitMiddleware);

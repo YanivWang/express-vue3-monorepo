@@ -128,3 +128,34 @@ export const DB_PWD = (() => {
 })();
 export const DB_NAME = requireEnv("DB_NAME");
 export const APP_ENV = appEnv;
+
+/**
+ * 反向代理：`1` / `true` 表示信任一层代理（X-Forwarded-*）；纯数字表示 hop 数。
+ * 未设置时不启用 trust proxy。
+ */
+export const TRUST_PROXY = trimUnset(process.env.TRUST_PROXY);
+
+/**
+ * 允许的浏览器跨域 Origin，逗号分隔。生产环境未设置时关闭 CORS（仅同源或非浏览器客户端）。
+ * 开发/测试未设置时等价于 `cors({ origin: true })`。
+ */
+export const CORS_ORIGINS = (() => {
+  const raw = trimUnset(process.env.CORS_ORIGINS);
+  if (raw === undefined) return [];
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+})();
+
+/** @returns {boolean | string | string[]} 供 `cors({ origin })` 使用 */
+export function getCorsOriginOption() {
+  if (appEnv === "development" || appEnv === "test") {
+    if (CORS_ORIGINS.length === 0) return true;
+    if (CORS_ORIGINS.length === 1) return CORS_ORIGINS[0];
+    return CORS_ORIGINS;
+  }
+  if (CORS_ORIGINS.length === 0) return false;
+  if (CORS_ORIGINS.length === 1) return CORS_ORIGINS[0];
+  return CORS_ORIGINS;
+}

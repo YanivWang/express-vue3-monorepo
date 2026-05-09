@@ -6,6 +6,7 @@ export function httpRequestLogMiddleware(req, res, next) {
 
   res.on("finish", () => {
     logger.info("http_request", {
+      requestId: req.requestId,
       method: req.method,
       url: req.originalUrl,
       statusCode: res.statusCode,
