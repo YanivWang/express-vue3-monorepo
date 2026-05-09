@@ -27,7 +27,7 @@ function baseEnv(extra) {
   return {
     ...process.env,
     JWT_SECRET: "a".repeat(40),
-    DB_HOST: "127.0.0.1",
+    DB_HOST: "127.0.0.1", // 占位，脚本只校验 env 解析、不连接数据库
     DB_PORT: "3306",
     DB_NAME: "_test_dummy",
     DB_USER: "_test",

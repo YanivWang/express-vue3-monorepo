@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Attach to Docker App (9229)",
+      "name": "Attach to Docker rest-api (9229)",
       "type": "node",
       "request": "attach",
       "address": "localhost",

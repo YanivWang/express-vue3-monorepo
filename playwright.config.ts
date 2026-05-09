@@ -1,10 +1,22 @@
 import { defineConfig, devices } from "@playwright/test";
 
 /**
- * 根目录 Playwright：驱动 pc-portal（5173），依赖 rest-api（3000）与可用 MySQL。
- * 运行前请先起数据库栈（如 `pnpm docker:test`）或等价本地 MySQL，否则 API 无法在 listen 前完成连库。
+ * 默认（推荐）：不在宿主启动 Node/Vite；假定已通过 Compose 拉起网关，MySQL / rest-api / pc-portal
+ * 均在容器内互联，Playwright 只访问宿主上映射的网关端口（与 GATEWAY_HOST_PORT 一致，默认 2026）。
+ *
+ * 宿主本机直连模式：设置 PLAYWRIGHT_LOCAL_SERVERS=1，将启用 webServer 拉起 pnpm rest-api:dev 与
+ * pnpm pc-portal:dev（此时须让宿主进程能连上数据库，例如映射 mysql:3306 到宿主并在 .env.* 中使用 127.0.0.1）。
+ *
+ * PLAYWRIGHT_BASE_URL 可覆盖任意 baseURL。
  */
-const reuse = !process.env.CI;
+const useLocalServers = process.env.PLAYWRIGHT_LOCAL_SERVERS === "1";
+const reuse = !process.env.CI && useLocalServers;
+
+const gatewayPort = process.env.PLAYWRIGHT_GATEWAY_PORT ?? process.env.GATEWAY_HOST_PORT ?? "2026";
+
+const baseURL =
+  process.env.PLAYWRIGHT_BASE_URL ??
+  (useLocalServers ? "http://127.0.0.1:5173" : `http://127.0.0.1:${gatewayPort}`);
 
 export default defineConfig({
   testDir: "e2e",
@@ -14,22 +26,26 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
-    baseURL: "http://127.0.0.1:5173",
+    baseURL,
     trace: "on-first-retry",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
-  webServer: [
-    {
-      command: "pnpm rest-api:dev",
-      url: "http://127.0.0.1:3000/health",
-      reuseExistingServer: reuse,
-      timeout: 120_000,
-    },
-    {
-      command: "pnpm pc-portal:dev",
-      url: "http://127.0.0.1:5173",
-      reuseExistingServer: reuse,
-      timeout: 120_000,
-    },
-  ],
+  ...(useLocalServers
+    ? {
+        webServer: [
+          {
+            command: "pnpm rest-api:dev",
+            url: "http://127.0.0.1:3000/health",
+            reuseExistingServer: reuse,
+            timeout: 120_000,
+          },
+          {
+            command: "pnpm pc-portal:dev",
+            url: "http://127.0.0.1:5173",
+            reuseExistingServer: reuse,
+            timeout: 120_000,
+          },
+        ],
+      }
+    : {}),
 });

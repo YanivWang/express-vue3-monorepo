@@ -9,6 +9,10 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, fileURLToPath(new URL(".", import.meta.url)), "");
   const target = env.VITE_DEV_PROXY_TARGET?.replace(/\/$/, "") || restApiOrigin;
 
+  const hmrClientRaw = Number(env.VITE_DEV_HMR_CLIENT_PORT);
+  const hmr =
+    Number.isFinite(hmrClientRaw) && hmrClientRaw > 0 ? { clientPort: hmrClientRaw } : undefined;
+
   return {
     plugins: [vue()],
     resolve: {
@@ -17,8 +21,10 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
+      host: true,
       port: 5173,
       strictPort: true,
+      ...(hmr ? { hmr } : {}),
       proxy: {
         "/api": { target, changeOrigin: true },
         "/uploads": { target, changeOrigin: true },

@@ -1,25 +1,49 @@
 # 测试/预发覆盖层：必须配合 docker-compose.base.yaml。生产镜像形态。
 # pnpm docker:test
+#
+# HTTP 网关 `${GATEWAY_HOST_PORT:-2026}`，与 Playwright 默认 baseURL（同端口）一致。
 
 name: express-demo-02-test
 
 services:
   mysql:
     container_name: express-demo-02-mysql-test
-    # 不映射 MySQL 到宿主机，仅容器网络内访问（与 dev 不同）
     volumes:
       - mysql_test_data:/var/lib/mysql
 
-  app:
-    container_name: express-demo-02-app-test
+  gateway:
+    image: nginx:alpine
+    container_name: express-demo-02-gateway-test
+    volumes:
+      - ./nginx/${NGINX_GATEWAY_CONF:-gateway.prod.docker.conf}:/etc/nginx/nginx.conf:ro
+    ports:
+      - "${GATEWAY_HOST_PORT:-2026}:2026"
+    depends_on:
+      rest-api:
+        condition: service_started
+      pc-portal:
+        condition: service_started
+    restart: unless-stopped
+
+  rest-api:
+    container_name: express-demo-02-rest-api-test
     env_file:
       - ../.env.test
     environment:
       APP_ENV: test
       NODE_ENV: test
-      PORT: ${PORT:-3000}
-    ports:
-      - "${APP_HOST_PORT:-3000}:${PORT:-3000}"
+      PORT: "3000"
+      TRUST_PROXY: "1"
+
+  pc-portal:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.pc-portal
+    container_name: express-demo-02-pc-portal-test
+    restart: unless-stopped
+    depends_on:
+      rest-api:
+        condition: service_started
 
 volumes:
   mysql_test_data:

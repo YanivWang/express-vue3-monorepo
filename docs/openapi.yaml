@@ -21,10 +21,17 @@ info:
     - `GET /api/posts/{postId}/comments`：`page`、`limit` 缺省 1、20，`limit` 最大 100；顶层评论按 id 降序分页，每条含 `replies`（直接回复、按 id 升序）。删文章时评论随 Post 关联 `ON DELETE CASCADE`。
 
 servers:
-  - url: http://localhost:{port}
+  - url: http://127.0.0.1:{gw}
     description: |
-      端口与进程环境变量 PORT 一致（缺省 3000）。Docker Compose 下宿主机侧为 APP_HOST_PORT → 容器 PORT。
-      导入 Apifox 时可在 server variables 中改 port。
+      Docker Compose Nginx 统一入口（GATEWAY_HOST_PORT，默认 2026）；与浏览器访问 `/`、`/api/...`、`/api-docs` 同源。
+    variables:
+      gw:
+        default: "2026"
+        description: 网关宿主端口（环境变量 GATEWAY_HOST_PORT）
+
+  - url: http://127.0.0.1:{port}
+    description: |
+      直连 `pnpm rest-api:dev` 或宿主映射到后端时，`port` 与进程环境变量 PORT 一致（缺省 3000）。
     variables:
       port:
         default: "3000"

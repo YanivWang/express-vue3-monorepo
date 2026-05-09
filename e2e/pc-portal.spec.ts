@@ -16,7 +16,7 @@ test.describe("pc-portal", () => {
     await page.goto("/");
 
     await page.getByRole("button", { name: "登录" }).click();
-    await expect(page).toHaveURL(/\/login$/);
+    await expect(page).toHaveURL(/\/login(?:\?|$)/);
     await expect(page.getByRole("heading", { name: "登录" })).toBeVisible();
 
     await page.goto("/");

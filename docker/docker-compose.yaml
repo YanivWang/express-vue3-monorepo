@@ -1,25 +1,50 @@
 # 生产覆盖层：必须配合 docker-compose.base.yaml。
 # pnpm docker:prod
+#
+# HTTP 网关 `${GATEWAY_HOST_PORT:-2026}`：`docker/nginx/gateway.prod.docker.conf`；
+# pc-portal 容器内 nginx 仅托管 SPA。
 
 name: express-demo-02-prod
 
 services:
   mysql:
     container_name: express-demo-02-mysql
-    # 不映射 MySQL 到宿主机，仅容器网络内访问（与 dev 不同）
     volumes:
       - mysql_data:/var/lib/mysql
 
-  app:
-    container_name: express-demo-02-app
+  gateway:
+    image: nginx:alpine
+    container_name: express-demo-02-gateway
+    volumes:
+      - ./nginx/${NGINX_GATEWAY_CONF:-gateway.prod.docker.conf}:/etc/nginx/nginx.conf:ro
+    ports:
+      - "${GATEWAY_HOST_PORT:-2026}:2026"
+    depends_on:
+      rest-api:
+        condition: service_started
+      pc-portal:
+        condition: service_started
+    restart: unless-stopped
+
+  rest-api:
+    container_name: express-demo-02-rest-api
     env_file:
       - ../.env.production
     environment:
       APP_ENV: production
       NODE_ENV: production
-      PORT: ${PORT:-3000}
-    ports:
-      - "${APP_HOST_PORT:-3000}:${PORT:-3000}"
+      PORT: "3000"
+      TRUST_PROXY: "1"
+
+  pc-portal:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.pc-portal
+    container_name: express-demo-02-pc-portal
+    restart: unless-stopped
+    depends_on:
+      rest-api:
+        condition: service_started
 
 volumes:
   mysql_data:

@@ -1,9 +1,13 @@
 # 共享定义：与 docker-compose.{yaml,dev,test}.yaml 组合使用（须后接环境文件，后者覆盖同名项）。
-# 示例：docker compose --env-file .env.development -f docker/docker-compose.base.yaml -f docker/docker-compose.dev.yaml up -d
+# 对外 HTTP 由各环境覆盖层中的 gateway（docker/nginx/gateway*.docker.conf）统一暴露
+# `${GATEWAY_HOST_PORT:-2026}`，再按路径转发到 rest-api 与 pc-portal。
+# 示例 dev：pnpm docker:dev 或：
+# docker compose --env-file .env.development -f docker/docker-compose.base.yaml -f docker/docker-compose.dev.yaml up -d
 #
 # mysql 不在此声明 volumes / ports / container_name，避免多环境卷合并时挂载重复路径。
-# 开发栈在 docker-compose.dev.yaml 为 mysql 补充 ports（3306:3306）；prod/test 覆盖层不映射 MySQL。
-# app 不声明 ports / env_file / APP_ENV，由各环境覆盖。
+# MySQL 仅在容器网格内提供服务；下方 rest-api 默认 DB_HOST=mysql，无需在宿主安装 MySQL。
+# 开发栈默认不把 3306 暴露到宿主（见 docker-compose.dev.yaml）；按需映射端口供宿主工具或「宿主 Node」使用。
+# rest-api 不声明 ports / env_file / APP_ENV，由各环境覆盖。
 
 services:
   mysql:
@@ -23,7 +27,7 @@ services:
       retries: 12
       start_period: 30s
 
-  app:
+  rest-api:
     build:
       context: ..
       dockerfile: docker/Dockerfile
