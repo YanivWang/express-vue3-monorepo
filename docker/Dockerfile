@@ -10,12 +10,14 @@ RUN npm config set registry https://registry.npmmirror.com \
 
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml ./
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY .npmrc ./
-RUN pnpm install --frozen-lockfile --prod
+COPY apps/backend/rest-api/package.json apps/backend/rest-api/
+COPY apps/frontend/pc-portal/package.json apps/frontend/pc-portal/
+COPY apps/frontend/pc-admin/package.json apps/frontend/pc-admin/
+RUN pnpm install --frozen-lockfile --prod --filter @vue3-express-monorepo/rest-api
 
-COPY scripts ./scripts
-COPY src ./src
+COPY apps/backend/rest-api ./apps/backend/rest-api
 COPY docs ./docs
 
 ENV NODE_ENV=production
@@ -23,4 +25,4 @@ ENV PORT=3000
 
 EXPOSE 3000
 
-CMD ["node", "src/server.js"]
+CMD ["pnpm", "--filter", "@vue3-express-monorepo/rest-api", "start"]

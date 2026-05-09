@@ -42,7 +42,7 @@ services:
     command:
       - sh
       - -c
-      - mkdir -p /app/logs && pnpm dev 2>&1 | tee -a /app/logs/app-dev.log
+      - mkdir -p /app/logs && pnpm rest-api:dev 2>&1 | tee -a /app/logs/app-dev.log
 
 volumes:
   mysql_dev_data:

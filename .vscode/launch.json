@@ -11,6 +11,27 @@
       "remoteRoot": "/app",
       "restart": true,
       "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "rest-api: launch (workspace root cwd)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["rest-api:dev"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "rest-api: inspect (nodemon 9229 local)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["rest-api:dev:debug"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"],
+      "restart": true
     }
   ]
 }

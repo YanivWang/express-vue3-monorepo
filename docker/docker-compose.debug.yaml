@@ -6,4 +6,4 @@ services:
     command:
       - sh
       - -c
-      - mkdir -p /app/logs && pnpm dev:debug 2>&1 | tee -a /app/logs/app-dev.log
+      - mkdir -p /app/logs && pnpm rest-api:dev:debug 2>&1 | tee -a /app/logs/app-dev.log

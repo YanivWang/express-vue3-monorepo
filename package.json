@@ -1,15 +1,33 @@
 {
-  "name": "express-demo-02",
+  "name": "vue3-express-monorepo",
   "version": "1.0.0",
-  "main": "src/server.js",
+  "private": true,
   "type": "module",
+  "description": "pnpm workspace：apps/backend/rest-api + apps/frontend（pc-portal / pc-admin）",
+  "packageManager": "pnpm@10.17.0",
+  "engines": {
+    "node": ">=20.19.5",
+    "pnpm": ">=10.17.0"
+  },
   "scripts": {
     "preinstall": "npx only-allow pnpm",
-    "test": "node scripts/test-env.mjs",
-    "db:reset": "node scripts/reset-db.mjs",
-    "dev": "cross-env NODE_ENV=development nodemon src/server.js",
-    "dev:debug": "cross-env NODE_ENV=development nodemon --inspect=0.0.0.0:9229 src/server.js",
-    "start": "cross-env NODE_ENV=production node src/server.js",
+    "prepare": "husky",
+    "dev": "pnpm -r --parallel run --if-present dev",
+    "rest-api:dev": "pnpm --filter @vue3-express-monorepo/rest-api dev",
+    "rest-api:dev:debug": "pnpm --filter @vue3-express-monorepo/rest-api dev:debug",
+    "rest-api:start": "pnpm --filter @vue3-express-monorepo/rest-api start",
+    "pc-portal:dev": "pnpm --filter @vue3-express-monorepo/pc-portal dev",
+    "pc-admin:dev": "pnpm --filter @vue3-express-monorepo/pc-admin dev",
+    "test": "pnpm --filter @vue3-express-monorepo/rest-api test",
+    "db:reset": "pnpm --filter @vue3-express-monorepo/rest-api db:reset",
+    "typecheck": "pnpm -r --parallel run --if-present typecheck",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "lint:style": "stylelint 'apps/frontend/**/*.{css,scss,vue}'",
+    "lint:style:fix": "stylelint 'apps/frontend/**/*.{css,scss,vue}' --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "verify": "pnpm run typecheck && pnpm run lint && pnpm run lint:style && pnpm run format:check && pnpm run test",
     "docker:install": "cross-env APP_ENV=development docker compose --env-file .env.development -f docker/docker-compose.base.yaml -f docker/docker-compose.dev.yaml exec -e CI=true -T app pnpm install --frozen-lockfile",
     "docker:pnpm": "cross-env APP_ENV=development docker compose --env-file .env.development -f docker/docker-compose.base.yaml -f docker/docker-compose.dev.yaml exec -e CI=true -T app pnpm",
     "docker:dev:debug": "cross-env APP_ENV=development docker compose --env-file .env.development -f docker/docker-compose.base.yaml -f docker/docker-compose.dev.yaml -f docker/docker-compose.debug.yaml up -d --build",
@@ -18,36 +36,41 @@
     "docker:test": "cross-env APP_ENV=test docker compose --env-file .env.test -f docker/docker-compose.base.yaml -f docker/docker-compose.test.yaml up -d --build",
     "docker:prod": "cross-env APP_ENV=production docker compose --env-file .env.production -f docker/docker-compose.base.yaml -f docker/docker-compose.yaml up -d --build"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
-  "dependencies": {
-    "bcrypt": "^6.0.0",
-    "compression": "^1.8.1",
-    "cors": "^2.8.6",
-    "cross-env": "^10.1.0",
-    "dotenv": "^17.4.2",
-    "express": "4.22.1",
-    "express-rate-limit": "^8.5.0",
-    "helmet": "^8.1.0",
-    "js-yaml": "^4.1.1",
-    "jsonwebtoken": "^9.0.3",
-    "multer": "^2.1.1",
-    "mysql2": "^3.22.3",
-    "sequelize": "^6.37.8",
-    "swagger-ui-express": "^5.0.1",
-    "winston": "^3.19.0",
-    "zod": "^4.4.3"
+  "lint-staged": {
+    "apps/backend/**/*.{js,mjs,cjs}": "eslint --fix",
+    "apps/frontend/**/*.{ts,vue,js,mjs}": "eslint --fix",
+    "apps/frontend/**/*.{scss,vue,css}": "stylelint --fix",
+    "*.{json,md,yaml,yml,css,scss,vue,ts,js,mjs}": "prettier --write"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "@commitlint/cli": "catalog:",
+    "@commitlint/config-conventional": "catalog:",
+    "@eslint/js": "catalog:",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "eslint-config-prettier": "catalog:",
+    "eslint-plugin-import": "catalog:",
+    "eslint-plugin-vue": "catalog:",
+    "globals": "catalog:",
+    "husky": "catalog:",
+    "lint-staged": "catalog:",
+    "postcss-html": "catalog:",
+    "prettier": "catalog:",
+    "stylelint": "catalog:",
+    "stylelint-config-html": "catalog:",
+    "stylelint-config-recess-order": "catalog:",
+    "stylelint-config-standard": "catalog:",
+    "stylelint-config-standard-scss": "catalog:",
+    "stylelint-order": "catalog:",
+    "stylelint-prettier": "catalog:",
+    "stylelint-scss": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "vue-eslint-parser": "catalog:"
   },
-  "engines": {
-    "node": ">=20.19.5",
-    "pnpm": ">=10.17.0"
+  "dependencies": {
+    "cross-env": "^10.1.0"
   },
-  "packageManager": "pnpm@10.17.0",
   "pnpm": {
     "onlyBuiltDependencies": [
       "bcrypt"

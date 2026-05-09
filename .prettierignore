@@ -1,0 +1,11 @@
+dist
+**/dist
+coverage
+**/coverage
+node_modules
+**/node_modules
+pnpm-lock.yaml
+*.min.js
+logs
+uploads
+.pnpm-store
