@@ -8,7 +8,7 @@ import vueParser from "vue-eslint-parser";
 /**
  * 企业通用：单一 flat 配置，按路径分型（§6.0）。
  * - apps/backend：Node + JS，不含 Vue。
- * - apps/frontend：Vue + TS + 浏览器全局。
+ * - apps/frontend、packages：Vue + TS + 浏览器全局。
  */
 export default tseslint.config(
   {
@@ -42,7 +42,7 @@ export default tseslint.config(
   ...pluginVue.configs["flat/recommended"],
   ...tseslint.configs.recommended,
   {
-    files: ["apps/frontend/**/*.{ts,vue,js,mjs}"],
+    files: ["apps/frontend/**/*.{ts,vue,js,mjs}", "packages/**/*.{ts,vue,js,mjs}"],
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",
@@ -60,7 +60,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["apps/frontend/**/*.{ts,vue}"],
+    files: ["apps/frontend/**/*.{ts,vue}", "packages/**/*.{ts,vue}"],
     rules: {
       "no-console": ["warn", { allow: ["log", "warn", "error", "info"] }],
       "vue/multi-word-component-names": "off",

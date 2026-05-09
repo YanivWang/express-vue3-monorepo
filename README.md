@@ -1,4 +1,4 @@
-# vue3-express-monorepo
+# express-vue3-monorepo
 
 pnpm workspace：后端 `apps/backend/rest-api`，前端 `apps/frontend/pc-portal`、`apps/frontend/pc-admin`。根目录编排脚本调用 Docker Compose。
 

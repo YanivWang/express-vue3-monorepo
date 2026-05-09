@@ -1,7 +1,7 @@
 # 接口契约：可提交仓库，团队共用；运行时可 GET /openapi.yaml（与 apps/backend/rest-api/src/swagger.js 一致）；Swagger UI：/api-docs。Apifox 可导入本文件。
 openapi: 3.0.3
 info:
-  title: vue3-express-monorepo · REST API（@vue3-express-monorepo/rest-api）
+  title: express-vue3-monorepo · REST API（@express-vue3-monorepo/rest-api）
   version: 1.0.0
   description: |
     后端包 `apps/backend/rest-api`（Express ESM）；业务路由挂载于 `/api`，与 `src/app.js`、`src/routes/*.routes.js` 一致。

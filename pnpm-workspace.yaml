@@ -1,14 +1,33 @@
 packages:
   - "apps/backend/*"
   - "apps/frontend/*"
+  - "packages/*"
 
 catalog:
+  # ---------- 运行时（与迁入 packages 对齐） ----------
   vue: ^3.4.31
   vue-router: ^4.3.3
+  axios: ^1.7.2
+  vue-i18n: ^9.14.4
+  "@vueuse/core": ^10.11.0
+  dayjs: ^1.11.11
+  lodash-es: ^4.17.21
+  js-cookie: ^3.0.5
+  echarts: ^6.0.0
+  web-vitals: ^5.2.0
+  # ---------- 构建工具 ----------
   vite: ^5.3.3
   typescript: ~5.5.3
   vue-tsc: ^2.0.26
   "@vitejs/plugin-vue": ^5.0.5
+  vite-tsconfig-paths: ^5.0.0
+  sass: ^1.77.6
+  # ---------- PC / H5 UI（shared peer / dev） ----------
+  element-plus: ^2.7.6
+  "@element-plus/icons-vue": ^2.3.1
+  vant: ^4.9.0
+  vconsole: ^3.15.0
+  # ---------- 工程化（既有 + 测试） ----------
   eslint: ^9.39.4
   "@eslint/js": ^9.39.4
   typescript-eslint: ^8.59.0
@@ -32,4 +51,8 @@ catalog:
   "@commitlint/types": ^20.5.0
   husky: ^9.1.7
   lint-staged: ^16.4.0
+  vitest: ^2.1.9
+  happy-dom: ^20.9.0
   "@types/node": ^20.14.9
+  "@types/js-cookie": ^3.0.6
+  "@types/lodash-es": ^4.17.12

@@ -1,0 +1,24 @@
+// 共享 packages typecheck 配置
+// - 继承 tsconfig.base.json（strict）
+// - DOM lib + paths：跨 workspace 源码解析，无需预 build
+// - noEmit：类型检查仅静态验证；应用侧 Vite 负责打包 workspace 源码
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": [],
+    "baseUrl": ".",
+    "jsx": "preserve",
+    "allowImportingTsExtensions": true,
+    "paths": {
+      "@express-vue3-monorepo/shared": ["packages/shared/src/index.ts"],
+      "@express-vue3-monorepo/shared/styles/tokens": ["packages/shared/src/styles/tokens.ts"],
+      "@express-vue3-monorepo/shared/*": ["packages/shared/src/*"],
+      "@express-vue3-monorepo/request-core": ["packages/request-core/src/index.ts"],
+      "@express-vue3-monorepo/web-monitor": ["packages/web-monitor/src/index.ts"],
+      "@express-vue3-monorepo/js-bridge": ["packages/js-bridge/src/index.ts"]
+    }
+  }
+}

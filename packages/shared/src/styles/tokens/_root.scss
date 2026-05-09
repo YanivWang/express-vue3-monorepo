@@ -1,0 +1,58 @@
+// ────────────────────────────────────────────────────────────
+//  Design Token - 运行期 CSS 自定义属性（:root）
+//  默认值与 _variables.scss 单源同步；应用可单独 @use 本文件，或与 brands / dark 一并引入
+//  暗黑（html.dark）、品牌（html[data-brand]）在其它文件中覆盖 var(--*)，本文件只定义映射关系
+// ────────────────────────────────────────────────────────────
+
+@use "./variables" as *;
+
+// :root 是 CSS 里的伪类选择器，表示文档根元素
+// 大家喜欢在 :root { --变量名: 值; } 里定义 CSS 自定义属性（--xxx），是因为：
+// 1. 全局作用域：在 :root 中定义的变量在文档中全局可用
+// 2. 可继承性：后代元素可以继承这些变量
+// 3. 可重写性：后代元素可以重写这些变量
+// 4. 可调试性：在浏览器开发者工具中可以方便地查看和调试这些变量
+
+:root {
+  // 主色
+  --color-primary: #{$primary-color};
+  --color-primary-light: #{$primary-color-light};
+  --color-primary-dark: #{$primary-color-dark};
+  --color-success: #{$success-color};
+  --color-warning: #{$warning-color};
+  --color-danger: #{$danger-color};
+  --color-info: #{$info-color};
+
+  // 文字
+  --text-primary: #{$text-primary};
+  --text-regular: #{$text-regular};
+  --text-secondary: #{$text-secondary};
+  --text-placeholder: #{$text-placeholder};
+
+  // 背景
+  --bg-page: #{$bg-page};
+  --bg-white: #{$bg-white};
+  --bg-card: #{$bg-card};
+  --bg-overlay: #{$bg-overlay};
+
+  // 边框
+  --border-color: #{$border-color};
+  --border-color-light: #{$border-color-light};
+
+  // 侧边栏
+  --sidebar-bg: #{$sidebar-bg};
+  --sidebar-text: #{$sidebar-text};
+  --sidebar-text-active: #{$sidebar-text-active};
+  --sidebar-item-hover-bg: #{$sidebar-item-hover-bg};
+  --sidebar-item-active-bg: #{$sidebar-item-active-bg};
+
+  // 头部
+  --header-bg: #{$header-bg};
+  --header-border: #{$header-border};
+
+  // 阴影
+  --box-shadow-base: #{$box-shadow-base};
+  --box-shadow-medium: #{$box-shadow-medium};
+}
+
+$border-width: 2px;
