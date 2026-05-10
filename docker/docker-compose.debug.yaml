@@ -6,4 +6,4 @@ services:
     command:
       - sh
       - -c
-      - mkdir -p /app/logs && pnpm rest-api:dev:debug 2>&1 | tee -a /app/logs/rest-api-dev.log
+      - mkdir -p /app/logs && CI=true pnpm install --frozen-lockfile && pnpm rest-api:dev:debug 2>&1 | tee -a /app/logs/rest-api-dev.log

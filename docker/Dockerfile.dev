@@ -11,6 +11,9 @@ RUN npm config set registry https://registry.npmmirror.com \
 
 WORKDIR /app
 
+# 镜像内无 git：避免根目录 prepare（husky）在 pnpm install 阶段报错或无意义安装
+ENV HUSKY=0
+
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY .npmrc ./
 COPY apps/backend/rest-api/package.json apps/backend/rest-api/

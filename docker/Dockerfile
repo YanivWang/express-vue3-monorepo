@@ -10,6 +10,8 @@ RUN npm config set registry https://registry.npmmirror.com \
 
 WORKDIR /app
 
+ENV HUSKY=0
+
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY .npmrc ./
 COPY apps/backend/rest-api/package.json apps/backend/rest-api/

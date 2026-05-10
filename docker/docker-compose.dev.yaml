@@ -52,6 +52,8 @@ services:
     environment:
       APP_ENV: development
       NODE_ENV: development
+      # 跳过 husky：slim 镜像无 git；Git 钩子应在宿主仓库配置
+      HUSKY: "0"
       PORT: "3000"
       CHOKIDAR_USEPOLLING: "1"
       TRUST_PROXY: "1"
@@ -63,7 +65,7 @@ services:
     command:
       - sh
       - -c
-      - mkdir -p /app/logs && pnpm rest-api:dev 2>&1 | tee -a /app/logs/rest-api-dev.log
+      - mkdir -p /app/logs && CI=true pnpm install --frozen-lockfile && pnpm rest-api:dev 2>&1 | tee -a /app/logs/rest-api-dev.log
 
   # Vite（仅容器网格内访问）；网关将 /api 等发往 rest-api，页面与 HMR 发往本容器
   pc-portal:
@@ -77,6 +79,8 @@ services:
     environment:
       APP_ENV: development
       NODE_ENV: development
+      # 跳过 husky：slim 镜像无 git；Git 钩子应在宿主仓库配置
+      HUSKY: "0"
       VITE_DEV_PROXY_TARGET: http://rest-api:3000
       # 浏览器入口为网关时，WebSocket HMR 需走宿主可见端口（默认与 GATEWAY_HOST_PORT 一致）
       VITE_DEV_HMR_CLIENT_PORT: ${GATEWAY_HOST_PORT:-2026}
@@ -87,7 +91,7 @@ services:
     command:
       - sh
       - -c
-      - mkdir -p /app/logs && pnpm pc-portal:dev -- --host 2>&1 | tee -a /app/logs/pc-portal-dev.log
+      - mkdir -p /app/logs && CI=true pnpm install --frozen-lockfile && pnpm pc-portal:dev -- --host 2>&1 | tee -a /app/logs/pc-portal-dev.log
     depends_on:
       rest-api:
         condition: service_started
