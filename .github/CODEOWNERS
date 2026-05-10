@@ -1,0 +1,40 @@
+# CODEOWNERS — 代码所有者（GitHub / GitLab 等平台的默认评审人）
+# -----------------------------------------------------------------------------
+# 使用前请将下文所有 @REPLACE_WITH_GITHUB_OWNER 替换为：
+#   - GitHub 用户名（如 @zhangsan），或
+#   - 组织团队（如 @my-org/web-team）
+#
+# 说明：https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# 匹配顺序：后出现的规则可覆盖先出现的规则；越具体的路径建议写在越靠下。
+# -----------------------------------------------------------------------------
+
+* @REPLACE_WITH_GITHUB_OWNER
+
+/apps/backend/ @REPLACE_WITH_GITHUB_OWNER
+/apps/frontend/pc-portal/ @REPLACE_WITH_GITHUB_OWNER
+/apps/frontend/pc-admin/ @REPLACE_WITH_GITHUB_OWNER
+
+/packages/shared/ @REPLACE_WITH_GITHUB_OWNER
+/packages/request-core/ @REPLACE_WITH_GITHUB_OWNER
+/packages/js-bridge/ @REPLACE_WITH_GITHUB_OWNER
+/packages/web-monitor/ @REPLACE_WITH_GITHUB_OWNER
+
+/docker/ @REPLACE_WITH_GITHUB_OWNER
+/docs/ @REPLACE_WITH_GITHUB_OWNER
+/e2e/ @REPLACE_WITH_GITHUB_OWNER
+/.github/ @REPLACE_WITH_GITHUB_OWNER
+
+# 根目录工程化与依赖锁文件（可按团队拆分为 dedicated owner）
+/package.json @REPLACE_WITH_GITHUB_OWNER
+/pnpm-workspace.yaml @REPLACE_WITH_GITHUB_OWNER
+/pnpm-lock.yaml @REPLACE_WITH_GITHUB_OWNER
+/tsconfig.json @REPLACE_WITH_GITHUB_OWNER
+/tsconfig.base.json @REPLACE_WITH_GITHUB_OWNER
+/tsconfig.pkg.json @REPLACE_WITH_GITHUB_OWNER
+/eslint.config.mjs @REPLACE_WITH_GITHUB_OWNER
+/commitlint.config.cjs @REPLACE_WITH_GITHUB_OWNER
+/prettier.config.mjs @REPLACE_WITH_GITHUB_OWNER
+/.stylelintrc.json @REPLACE_WITH_GITHUB_OWNER
+/.prettierignore @REPLACE_WITH_GITHUB_OWNER
+/playwright.config.ts @REPLACE_WITH_GITHUB_OWNER
