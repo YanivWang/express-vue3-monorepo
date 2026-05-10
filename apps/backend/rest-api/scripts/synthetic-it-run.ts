@@ -21,7 +21,8 @@
  * - SYNTHETIC_LLM_MAX_TOKENS（默认 4096）
  * - SYNTHETIC_LLM_TEMPERATURE（可选；默认由脚本设为约 0.42，兼顾事实稳妥与自然文风）
  * - SYNTHETIC_FETCH_IMAGES：可选。设为 0 / false 时**关闭**自动配图；设为 1 / true 时**强制开启**（须同时配置 SYNTHETIC_PEXELS_API_KEY）。**未设置时：只要配置了 SYNTHETIC_PEXELS_API_KEY 即默认拉取 Pexels 并上传**。
- * - SYNTHETIC_PEXELS_API_KEY：Pexels API Key（https://www.pexels.com/api/）。配置后即默认启用配图流水线。启用时会：对每个分类先预热一张通用封面；单帖检索失败时带重试与兜底检索词，并尽量复用上一张已成功写入 uploads 的 URL，减少落入仅占位路径 `/uploads/synthetic/...`（磁盘通常无文件 → 404）。
+ * - SYNTHETIC_PEXELS_API_KEY：Pexels API Key（https://www.pexels.com/api/）。配置后即默认启用配图流水线：单次检索拉多张并翻页，整场种子维护已用 **Pexels photo id**，优先选未见过的资源；检索词仍会走兜底链路。对每个分类会先预热一张通用封面。
+ * - SYNTHETIC_IMAGE_REUSE_LAST（可选）：拉图整链失败时为 `0` / `false` 则**不复用**「上一张成功封面」，直接仅占位 `/uploads/synthetic/...`（易 404）；默认开启复用以减少坏链。
  *
  * 环境与 monorepo：根目录 `.env.development`（及 `.local`）先合并；再合并 `scripts/synthetic-it.env`（及 `.local`）中的种子相关键并**优先生效**。完整键名见同目录 `synthetic-it.env`。
  */
@@ -146,7 +147,10 @@ async function prepareSyntheticPostPayload(
     rateMs: number;
     fetchImages: boolean;
     pexelsKey: string;
-    /** 已成功上传的本站封面，用于本条检索失败时复用，避免仅占位路径 */
+    /** 整场种子会话内出现过的 Pexels `photos[].id`，用于尽量不重复配图 */
+    usedPexelsPhotoIds: Set<number>;
+    reuseLastCoverOnMiss: boolean;
+    /** 已成功上传的本站封面，用于本条拉图全失败时的可选复用，避免仅占位路径 */
     reuseCoverUrl: string | null;
   },
 ): Promise<{ title: string; html: string; images: string[] }> {
@@ -162,6 +166,7 @@ async function prepareSyntheticPostPayload(
       typeof post.imageSearchQuery === "string" && post.imageSearchQuery.trim().length > 0
         ? post.imageSearchQuery.trim()
         : `${bundle.categoryName} technology ${htmlPlainExcerpt(html, 160)}`;
+    const selectionSalt = `${SYNTHETIC_IT_EXTERNAL_SOURCE}|${bundle.categoryName}|${bundle.keyPrefix}-${idx}`;
     const uploaded = await fetchPexelsPhotoAndUpload({
       apiBase: ctx.apiBase,
       restToken: ctx.token,
@@ -174,16 +179,19 @@ async function prepareSyntheticPostPayload(
         "technology workspace",
         "coding computer",
       ],
+      avoidPexelsPhotoIds: ctx.usedPexelsPhotoIds,
+      selectionSalt,
     });
     if (uploaded) {
-      images = [uploaded];
+      ctx.usedPexelsPhotoIds.add(uploaded.pexelsPhotoId);
+      images = [uploaded.uploadUrl];
     }
     await sleep(ctx.rateMs);
   }
 
   if (images.length === 0) {
     const reuse = ctx.reuseCoverUrl?.trim() ?? "";
-    if (reuse && !isSyntheticDiskPlaceholderPath(reuse)) {
+    if (ctx.reuseLastCoverOnMiss && reuse && !isSyntheticDiskPlaceholderPath(reuse)) {
       console.warn(`  [pexels] 本条未拉到新图，复用本站已有封面`);
       images = [reuse];
     } else {
@@ -242,6 +250,7 @@ async function injectBundlePosts(
   rateMs: number,
   fetchImages: boolean,
   pexelsKey: string,
+  usedPexelsPhotoIds: Set<number>,
 ): Promise<{ postsProcessed: number; postsSkippedComments: number; commentsWritten: number }> {
   let postsProcessed = 0;
   let postsSkippedComments = 0;
@@ -250,7 +259,19 @@ async function injectBundlePosts(
   const categoryId = resolveLeafCategoryId(categories, bundle.categoryName);
   console.log(`\n分类「${bundle.categoryName}」 -> categoryId=${categoryId}`);
 
-  const prepBase = { apiBase, token, rateMs, fetchImages, pexelsKey };
+  const reuseLastCoverOnMiss =
+    process.env.SYNTHETIC_IMAGE_REUSE_LAST !== "0" &&
+    process.env.SYNTHETIC_IMAGE_REUSE_LAST?.toLowerCase() !== "false";
+
+  const prepBase = {
+    apiBase,
+    token,
+    rateMs,
+    fetchImages,
+    pexelsKey,
+    usedPexelsPhotoIds,
+    reuseLastCoverOnMiss,
+  };
   let reuseCoverUrl: string | null = null;
 
   if (fetchImages && pexelsKey) {
@@ -260,9 +281,12 @@ async function injectBundlePosts(
       pexelsApiKey: pexelsKey,
       query: "technology laptop workspace",
       fallbackQueries: ["software developer computer", "coding workspace desk"],
+      avoidPexelsPhotoIds: usedPexelsPhotoIds,
+      selectionSalt: `${SYNTHETIC_IT_EXTERNAL_SOURCE}|${bundle.categoryName}|warmup-cover`,
     });
     if (prime) {
-      reuseCoverUrl = prime;
+      usedPexelsPhotoIds.add(prime.pexelsPhotoId);
+      reuseCoverUrl = prime.uploadUrl;
       console.log(`  [pexels] 本分类预热封面已写入 uploads`);
     }
     await sleep(rateMs);
@@ -385,6 +409,8 @@ async function main() {
   }
 
   const commentDone = await loadCommentManifest();
+  /** 跨分类、整场 `db:init-post` 会话内尽量不重复选用同一 Pexels 资源 id */
+  const usedPexelsPhotoIds = new Set<number>();
 
   const tree = await apiSuccessJson("GET", apiBase, token, "/categories");
   const categories = tree.categories as unknown[];
@@ -405,6 +431,7 @@ async function main() {
         rateMs,
         fetchImages,
         pexelsKey,
+        usedPexelsPhotoIds,
       );
       postsProcessed += r.postsProcessed;
       postsSkippedComments += r.postsSkippedComments;
@@ -451,6 +478,7 @@ async function main() {
         rateMs,
         fetchImages,
         pexelsKey,
+        usedPexelsPhotoIds,
       );
       postsProcessed += r.postsProcessed;
       postsSkippedComments += r.postsSkippedComments;
