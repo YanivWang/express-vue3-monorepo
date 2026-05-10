@@ -1,4 +1,4 @@
-import type { LoginParams, LoginResult, RegisterParams } from "@express-vue3-monorepo/shared/types";
+import type { LoginParams, LoginResult, RegisterParams } from "@vue3-express-monorepo/shared/types";
 
 import { http } from "./http";
 

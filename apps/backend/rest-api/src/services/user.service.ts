@@ -25,7 +25,7 @@ function toPublicProfile(user: Model): PublicUserProfile {
     id: user.get("id") as number,
     username: user.get("username") as string,
     avatar: (user.get("avatar") as string | null | undefined) ?? null,
-    role: user.get("role") as number,
+    role: user.get("legacyRole") as number,
   };
 }
 

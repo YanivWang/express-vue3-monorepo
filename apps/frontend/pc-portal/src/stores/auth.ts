@@ -7,7 +7,7 @@ import type { CurrentUserProfile } from "@/api/types";
 import * as userApi from "@/api/user";
 import { parseJwtPayload } from "@/utils/jwt";
 
-import type { LoginParams, RegisterParams } from "@express-vue3-monorepo/shared/types";
+import type { LoginParams, RegisterParams } from "@vue3-express-monorepo/shared/types";
 
 export const useAuthStore = defineStore("auth", () => {
   const token = ref<string | null>(tokenStorage.getToken() ?? null);

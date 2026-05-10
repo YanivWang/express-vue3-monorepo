@@ -315,6 +315,11 @@ export class HttpRequest {
             return "登录已过期";
           };
 
+          const notifyUnauthorized = (authErr: NormalizedError) => {
+            if (customConfig.skipUnauthorizedDialog === true) return;
+            this.hooks.onUnauthorized?.({ error: authErr, config: customConfig, response });
+          };
+
           if (customConfig.skipAuthRefresh) {
             const authErr = createNormalizedError(unauthorizedMsg() || "未授权", {
               type: "auth",
@@ -322,7 +327,7 @@ export class HttpRequest {
               config: customConfig,
               original: error,
             });
-            this.hooks.onUnauthorized?.({ error: authErr, config: customConfig, response });
+            notifyUnauthorized(authErr);
             return Promise.reject(authErr);
           }
 
@@ -347,7 +352,7 @@ export class HttpRequest {
                 config: customConfig,
                 original: e,
               });
-              this.hooks.onUnauthorized?.({ error: authErr, config: customConfig, response });
+              notifyUnauthorized(authErr);
               return Promise.reject(authErr);
             }
           } else {
@@ -357,7 +362,7 @@ export class HttpRequest {
               config: customConfig,
               original: error,
             });
-            this.hooks.onUnauthorized?.({ error: authErr, config: customConfig, response });
+            notifyUnauthorized(authErr);
             return Promise.reject(authErr);
           }
         }

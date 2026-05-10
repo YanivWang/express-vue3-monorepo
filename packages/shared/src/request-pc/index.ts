@@ -2,8 +2,8 @@ import {
   createHttp,
   type CreateHttpOptions,
   type HttpRequest,
-} from "@express-vue3-monorepo/request-core";
-import { createTokenStorage, type TokenStorage } from "@express-vue3-monorepo/shared/utils";
+} from "@vue3-express-monorepo/request-core";
+import { createTokenStorage, type TokenStorage } from "@vue3-express-monorepo/shared/utils";
 
 import { createElLoadingHandler } from "./loading";
 import { createPcHooks, type PcPresetOptions } from "./preset";
@@ -33,7 +33,7 @@ export interface CreatePcHttpOptions
 
 /**
  * 创建 PC 端 HttpRequest：集成 Element Plus 默认 UI 反馈。
- * 默认与 monorepo `rest-api` 的 `{ code, msg, ...payload }` 响应一致（见 `@express-vue3-monorepo/request-core` 的 `responseStyle`）。
+ * 默认与 monorepo `rest-api` 的 `{ code, msg, ...payload }` 响应一致（见 `@vue3-express-monorepo/request-core` 的 `responseStyle`）。
  */
 export function createPcHttp(options: CreatePcHttpOptions = {}): HttpRequest {
   const {
@@ -65,7 +65,7 @@ export function createPcHttp(options: CreatePcHttpOptions = {}): HttpRequest {
   });
 }
 
-export type { TokenStorage } from "@express-vue3-monorepo/shared/utils";
+export type { TokenStorage } from "@vue3-express-monorepo/shared/utils";
 export type {
   RequestConfig,
   ResponseData,
@@ -80,4 +80,4 @@ export type {
   RequestHooks,
   ErrorHookContext,
   LoadingHandler,
-} from "@express-vue3-monorepo/request-core";
+} from "@vue3-express-monorepo/request-core";

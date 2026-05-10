@@ -59,7 +59,7 @@ export async function findFavoritePostsPage(userId: number, page: number, limit:
       ],
     }),
   ]);
-  const posts = rows.map((r) => r.get("post") as Model);
+  const posts = rows.map((r: Model) => r.get("post") as Model);
   const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
   return { posts, total, totalPages };
 }

@@ -17,7 +17,7 @@ export type ApiSuccessJson<T extends Record<string, unknown> = Record<string, un
 
 /**
  * @deprecated 历史命名；请使用 ApiSuccessJson / ApiFailJson。
- * 与 `@express-vue3-monorepo/request-core` 的 `nested-data` 模式或旧后端一致时为 `{ code, message, data }`
+ * 与 `@vue3-express-monorepo/request-core` 的 `nested-data` 模式或旧后端一致时为 `{ code, message, data }`
  */
 export interface ApiResponse<T = unknown> {
   code: number;

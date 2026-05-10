@@ -1,0 +1,29 @@
+import { getActivePinia } from "pinia";
+
+import { createPcHttp, type TokenStorage } from "@vue3-express-monorepo/shared/request-pc";
+import { createTokenStorage } from "@vue3-express-monorepo/shared/utils";
+
+const tokenKey = "pc_admin_access_token";
+const refreshTokenKey = "pc_admin_refresh_unused";
+
+export const tokenStorage: TokenStorage = createTokenStorage({
+  tokenKey,
+  refreshTokenKey,
+  tokenExpires: 7,
+  refreshExpires: 7,
+});
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const loginPath = base ? `${base}/login` : "/login";
+
+export const http = createPcHttp({
+  baseURL: String(import.meta.env.VITE_API_BASE_URL ?? ""),
+  tokenStorage,
+  loginPath,
+  onLogout: async () => {
+    const { useAuthStore } = await import("@/stores/auth");
+    const pinia = getActivePinia();
+    if (pinia) useAuthStore(pinia).clearSession();
+  },
+  enableLoading: true,
+});

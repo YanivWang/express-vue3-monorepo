@@ -1,6 +1,6 @@
 import { showLoadingToast, closeToast } from "vant";
 
-import type { LoadingHandler } from "@express-vue3-monorepo/request-core";
+import type { LoadingHandler } from "@vue3-express-monorepo/request-core";
 
 /**
  * H5 侧 Loading 处理器：使用 Vant showLoadingToast + 计数器叠加。

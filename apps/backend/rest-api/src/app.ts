@@ -11,6 +11,7 @@ import { createHttpError, errorMiddleware } from "./middlewares/error.middleware
 import { httpRequestLogMiddleware } from "./middlewares/httpRequestLog.middleware.js";
 import { globalRateLimitMiddleware } from "./middlewares/rateLimit.middleware.js";
 import { requestIdMiddleware } from "./middlewares/requestId.middleware.js";
+import adminRoutes from "./routes/admin.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import categoryRoutes from "./routes/category.routes.js";
 import commentRoutes from "./routes/comment.routes.js";
@@ -87,6 +88,7 @@ setupSwagger(app);
 // authRoutes / userRoutes：都是 express.Router()，当成一整块中间件挂在 /api 下面
 // app.use("/api", xxx) = 把 xxx 这套路由表接到 /api 后面；真实路径 = /api + 子路由里的 path。
 app.use("/api", authRoutes);
+app.use("/api", adminRoutes);
 app.use("/api", userRoutes);
 app.use("/api", postRoutes);
 app.use("/api", commentRoutes);

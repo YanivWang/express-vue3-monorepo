@@ -39,7 +39,7 @@ onErrorCaptured((err: unknown) => {
 </template>
 
 <style lang="scss" scoped>
-@use "@express-vue3-monorepo/shared/styles/tokens/variables" as *;
+@use "@vue3-express-monorepo/shared/styles/tokens/variables" as *;
 
 .error-boundary {
   display: flex;

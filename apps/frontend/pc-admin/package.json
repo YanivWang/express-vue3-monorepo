@@ -1,5 +1,5 @@
 {
-  "name": "@express-vue3-monorepo/pc-admin",
+  "name": "@vue3-express-monorepo/pc-admin",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,9 +10,18 @@
     "typecheck": "vue-tsc --noEmit -p tsconfig.app.json"
   },
   "dependencies": {
-    "vue": "catalog:"
+    "@element-plus/icons-vue": "catalog:",
+    "@vue3-express-monorepo/shared": "workspace:*",
+    "@vueuse/core": "catalog:",
+    "element-plus": "catalog:",
+    "nprogress": "^0.2.0",
+    "pinia": "catalog:",
+    "sass": "catalog:",
+    "vue": "catalog:",
+    "vue-router": "catalog:"
   },
   "devDependencies": {
+    "@types/nprogress": "^0.2.3",
     "@vitejs/plugin-vue": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",

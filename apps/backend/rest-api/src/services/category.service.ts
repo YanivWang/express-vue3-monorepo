@@ -1,5 +1,6 @@
-import { Category, User } from "../db.js";
+import { Category, Post } from "../db.js";
 import { createHttpError } from "../middlewares/error.middleware.js";
+import { trimmedStringFromUnknown } from "../utils/trimmedStringFromUnknown.js";
 
 import type { Model, Order } from "sequelize";
 
@@ -53,16 +54,16 @@ export async function assertPostCategoryLeaf(categoryId: number) {
   }
 }
 
-/** 管理员在一级分类下创建（或复用同名）叶子分类，供导入脚本等与抓取侧二级类目对齐 */
-export async function ensureLeafCategoryUnderRoot(
-  operatorUserId: number,
-  input: { parentId: number; name: string; sortOrder: number },
-): Promise<{ category: Model; reused: boolean }> {
-  const operator = await User.findByPk(operatorUserId);
-  if (!operator || Number(operator.get("role")) !== 1) {
-    throw createHttpError(403, "需要管理员权限");
+/** 在一级分类下创建（或复用同名）叶子分类；须在路由层以 `requirePermission('admin.categories.write')` 等保护 */
+export async function ensureLeafCategoryUnderRoot(input: {
+  parentId: number;
+  name: unknown;
+  sortOrder: number;
+}): Promise<{ category: Model; reused: boolean }> {
+  const name = trimmedStringFromUnknown(input.name);
+  if (!name) {
+    throw createHttpError(400, "名称不能为空");
   }
-
   const parent = await Category.findByPk(input.parentId);
   if (!parent) {
     throw createHttpError(400, "父分类不存在");
@@ -72,7 +73,7 @@ export async function ensureLeafCategoryUnderRoot(
   }
 
   const existing = await Category.findOne({
-    where: { parentId: input.parentId, name: input.name },
+    where: { parentId: input.parentId, name },
   });
   if (existing) {
     await assertPostCategoryLeaf(existing.get("id") as number);
@@ -80,7 +81,7 @@ export async function ensureLeafCategoryUnderRoot(
   }
 
   const row = await Category.create({
-    name: input.name,
+    name,
     parentId: input.parentId,
     sortOrder: input.sortOrder,
   });
@@ -105,5 +106,60 @@ export async function resolveLeafIdsUnderParentOrEmpty(parentId: number) {
       ["id", "ASC"],
     ] satisfies Order,
   });
-  return rows.map((r) => r.get("id") as number);
+  return rows.map((r: Model) => r.get("id") as number);
+}
+
+export async function createRootCategory(input: { name: unknown; sortOrder?: unknown }) {
+  const name = trimmedStringFromUnknown(input.name);
+  if (!name) {
+    throw createHttpError(400, "分类名称不能为空");
+  }
+  const sortOrder = Number(input.sortOrder ?? 0);
+  const dup = await Category.findOne({ where: { parentId: null, name } });
+  if (dup) {
+    throw createHttpError(400, "一级分类下已存在同名分类");
+  }
+  return Category.create({ name, parentId: null, sortOrder });
+}
+
+export async function updateCategoryAdmin(
+  categoryId: number,
+  payload: { name?: unknown; sortOrder?: unknown },
+) {
+  if (payload.name === undefined && payload.sortOrder === undefined) {
+    throw createHttpError(400, "至少提供 name 或 sortOrder");
+  }
+  const row = await Category.findByPk(categoryId);
+  if (!row) {
+    throw createHttpError(404, "分类不存在");
+  }
+  const next: Record<string, unknown> = {};
+  if (payload.name !== undefined) {
+    const n = trimmedStringFromUnknown(payload.name);
+    if (!n) {
+      throw createHttpError(400, "名称不能为空");
+    }
+    next.name = n;
+  }
+  if (payload.sortOrder !== undefined) {
+    next.sortOrder = Number(payload.sortOrder);
+  }
+  await row.update(next);
+  return row;
+}
+
+export async function removeCategoryAdmin(categoryId: number) {
+  const row = await Category.findByPk(categoryId);
+  if (!row) {
+    throw createHttpError(404, "分类不存在");
+  }
+  const nPosts = await Post.count({ where: { categoryId } });
+  if (nPosts > 0) {
+    throw createHttpError(400, "仍有文章使用该分类，无法删除");
+  }
+  const children = await Category.count({ where: { parentId: categoryId } });
+  if (children > 0) {
+    throw createHttpError(400, "请先删除子分类");
+  }
+  await row.destroy();
 }

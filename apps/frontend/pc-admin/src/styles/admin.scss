@@ -1,0 +1,17 @@
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+.admin-layout__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-inline: 16px;
+}
+
+.admin-layout__title {
+  font-weight: 600;
+}

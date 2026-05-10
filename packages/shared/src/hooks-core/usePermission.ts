@@ -22,7 +22,7 @@ function unwrap<T>(source: Ref<T> | ComputedRef<T> | (() => T)): T {
  * @example
  * 应用内封装，例如：`src/composables/usePermission.ts`
  * import { useUserStore } from '@/stores/modules/user'
- * import { createUsePermission } from '@express-vue3-monorepo/shared/hooks-core'
+ * import { createUsePermission } from '@vue3-express-monorepo/shared/hooks-core'
  *
  * export const usePermission = createUsePermission({
  *   permissions: () => useUserStore().permissions,

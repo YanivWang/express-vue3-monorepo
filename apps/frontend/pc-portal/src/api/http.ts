@@ -1,7 +1,7 @@
 import { getActivePinia } from "pinia";
 
-import { createPcHttp, type TokenStorage } from "@express-vue3-monorepo/shared/request-pc";
-import { createTokenStorage } from "@express-vue3-monorepo/shared/utils";
+import { createPcHttp, type TokenStorage } from "@vue3-express-monorepo/shared/request-pc";
+import { createTokenStorage } from "@vue3-express-monorepo/shared/utils";
 
 const tokenKey = "pc_portal_access_token";
 const refreshTokenKey = "pc_portal_refresh_unused";

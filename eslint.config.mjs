@@ -66,7 +66,7 @@ export default tseslint.config(
           alphabetize: { order: "asc", caseInsensitive: true },
           pathGroups: [
             { pattern: "@/**", group: "internal", position: "before" },
-            { pattern: "@express-vue3-monorepo/**", group: "internal", position: "before" },
+            { pattern: "@vue3-express-monorepo/**", group: "internal", position: "before" },
           ],
           pathGroupsExcludedImportTypes: ["builtin"],
         },

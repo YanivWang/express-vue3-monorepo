@@ -22,15 +22,25 @@ export function defineUserModel(sequelize: Sequelize) {
         allowNull: true,
         comment: "头像",
       },
-      role: {
+      /** 兼容旧逻辑：0 前台用户 1 管理员；新逻辑以 roleId + RBAC 为准（DB 列名仍为 role） */
+      legacyRole: {
         type: DataTypes.TINYINT,
         allowNull: false,
         defaultValue: 0,
-        comment: "0: user, 1: admin",
+        field: "role",
+        comment: "0: user, 1: admin（兼容列，以 roleId 为准）",
+      },
+      roleId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: "RBAC 角色 id",
       },
     },
     {
-      indexes: [{ name: "users_username_uidx", unique: true, fields: ["username"] }],
+      indexes: [
+        { name: "users_username_uidx", unique: true, fields: ["username"] },
+        { name: "users_role_id_idx", fields: ["roleId"] },
+      ],
     },
   );
 }

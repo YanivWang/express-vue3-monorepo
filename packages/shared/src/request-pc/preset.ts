@@ -4,7 +4,7 @@ import type {
   ErrorHookContext,
   RequestHooks,
   TokenProvider,
-} from "@express-vue3-monorepo/request-core";
+} from "@vue3-express-monorepo/request-core";
 
 export interface PcPresetOptions {
   /** 登录页路径，默认 '/login' */
@@ -40,8 +40,22 @@ export function createPcHooks(
   } = authDialog;
 
   let isAuthDialogOpen = false;
+  /** 用户已确认去登录页：阻止并发 401 在跳转完成前再次弹窗 */
+  let isRedirectingToLogin = false;
+
+  const normalizePath = (p: string) => {
+    const t = p.trim() || "/";
+    if (t === "/") return "/";
+    return t.replace(/\/+$/, "") || "/";
+  };
+
+  const isAlreadyOnLoginPage = () => {
+    if (typeof window === "undefined") return false;
+    return normalizePath(window.location.pathname) === normalizePath(loginPath);
+  };
 
   const showLoginExpired = async () => {
+    if (isRedirectingToLogin || isAlreadyOnLoginPage()) return;
     if (isAuthDialogOpen) return;
     isAuthDialogOpen = true;
     try {
@@ -50,11 +64,12 @@ export function createPcHooks(
         cancelButtonText: cancelText,
         type: "warning",
       });
+      isRedirectingToLogin = true;
       tokenProvider.removeToken();
       tokenProvider.removeRefreshToken();
       await onLogout?.();
       if (typeof window !== "undefined") {
-        window.location.href = loginPath;
+        window.location.replace(loginPath);
       }
     } catch {
       /* 用户取消：不做处理 */

@@ -18,7 +18,8 @@ const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PWD, {
   dialect: "mysql",
 });
 
-const { User, Category, Post, PostVote, PostFavorite, Comment } = initModels(sequelize);
+const { User, Category, Post, PostVote, PostFavorite, Comment, Permission, Role, RolePermission } =
+  initModels(sequelize);
 
 async function backfillPostAggregatesFromRelations() {
   try {
@@ -96,6 +97,19 @@ export async function connectDatabase() {
     }
   }
   await seedDefaultCategoriesIfEmpty();
+  const { bootstrapRbacIfNeeded } = await import("./services/rbac-bootstrap.service.js");
+  await bootstrapRbacIfNeeded();
 }
 
-export { sequelize, User, Category, Post, PostVote, PostFavorite, Comment };
+export {
+  sequelize,
+  User,
+  Category,
+  Post,
+  PostVote,
+  PostFavorite,
+  Comment,
+  Permission,
+  Role,
+  RolePermission,
+};

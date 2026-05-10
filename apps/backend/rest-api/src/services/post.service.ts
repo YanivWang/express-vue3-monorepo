@@ -2,11 +2,17 @@ import { Op, Sequelize, type Model, type Order } from "sequelize";
 
 import { Category, Post, PostFavorite, PostVote, User } from "../db.js";
 import { createHttpError } from "../middlewares/error.middleware.js";
+import {
+  assertNoSensitiveText,
+  sanitizeHtmlContentForStorage,
+  sanitizeTitleForStorage,
+} from "../utils/content-safety.js";
 import { escapeMysqlLikePattern } from "../utils/escapeMysqlLike.js";
 import { trimmedStringFromUnknown } from "../utils/trimmedStringFromUnknown.js";
 
 import { assertPostCategoryLeaf, resolveLeafIdsUnderParentOrEmpty } from "./category.service.js";
 import { voteValueToMyVote } from "./post-vote.service.js";
+import { assertUserPermission, userHasPermissions } from "./rbac.service.js";
 
 import type { AppJwtUser } from "../types/jwt-user.js";
 
@@ -72,10 +78,14 @@ async function findPostOrThrow(
   return post;
 }
 
-function canEdit(post: Model, operator: { id?: number; role?: number }) {
-  const uid = Number(operator.id);
-  if (Number(post.get("authorId")) === uid) return true;
-  return operator.role === 1;
+async function canUpdatePost(post: Model, operatorId: number): Promise<boolean> {
+  if (Number(post.get("authorId")) === operatorId) return true;
+  return userHasPermissions(operatorId, ["admin.posts.write"], "all");
+}
+
+async function canDeletePost(post: Model, operatorId: number): Promise<boolean> {
+  if (Number(post.get("authorId")) === operatorId) return true;
+  return userHasPermissions(operatorId, ["admin.posts.delete"], "all");
 }
 
 async function buildPublishedCategoryWhere(parentId?: number | null, categoryId?: number | null) {
@@ -183,7 +193,7 @@ export async function decoratePostsListForViewer(
   for (const v of votes) {
     voteByPost.set(Number(v.get("postId")), voteValueToMyVote(Number(v.get("value"))));
   }
-  const favSet = new Set(favs.map((f) => Number(f.get("postId"))));
+  const favSet = new Set(favs.map((f: Model) => Number(f.get("postId"))));
   return base.map((o) => {
     const id = Number(o.id);
     return {
@@ -286,9 +296,88 @@ export async function findMyPostsPage(
   return { posts: rows, total, totalPages };
 }
 
+export async function findPostsPageAdmin(
+  page: number,
+  limit: number,
+  {
+    published,
+    authorId,
+    categoryId,
+    parentId,
+    q,
+  }: {
+    published?: boolean | null;
+    authorId?: number | null;
+    categoryId?: number | null;
+    parentId?: number | null;
+    q?: string | null;
+  } = {},
+) {
+  const offset = (page - 1) * limit;
+  const parts: object[] = [];
+  if (published != null) {
+    parts.push({ published });
+  }
+  if (authorId != null) {
+    parts.push({ authorId });
+  }
+
+  const kw = q?.trim();
+  if (kw) {
+    const pattern = `%${escapeMysqlLikePattern(kw)}%`;
+    parts.push({
+      [Op.or]: [{ title: { [Op.like]: pattern } }, { content: { [Op.like]: pattern } }],
+    });
+  }
+
+  if (categoryId != null) {
+    await assertPostCategoryLeaf(categoryId);
+    parts.push({ categoryId });
+  } else if (parentId != null) {
+    const leafIds = await resolveLeafIdsUnderParentOrEmpty(parentId);
+    if (leafIds.length === 0) {
+      return { posts: [], total: 0, totalPages: 0 };
+    }
+    parts.push({ categoryId: { [Op.in]: leafIds } });
+  }
+
+  const where: Record<string, unknown> =
+    parts.length === 0
+      ? {}
+      : parts.length === 1
+        ? (parts[0] as Record<string, unknown>)
+        : { [Op.and]: parts };
+
+  const [rows, total] = await Promise.all([
+    Post.findAll({
+      where,
+      limit,
+      offset,
+      order: [
+        ["createdAt", "DESC"],
+        ["id", "DESC"],
+      ],
+      include: [postIncludeAuthor, postIncludeCategory],
+    }),
+    Post.count({ where }),
+  ]);
+  const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
+  return { posts: rows, total, totalPages };
+}
+
+export async function findPostByIdAdmin(id: string | number) {
+  return findPostOrThrow(id, { allowUnpublished: true, viewerUserId: null });
+}
+
 export async function createPost(authorId: number, payload: Record<string, unknown>) {
-  const title = trimmedStringFromUnknown(payload.title);
-  const content = trimmedStringFromUnknown(payload.content);
+  const titleRaw = trimmedStringFromUnknown(payload.title);
+  const contentRaw = trimmedStringFromUnknown(payload.content);
+  if (!titleRaw || !contentRaw) {
+    throw createHttpError(400, "标题或正文不能为空");
+  }
+  assertNoSensitiveText(titleRaw, contentRaw);
+  const title = sanitizeTitleForStorage(titleRaw);
+  const content = sanitizeHtmlContentForStorage(contentRaw);
   if (!title || !content) {
     throw createHttpError(400, "标题或正文不能为空");
   }
@@ -307,10 +396,7 @@ export async function createPost(authorId: number, payload: Record<string, unkno
     throw createHttpError(400, "externalSource 与 externalKey 须同时提供或同时省略");
   }
   if (extSource && extKey) {
-    const actor = await User.findByPk(authorId);
-    if (!actor || Number(actor.get("role")) !== 1) {
-      throw createHttpError(403, "仅管理员可指定外部键导入");
-    }
+    await assertUserPermission(authorId, "admin.posts.write");
     const existing = await Post.findOne({
       where: { externalSource: extSource, externalKey: extKey },
       include: [postIncludeAuthor, postIncludeCategory],
@@ -350,17 +436,28 @@ export async function updatePostById(
     throw createHttpError(401, "未登录或登录已过期");
   }
 
-  if (!canEdit(post, { id: user.get("id") as number, role: user.get("role") as number })) {
+  if (!(await canUpdatePost(post, user.get("id") as number))) {
     throw createHttpError(403, "无权修改该文章");
   }
 
-  const next: Record<string, unknown> = {
-    ...(payload.title !== undefined ? { title: trimmedStringFromUnknown(payload.title) } : {}),
-    ...(payload.content !== undefined
-      ? { content: trimmedStringFromUnknown(payload.content) }
-      : {}),
-    ...(payload.published !== undefined ? { published: Boolean(payload.published) } : {}),
-  };
+  const next: Record<string, unknown> = {};
+  if (payload.title !== undefined) {
+    const raw = trimmedStringFromUnknown(payload.title);
+    assertNoSensitiveText(raw);
+    const t = sanitizeTitleForStorage(raw);
+    if (!t) throw createHttpError(400, "标题不能为空");
+    next.title = t;
+  }
+  if (payload.content !== undefined) {
+    const raw = trimmedStringFromUnknown(payload.content);
+    assertNoSensitiveText(raw);
+    const c = sanitizeHtmlContentForStorage(raw);
+    if (!c) throw createHttpError(400, "正文不能为空");
+    next.content = c;
+  }
+  if (payload.published !== undefined) {
+    next.published = Boolean(payload.published);
+  }
 
   if (payload.categoryId !== undefined) {
     await assertPostCategoryLeaf(Number(payload.categoryId));
@@ -393,7 +490,7 @@ export async function removePostById(postId: string | number, operator: AppJwtUs
     throw createHttpError(401, "未登录或登录已过期");
   }
 
-  if (!canEdit(post, { id: user.get("id") as number, role: user.get("role") as number })) {
+  if (!(await canDeletePost(post, user.get("id") as number))) {
     throw createHttpError(403, "无权删除该文章");
   }
 

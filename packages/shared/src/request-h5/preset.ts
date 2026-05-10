@@ -4,7 +4,7 @@ import type {
   ErrorHookContext,
   RequestHooks,
   TokenProvider,
-} from "@express-vue3-monorepo/request-core";
+} from "@vue3-express-monorepo/request-core";
 
 export interface H5PresetOptions {
   /** 登录页路径，默认 '/login' */
@@ -51,8 +51,21 @@ export function createH5Hooks(
   } = authDialog;
 
   let isAuthDialogOpen = false;
+  let isRedirectingToLogin = false;
+
+  const normalizePath = (p: string) => {
+    const t = p.trim() || "/";
+    if (t === "/") return "/";
+    return t.replace(/\/+$/, "") || "/";
+  };
+
+  const isAlreadyOnLoginPage = () => {
+    if (typeof window === "undefined") return false;
+    return normalizePath(window.location.pathname) === normalizePath(loginPath);
+  };
 
   const showLoginExpired = async () => {
+    if (isRedirectingToLogin || isAlreadyOnLoginPage()) return;
     if (isAuthDialogOpen) return;
     isAuthDialogOpen = true;
     try {
@@ -63,13 +76,14 @@ export function createH5Hooks(
         confirmButtonText: confirmText,
         cancelButtonText: cancelText,
       });
+      isRedirectingToLogin = true;
       tokenProvider.removeToken();
       tokenProvider.removeRefreshToken();
       await onLogout?.();
       if (redirectLogin) {
         await redirectLogin();
       } else if (typeof window !== "undefined") {
-        window.location.href = loginPath;
+        window.location.replace(loginPath);
       }
     } catch {
       /* 用户取消：不做处理 */

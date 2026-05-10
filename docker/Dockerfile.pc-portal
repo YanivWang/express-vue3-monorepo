@@ -28,7 +28,7 @@ COPY packages/shared/package.json packages/shared/
 COPY packages/js-bridge/package.json packages/js-bridge/
 COPY packages/web-monitor/package.json packages/web-monitor/
 
-RUN pnpm install --frozen-lockfile --filter "@express-vue3-monorepo/pc-portal..."
+RUN pnpm install --frozen-lockfile --filter "@vue3-express-monorepo/pc-portal..."
 
 COPY apps/frontend/pc-portal apps/frontend/pc-portal
 COPY packages/request-core packages/request-core
@@ -39,7 +39,7 @@ COPY packages/js-bridge packages/js-bridge
 ARG VITE_API_BASE_URL=
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 
-RUN pnpm --filter @express-vue3-monorepo/pc-portal run build
+RUN pnpm --filter @vue3-express-monorepo/pc-portal run build
 
 FROM nginx:1.27-alpine
 

@@ -17,16 +17,16 @@ COPY .npmrc ./
 COPY apps/backend/rest-api/package.json apps/backend/rest-api/
 COPY apps/frontend/pc-portal/package.json apps/frontend/pc-portal/
 COPY apps/frontend/pc-admin/package.json apps/frontend/pc-admin/
-RUN pnpm install --frozen-lockfile --filter @express-vue3-monorepo/rest-api
+RUN pnpm install --frozen-lockfile --filter @vue3-express-monorepo/rest-api
 
 COPY apps/backend/rest-api ./apps/backend/rest-api
 COPY docs ./docs
 
-RUN pnpm --filter @express-vue3-monorepo/rest-api run build
+RUN pnpm --filter @vue3-express-monorepo/rest-api run build
 
 ENV NODE_ENV=production
 ENV PORT=3000
 
 EXPOSE 3000
 
-CMD ["pnpm", "--filter", "@express-vue3-monorepo/rest-api", "start"]
+CMD ["pnpm", "--filter", "@vue3-express-monorepo/rest-api", "start"]

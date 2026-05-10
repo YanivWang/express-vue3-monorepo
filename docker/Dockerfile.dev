@@ -24,7 +24,7 @@ RUN pnpm install --frozen-lockfile
 ENV NODE_ENV=development
 ENV PORT=3000
 
-# rest-api（默认 3000）；pc-portal 开发由 compose 映射 5173
-EXPOSE 3000 5173
+# rest-api（默认 3000）；pc-portal（5173）、pc-admin（5174）由 Compose 在网格内访问，经网关统一对外
+EXPOSE 3000 5173 5174
 
 CMD ["pnpm", "rest-api:dev"]

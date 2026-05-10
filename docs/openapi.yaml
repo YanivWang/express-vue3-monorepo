@@ -1,7 +1,7 @@
 # 接口契约：可提交仓库，团队共用；运行时可 GET /openapi.yaml（与 apps/backend/rest-api/src/swagger.ts 一致）；Swagger UI：/api-docs。Apifox 可导入本文件。
 openapi: 3.0.3
 info:
-  title: express-vue3-monorepo · REST API（@express-vue3-monorepo/rest-api）
+  title: vue3-express-monorepo · REST API（@vue3-express-monorepo/rest-api）
   version: 1.0.0
   description: |
     后端包 `apps/backend/rest-api`（Express ESM + TypeScript）；业务路由挂载于 `/api`，与 `src/app.ts`、`src/routes/*.routes.ts` 一致。
@@ -10,14 +10,16 @@ info:
     - 追踪：`requestId.middleware.ts` 写入响应头 **`X-Request-Id`**；客户端可传入同名请求头透传（最长 128 字符）。
     - 限流（`middlewares/rateLimit.middleware.ts`）：`/health`、`/ready` 与 **GET `/uploads/...` 静态** 在 `src/app.ts` 中先于全局限流挂载，故 **15 分钟窗口计数不作用于这些路径**；限流器内对 `/health`、`/ready` 的 `skip` 为兜底。其余进入全局限流的 API **15 分钟 / 最多 100 次**，超限 HTTP 429，`msg` 为「请求过于频繁，请稍后再试」。`POST /api/register`、`POST /api/login` 另挂载 **1 分钟 / 最多 5 次**。
     - 认证：`POST /api/register`、`POST /api/login` 无需登录。注册/登录请求体校验见 `src/schema/auth.schema.ts`（用户名 trim 后长度 2～100；密码 6～100）；用户更新接口见 `src/schema/user.schema.ts`（username/password 规则与注册不同）。
-    - 用户：`src/routes/user.routes.ts` 在需登录的路由上挂载 `authMiddleware`，请求头须携带 `Authorization: Bearer <JWT>`。
-    - 分类：`GET /api/categories` 公开；返回两级树，节点含 `id`、`name`、`parentId`、`sortOrder`，根的 `children` 为二级叶子。文章创建时 `categoryId` 必须为二级叶子 id；`GET /api/posts` 可选 `parentId`（一级 id）或 `categoryId`（叶子 id），二者不得同传。
+    - 用户：`src/routes/user.routes.ts` 仅保留 **`GET /api/me`** 与别名 **`GET /api/users/me`**（需 Bearer），返回资料与 **`permissions`** RBAC 快照；注册用户/职员的运维请走 **`/api/admin/portal-users`**、**`/api/admin/staff`**。
+    - 分类：`GET /api/categories` 公开；**`POST /api/categories`** 创建二级叶子须在 **Bearer** 下且具备 **`admin.categories.write`**。返回两级树，节点含 `id`、`name`、`parentId`、`sortOrder`，根的 `children` 为二级叶子。文章创建时 `categoryId` 必须为二级叶子 id；`GET /api/posts` 可选 `parentId`（一级 id）或 `categoryId`（叶子 id），二者不得同传。一级分类与 PATCH/DELETE 见 **`/api/admin/categories/...`**。
     - 上传：`POST /api/uploads` 需 Bearer；`multipart/form-data` 字段名 `files`，**单次最多 12 个文件**，单文件最大 5MB，类型 jpeg/png/gif/webp；响应 `urls` 可写入文章 `images`。静态访问 `GET /uploads/...`（不走 API 全局限流）。
-    - 文章：`Post.images` 为 URL 字符串数组（最多 24 条，须为 `/uploads/` 前缀）。`GET /api/posts` 公开分页（仅 `published: true`）；`GET /api/posts/{id}` 未挂载可选 JWT，`findPostByIdPublic` 的访问者恒为匿名，**未发布文章对任意客户端（含作者）均返回 404**；`POST /api/posts/{postId}/comments` 校验文章时传入**当前登录用户 id**，故 **作者仍可对本人的未发布文章发表评论**（与详情 GET 行为不一致，以 controller/service 为准）。`GET /api/posts/mine/list` 及创建/更新/删除需 Bearer；更新/删除须为作者或 `role === 1` 的管理员。
-    - 评论：`GET /api/posts/{postId}/comments` 挂载 `optionalAuthMiddleware`；`POST` 发评与 `DELETE` 删评需 Bearer；删除限评论作者、文章作者或管理员。
+    - 文章：`Post.images` 为 URL 字符串数组（最多 24 条，须为 `/uploads/` 前缀）。`GET /api/posts` 公开分页（仅 `published: true`）；`GET /api/posts/{id}` 未挂载可选 JWT，`findPostByIdPublic` 的访问者恒为匿名，**未发布文章对任意客户端（含作者）均返回 404**；`POST /api/posts/{postId}/comments` 校验文章时传入**当前登录用户 id**，故 **作者仍可对本人的未发布文章发表评论**（与详情 GET 行为不一致，以 controller/service 为准）。`GET /api/posts/mine/list` 及创建/更新/删除需 Bearer；更新/删除在 **RBAC** 下为 **作者本人** 或具备 **`admin.posts.write`** / **`admin.posts.delete`** 等权限（见 `post.service.ts`）。
+    - 内容与敏感词：发帖（`POST /api/posts`、`PUT /api/posts/{id}` 涉及 `title`/`content`）、发评（`POST .../comments`）在 **`400`** 可返回固定 **`msg`**「包含敏感言论，请删除敏感言论再试试？」（见 `utils/content-safety.ts`）；**先敏感词校验，再服务端 XSS 净化后入库**。
+    - **管理端**：`/api/admin/...` 路由均须 Bearer；按细粒度 **`requirePermission`** 校验，`403` 为权限不足。**`GET /api/admin/posts`** 等见 paths 小节。
+    - 评论：`GET /api/posts/{postId}/comments` 挂载 `optionalAuthMiddleware`；`POST` 发评与 `DELETE` 删评需 Bearer；删除限评论作者、文章作者或具备 **`admin.comments.delete`**（及等价 RBAC）的账号。
     - 参数校验：`middlewares/validate.middleware.ts` + Zod；失败时 HTTP 400，`msg` 为多条校验信息以 `; ` 拼接。
     - 未匹配路由：全局 404，`msg` 为「接口不存在」。
-    - `GET /api/users`：`page`、`limit` 缺省 1、10，`limit` 最大 100；响应含 `users` 与 `pagination`。
+    - `GET /api/me`：**无**分页用户列表接口；注册用户列表使用 **`GET /api/admin/portal-users`**（须 `admin.portal_users.read`）。
     - `GET /api/posts`、`GET /api/posts/mine/list`：分页与同上分类筛选参数；响应含 `posts` 与 `pagination`。
     - `GET /api/posts/{postId}/comments`：`page`、`limit` 缺省 1、20，`limit` 最大 100；**`pagination.total` / `totalPages` / `hasNext` 仅针对顶层评论（主评）**；**`pagination.commentTotal` 为该文下评论总条数（含全部回复）**。每条顶层评论含 **`replies`：同一楼主下的全部回复的扁平列表**（按 `createdAt` 升序、`id` 升序；**含对回复的再回复**），每项可含 **`replyToUser`**（被直接回复评论的作者快照）以支持「A ▸ B」展示。删文章时评论随 Post 关联 `ON DELETE CASCADE`。
 
@@ -53,6 +55,10 @@ tags:
     description: 正文配图多文件上传（需 Bearer JWT）
   - name: 评论
     description: 文章下的评论列表、发表与删除（列表可选 Bearer，发评/删评需 Bearer JWT）
+  - name: 当前用户
+    description: 当前登录用户公开资料与 RBAC 权限快照（`/api/me`、`/api/users/me`）
+  - name: 管理端
+    description: 管理端 API（`/api/admin/*`）；须 Bearer 且在 `requirePermission` 下校验细粒度权限码
 
 components:
   securitySchemes:
@@ -93,7 +99,7 @@ components:
           example: 登录成功
         token:
           type: string
-          description: "JWT（jsonwebtoken）；`jwt.verify` 结果写入 `req.user`，payload 含 id、username；签发 expiresIn 7d。"
+          description: "JWT（jsonwebtoken）；`jwt.verify` 结果写入 `req.user`，payload 含 `id`、`username`、`roleId`、`roleSlug`；签发 expiresIn 7d。接口授权以库表 RBAC 为准；`GET /api/me` 返回 `permissions` 供前端菜单。"
     CredentialsBody:
       type: object
       required: [username, password]
@@ -296,6 +302,28 @@ components:
               type: array
               items:
                 $ref: "#/components/schemas/CategoryTreeNode"
+
+    CreateCategoryDuplicateSuccess:
+      allOf:
+        - $ref: "#/components/schemas/MsgBody"
+        - type: object
+          required: [category, reused]
+          properties:
+            category:
+              $ref: "#/components/schemas/CategoryTreeNode"
+            reused:
+              type: boolean
+              description: 同级同名二级叶子已存在时为 true，接口返回既有节点
+
+    AdminCategoryOneSuccess:
+      allOf:
+        - $ref: "#/components/schemas/MsgBody"
+        - type: object
+          required: [category]
+          properties:
+            category:
+              $ref: "#/components/schemas/CategoryTreeNode"
+
     PostItem:
       type: object
       description: Sequelize Post 行序列化结果，含嵌套 `author` 与 `category`
@@ -639,6 +667,160 @@ components:
             msg:
               example: 删除评论成功
 
+    CurrentUserPayload:
+      type: object
+      description: "`user.controller.ts` → `getMe` 合并 RBAC 快照后的 `data.user`"
+      required: [id, username, avatar, role]
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        avatar:
+          type: string
+          nullable: true
+        role:
+          type: integer
+          description: 历史列（0/1）；新逻辑以 `roleId`、`roleSlug`、`permissions` 为准
+        roleId:
+          type: integer
+          description: 绑定角色主键；匿名或异常时可能缺失
+        roleSlug:
+          type: string
+          example: user
+        permissions:
+          type: array
+          items:
+            type: string
+          description: 当前角色被授予的权限码列表；`super_admin` 为全集
+    CurrentUserSuccess:
+      allOf:
+        - $ref: "#/components/schemas/MsgBody"
+        - type: object
+          required: [user]
+          properties:
+            code:
+              example: 200
+            msg:
+              example: 获取当前用户成功
+            user:
+              $ref: "#/components/schemas/CurrentUserPayload"
+
+    AdminPostsListSuccess:
+      allOf:
+        - $ref: "#/components/schemas/MsgBody"
+        - type: object
+          required: [posts, pagination]
+          properties:
+            code:
+              example: 200
+            msg:
+              example: 获取管理端文章列表成功
+            posts:
+              type: array
+              items:
+                $ref: "#/components/schemas/PostItem"
+            pagination:
+              $ref: "#/components/schemas/PostsListPagination"
+
+    AdminPortalUsersListSuccess:
+      allOf:
+        - $ref: "#/components/schemas/MsgBody"
+        - type: object
+          required: [users, pagination]
+          properties:
+            users:
+              type: array
+              items:
+                type: object
+            pagination:
+              $ref: "#/components/schemas/PostsListPagination"
+
+    AdminStaffUsersListSuccess:
+      allOf:
+        - $ref: "#/components/schemas/MsgBody"
+        - type: object
+          required: [users, pagination]
+          properties:
+            users:
+              type: array
+              items:
+                type: object
+            pagination:
+              $ref: "#/components/schemas/PostsListPagination"
+
+    AdminCommentsListSuccess:
+      allOf:
+        - $ref: "#/components/schemas/MsgBody"
+        - type: object
+          required: [comments, pagination]
+          properties:
+            comments:
+              type: array
+              items:
+                type: object
+                description: 扁平评论；含文章标题 `postTitle`、`contentExcerpt` 等（见 `findCommentsPageAdmin`）
+            pagination:
+              $ref: "#/components/schemas/PostsListPagination"
+
+    PermissionsListSuccess:
+      allOf:
+        - $ref: "#/components/schemas/MsgBody"
+        - type: object
+          required: [permissions]
+          properties:
+            permissions:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  code:
+                    type: string
+                  description:
+                    type: string
+                    nullable: true
+
+    RolesDetailedSuccess:
+      allOf:
+        - $ref: "#/components/schemas/MsgBody"
+        - type: object
+          required: [roles]
+          properties:
+            roles:
+              type: array
+              items:
+                type: object
+
+    StaffRoleOptionsSuccess:
+      allOf:
+        - $ref: "#/components/schemas/MsgBody"
+        - type: object
+          required: [roles]
+          properties:
+            roles:
+              type: array
+              items:
+                type: object
+
+    CreateLeafCategoryPortalBody:
+      type: object
+      required: [parentId, name]
+      properties:
+        parentId:
+          type: integer
+          minimum: 1
+          description: 一级分类 id（根节点）
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+          description: 二级叶子名称
+        sortOrder:
+          type: integer
+          description: 可选整数，默认 0
+
 paths:
   /health:
     get:
@@ -773,49 +955,24 @@ paths:
               schema:
                 $ref: "#/components/schemas/MsgBody"
 
-  /api/users:
+  /api/me:
     get:
-      tags: [用户]
-      summary: 获取用户列表
+      tags: [当前用户]
+      summary: 获取当前登录用户资料与 RBAC 权限快照
       description: |
-        需在请求头携带 Bearer JWT。
-        查询参数 `page`、`limit` 由 `getUsersSchema` 校验：缺省分别为 `1`、`10`；须为正整数；`limit` 不超过 100。
-        列表按用户 `id` 升序分页；响应体含 `users`（当前页）与 `pagination`（total、totalPages、hasNext）。
+        需在请求头携带 Bearer JWT。成功时 `data.user` 含公开资料（`id`、`username`、`avatar`、`role` 为历史兼容列）及 **`roleId`**、**`roleSlug`**、**`permissions`**（当前角色被授予的权限码）。
+        菜单与按钮显隐应以后端返回的 `permissions` 为准；JWT 内 `roleId`/`roleSlug` 仅为载荷提示。
       security:
         - bearerAuth: []
-      parameters:
-        - name: page
-          in: query
-          required: false
-          description: 页码，缺省 1；正整数
-          schema:
-            type: integer
-            minimum: 1
-            default: 1
-        - name: limit
-          in: query
-          required: false
-          description: 每页条数，缺省 10；正整数，最大 100
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 10
       responses:
         "200":
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UsersListSuccess"
-        "400":
-          description: 分页等参数校验失败（如非正整数）
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MsgBody"
+                $ref: "#/components/schemas/CurrentUserSuccess"
         "401":
-          description: 未携带或无效 JWT（`msg` 为「未登录或登录已过期」）
+          description: 未携带或无效 JWT，或库中用户已不存在
           content:
             application/json:
               schema:
@@ -827,209 +984,26 @@ paths:
               schema:
                 $ref: "#/components/schemas/MsgBody"
 
-  /api/getOneUser:
+  /api/users/me:
     get:
-      tags: [用户]
-      summary: 按查询参数获取单个用户
-      description: |
-        `GET /api/getOneUser?id=1`。查询参数 `id` 必填，须为不含前导零的正整数字符串（与 `schema/user.schema.ts` 中 `idSchema` 一致，如 `1` 合法，`01` 不合法）。
-        需 Bearer JWT。成功响应与 `GET /api/users/{id}` 相同。
+      tags: [当前用户]
+      summary: 获取当前用户（别名路径）
+      description: 与 `GET /api/me` 完全一致；便于与历史 `/users/me` 命名对齐。
       security:
         - bearerAuth: []
-      parameters:
-        - name: id
-          in: query
-          required: true
-          description: 用户主键字符串，匹配 `^[1-9]\d*$`
-          schema:
-            type: string
-            pattern: "^[1-9]\\d*$"
-          example: "1"
       responses:
         "200":
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UserOneSuccess"
-        "400":
-          description: 缺少或非法 `id`、或其它 Zod 校验失败
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MsgBody"
+                $ref: "#/components/schemas/CurrentUserSuccess"
         "401":
-          description: 未携带或无效 JWT
+          description: 未携带或无效 JWT，或库中用户已不存在
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MsgBody"
-        "404":
-          description: 未找到该 id 对应用户
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MsgBody"
-              example:
-                code: 404
-                msg: 用户不存在
-        "500":
-          description: 服务端异常
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MsgBody"
-
-  /api/users/{id}:
-    get:
-      tags: [用户]
-      summary: 按路径主键获取单个用户
-      description: |
-        路径参数 `id` 为不含前导零的正整数字符串。需 Bearer JWT。
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          description: 用户主键，匹配 `^[1-9]\d*$`（Express 以字符串传入 Zod）
-          schema:
-            type: string
-            pattern: "^[1-9]\\d*$"
-          example: "1"
-      responses:
-        "200":
-          description: 成功
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UserOneSuccess"
-        "400":
-          description: 路径 `id` 格式不合法
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MsgBody"
-        "401":
-          description: 未携带或无效 JWT
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MsgBody"
-        "404":
-          description: 未找到该 id 对应用户
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MsgBody"
-              example:
-                code: 404
-                msg: 用户不存在
-        "500":
-          description: 服务端异常
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MsgBody"
-
-    put:
-      tags: [用户]
-      summary: 按主键更新用户
-      description: |
-        请求体 `username`、`password` 规则见 `UpdateUserBody`（`schema/user.schema.ts` / `userBodySchema`）；密码会 bcrypt 后入库。需 Bearer JWT。
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            pattern: "^[1-9]\\d*$"
-          example: "1"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UpdateUserBody"
-      responses:
-        "200":
-          description: 更新成功
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UpdateUserSuccess"
-        "400":
-          description: 参数校验失败（Zod 或 service 层「用户名或密码不能为空」）
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MsgBody"
-        "401":
-          description: 未携带或无效 JWT
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MsgBody"
-        "404":
-          description: 未找到该 id 对应用户
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MsgBody"
-              example:
-                code: 404
-                msg: 用户不存在
-        "500":
-          description: 服务端异常
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MsgBody"
-
-    delete:
-      tags: [用户]
-      summary: 按主键删除用户
-      description: 先 `findByPk` 再 `destroy`。需 Bearer JWT。
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            pattern: "^[1-9]\\d*$"
-          example: "1"
-      responses:
-        "200":
-          description: 删除成功
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/DeleteUserSuccess"
-        "400":
-          description: 路径 `id` 格式不合法
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MsgBody"
-        "401":
-          description: 未携带或无效 JWT
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MsgBody"
-        "404":
-          description: 未找到该 id 对应用户
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MsgBody"
-              example:
-                code: 404
-                msg: 用户不存在
         "500":
           description: 服务端异常
           content:
@@ -1109,6 +1083,51 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CategoriesListSuccess"
+        "500":
+          description: 服务端异常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+
+    post:
+      tags: [分类]
+      summary: 在指定一级分类下创建二级叶子（管理员）
+      description: |
+        需在请求头携带 Bearer JWT；须具备 **`admin.categories.write`**。请求体与 `schema/category.schema.ts` 中 `createCategorySchema` 一致：`parentId` 为**一级根** id，`name` trim 非空至多 80 字符；`sortOrder` 可选整数（默认 0）。
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLeafCategoryPortalBody"
+      responses:
+        "200":
+          description: 创建成功（同级同名时可复用既有叶子，`reused` 为布尔值）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateCategoryDuplicateSuccess"
+        "400":
+          description: Zod 校验失败或「parentId 须为一级分类」等业务错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "401":
+          description: 未携带或无效 JWT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "403":
+          description: 无 `admin.categories.write` 等权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
         "500":
           description: 服务端异常
           content:
@@ -1200,7 +1219,9 @@ paths:
     post:
       tags: [文章]
       summary: 创建文章
-      description: 需在请求头携带 Bearer JWT；正文字段见 `schema/post.schema.ts`（`createPostSchema`）。
+      description: |
+        需在请求头携带 Bearer JWT；正文字段见 `schema/post.schema.ts`（`createPostSchema`）。
+        **`title` / `content`** 会先经敏感词检测（命中则 **`400`** 且不写库），通过后再服务端 XSS 净化入库（见 `utils/content-safety.ts`）。
       security:
         - bearerAuth: []
       requestBody:
@@ -1217,11 +1238,18 @@ paths:
               schema:
                 $ref: "#/components/schemas/CreatePostSuccess"
         "400":
-          description: Zod 校验失败或服务层「标题或正文不能为空」
+          description: |
+            Zod 校验失败；服务层「标题或正文不能为空」；或 **敏感词命中**：`msg` **固定为**「包含敏感言论，请删除敏感言论再试试？」。
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MsgBody"
+              examples:
+                sensitiveWords:
+                  summary: 敏感言论拦截
+                  value:
+                    code: 400
+                    msg: 包含敏感言论，请删除敏感言论再试试？
         "401":
           description: 未携带或无效 JWT
           content:
@@ -1377,7 +1405,9 @@ paths:
       tags: [文章]
       summary: 更新文章（部分字段）
       description: |
-        需在请求头携带 Bearer JWT。请求体与 `schema/post.schema.ts` 中 `updatePostSchema`（`postBodySchema` 的全部字段可选，另可选 `categoryId`）一致，至少提供一个字段；否则 400「没有要更新的字段」。作者或管理员（`role === 1`）可修改。
+        需在请求头携带 Bearer JWT。请求体与 `schema/post.schema.ts` 中 `updatePostSchema`（`postBodySchema` 的全部字段可选，另可选 `categoryId`）一致，至少提供一个字段；否则 400「没有要更新的字段」。
+        若为 **他人的未发布草稿**，须具备 **`admin.posts.write`**；公开规则见 `post.service.ts` `canEdit`。
+        **`title` / `content`** 更新时同样走敏感词 + XSS 净化。
       security:
         - bearerAuth: []
       parameters:
@@ -1402,11 +1432,17 @@ paths:
               schema:
                 $ref: "#/components/schemas/UpdatePostSuccess"
         "400":
-          description: id 非法、请求体校验失败或「没有要更新的字段」
+          description: id 非法、请求体校验失败、「没有要更新的字段」或 **敏感言论拦截**
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MsgBody"
+              examples:
+                sensitiveWords:
+                  summary: 敏感言论拦截
+                  value:
+                    code: 400
+                    msg: 包含敏感言论，请删除敏感言论再试试？
         "401":
           description: 未携带或无效 JWT
           content:
@@ -1414,7 +1450,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/MsgBody"
         "403":
-          description: 非作者且非管理员
+          description: 非作者且不具备 `admin.posts.write`
           content:
             application/json:
               schema:
@@ -1437,7 +1473,7 @@ paths:
     delete:
       tags: [文章]
       summary: 删除文章
-      description: 需在请求头携带 Bearer JWT；作者或管理员可删除。
+      description: 需在请求头携带 Bearer JWT；作者本人或具备 **`admin.posts.delete`** 者可删除他人稿件。
       security:
         - bearerAuth: []
       parameters:
@@ -1468,7 +1504,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/MsgBody"
         "403":
-          description: 非作者且非管理员
+          description: 非作者且不具备 `admin.posts.delete`
           content:
             application/json:
               schema:
@@ -1620,7 +1656,8 @@ paths:
       summary: 发表评论（可回复某条评论）
       description: |
         需在请求头携带 Bearer JWT；`content` 必填；可选 `parentId` 表示回复（父评论须属于该文章）。
-        文章可见性由 `findPostByIdPublic(postId, 当前用户 id)` 判定：**已发布**文章任意登录用户可评；**未发布**文章仅 **作者本人**可评（与 `GET /api/posts/{id}` 匿名详情不同）。
+        文章可见性由 `findPostByIdPublic(postId, 当前用户 id)` 判定：**已发布**文章任意登录用户可评；**未发布**文章仅 **作者本人**可评。
+        **`content`** 会先敏感词检测后 XSS 净化；命中敏感词 **`400`** 且不落库。
       security:
         - bearerAuth: []
       parameters:
@@ -1645,11 +1682,18 @@ paths:
               schema:
                 $ref: "#/components/schemas/CreateCommentSuccess"
         "400":
-          description: 参数校验失败、内容为空、父评论不存在或不属于该文章等
+          description: |
+            参数校验失败；内容为空；父评论不存在或不属于该文章；或敏感词命中（`msg` 固定为示例）。
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MsgBody"
+              examples:
+                sensitiveWords:
+                  summary: 敏感言论拦截
+                  value:
+                    code: 400
+                    msg: 包含敏感言论，请删除敏感言论再试试？
         "401":
           description: 未携带或无效 JWT
           content:
@@ -1677,7 +1721,7 @@ paths:
       tags: [评论]
       summary: 删除评论
       description: |
-        需在请求头携带 Bearer JWT。评论作者、文章作者或管理员（`role === 1`）可删除。
+        需在请求头携带 Bearer JWT。评论作者、文章作者或具备 **`admin.comments.delete`**（含平台删评语义）者可删除。
       security:
         - bearerAuth: []
       parameters:
@@ -1715,7 +1759,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/MsgBody"
         "403":
-          description: 非评论作者且非文章作者且非管理员
+          description: 非评论作者且非文章作者且无 `admin.comments.delete`
           content:
             application/json:
               schema:
@@ -1725,6 +1769,1069 @@ paths:
                 msg: 无权删除该评论
         "404":
           description: 文章不存在，或评论不存在/不属于该文章
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "500":
+          description: 服务端异常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+
+  /api/admin/posts:
+    get:
+      tags: [管理端]
+      summary: 管理端文章分页列表
+      description: |
+        需 Bearer JWT；权限 **`admin.posts.read`**。返回含**未发布**文章；支持与公开列表相似的分类筛选，
+        **`parentId`** 与 **`categoryId`** 不得同传。Query 校验见 `adminListPostsSchema`。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 10 }
+        - name: published
+          in: query
+          schema: { type: boolean }
+        - name: authorId
+          in: query
+          schema: { type: integer, minimum: 1 }
+        - name: categoryId
+          in: query
+          schema: { type: integer, minimum: 1 }
+        - name: parentId
+          in: query
+          schema: { type: integer, minimum: 1 }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPostsListSuccess"
+        "400":
+          description: 参数校验失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "401":
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "403":
+          description: 无 `admin.posts.read`
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "500":
+          description: 服务端异常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+
+  /api/admin/posts/{id}:
+    get:
+      tags: [管理端]
+      summary: 管理端文章详情（可读草稿）
+      description: |
+        需 Bearer；**`admin.posts.read`**。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[1-9]\\d*$"
+          example: "1"
+      responses:
+        "200":
+          description: 成功（结构同门户 `PostOneSuccess`）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostOneSuccess"
+        "400":
+          description: id 非法
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "401":
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "403":
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "404":
+          description: 文章不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "500":
+          description: 服务端异常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+
+  /api/admin/categories/roots:
+    post:
+      tags: [管理端]
+      summary: 新建一级分类
+      description: 需 Bearer；**`admin.categories.write`**。
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                sortOrder:
+                  type: integer
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminCategoryOneSuccess"
+        "400":
+          description: 校验失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "401":
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "403":
+          description: 无写权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "500":
+          description: 服务端异常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+
+  /api/admin/categories/leaves:
+    post:
+      tags: [管理端]
+      summary: 在根下新建二级叶子
+      description: 需 Bearer；**`admin.categories.write`**。body 含 `parentId`、`name`、`sortOrder`。
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [parentId, name, sortOrder]
+              properties:
+                parentId:
+                  type: integer
+                  minimum: 1
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                sortOrder:
+                  type: integer
+      responses:
+        "200":
+          description: 成功（`reused` 为真表示复用既有同级同名叶子）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateCategoryDuplicateSuccess"
+        "400":
+          description: 校验失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "401":
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "403":
+          description: 无写权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "500":
+          description: 服务端异常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+
+  /api/admin/categories/{id}:
+    patch:
+      tags: [管理端]
+      summary: 更新分类名称或排序
+      description: 需 Bearer；**`admin.categories.write`**。至少提供 `name` 或 `sortOrder`。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[1-9]\\d*$"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                sortOrder:
+                  type: integer
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminCategoryOneSuccess"
+        "400":
+          description: 校验失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "401":
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "403":
+          description: 无写权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "404":
+          description: 分类不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "500":
+          description: 服务端异常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+
+    delete:
+      tags: [管理端]
+      summary: 删除分类
+      description: |
+        需 Bearer；**`admin.categories.delete`**。若分类被帖子引用或一级下仍有子节点，服务层将拒绝删除。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[1-9]\\d*$"
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "400":
+          description: 业务拒绝（如有帖子引用等）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "401":
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "403":
+          description: 无删权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "404":
+          description: 分类不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "500":
+          description: 服务端异常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+
+  /api/admin/portal-users:
+    get:
+      tags: [管理端]
+      summary: 注册用户分页列表
+      description: 需 Bearer；**`admin.portal_users.read`**。默认仅为门户客户角色筛选结果。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 10 }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPortalUsersListSuccess"
+        "401":
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "403":
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "500":
+          description: 服务端异常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+
+  /api/admin/portal-users/{id}:
+    patch:
+      tags: [管理端]
+      summary: 修正注册用户资料
+      description: 需 Bearer；**`admin.portal_users.write`**。不可将用户提拔为后台角色。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[1-9]\\d*$"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                avatar:
+                  type: string
+                  nullable: true
+                  maxLength: 500
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "400":
+          description: 校验失败或禁止修改为后台角色
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "401":
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "403":
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "404":
+          description: 用户不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "500":
+          description: 服务端异常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+
+    delete:
+      tags: [管理端]
+      summary: 删除注册用户
+      description: 需 Bearer；**`admin.portal_users.delete`**（危险操作）。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[1-9]\\d*$"
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "400":
+          description: 路径 id 非法
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "401":
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "403":
+          description: 无删权限或业务禁止
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "404":
+          description: 用户不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "500":
+          description: 服务端异常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+
+  /api/admin/staff-role-options:
+    get:
+      tags: [管理端]
+      summary: 可绑定后台角色下拉数据
+      description: 需 Bearer；**`admin.staff.read`**。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 成功；`roles` 为简略对象数组
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffRoleOptionsSuccess"
+        "401":
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "403":
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "500":
+          description: 服务端异常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+
+  /api/admin/staff:
+    get:
+      tags: [管理端]
+      summary: 后台职员账号分页
+      description: 需 Bearer；**`admin.staff.read`**。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 10 }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStaffUsersListSuccess"
+        "401":
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "403":
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "500":
+          description: 服务端异常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+
+    post:
+      tags: [管理端]
+      summary: 新建后台账号（邀请）
+      description: 需 Bearer；**`admin.staff.invite`**。
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password, roleId]
+              properties:
+                username:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                password:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                roleId:
+                  type: integer
+                  minimum: 1
+      responses:
+        "200":
+          description: 创建成功；`data.user` 为新行
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "400":
+          description: 校验失败或非 super_admin 越权指派等
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "401":
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "403":
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "500":
+          description: 服务端异常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+
+  /api/admin/staff/{id}:
+    patch:
+      tags: [管理端]
+      summary: 更新职员账号（含角色、重置密码等）
+      description: |
+        需 Bearer；`requirePermission` **`any`** 匹配：**`admin.staff.write`**、**`admin.staff.assign_role`**、**`admin.staff.reset_password`** 任一。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[1-9]\\d*$"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                avatar:
+                  type: string
+                  nullable: true
+                  maxLength: 500
+                password:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                roleId:
+                  type: integer
+                  minimum: 1
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "400":
+          description: 校验失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "401":
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "403":
+          description: 无任一所需权限，或业务拒绝（如禁止将他人升为 super_admin）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "404":
+          description: 用户不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "500":
+          description: 服务端异常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+
+    delete:
+      tags: [管理端]
+      summary: 撤销后台身份（DELETE staff）
+      description: |
+        需 Bearer；**`admin.staff.delete`**。**禁止删除当前登录用户自身**（403）；成功时 `msg` 典型为「已撤销后台身份」。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[1-9]\\d*$"
+      responses:
+        "200":
+          description: 已撤销后台身份
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "400":
+          description: id 非法
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "401":
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "403":
+          description: 无删权限、自杀删除、或最后一个 super_admin 保护等
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "404":
+          description: 用户不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "500":
+          description: 服务端异常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+
+  /api/admin/permissions:
+    get:
+      tags: [管理端]
+      summary: 权限码定义清单
+      description: 需 Bearer；**`admin.roles.manage`**。供角色矩阵勾选。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PermissionsListSuccess"
+        "401":
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "403":
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "500":
+          description: 服务端异常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+
+  /api/admin/roles:
+    get:
+      tags: [管理端]
+      summary: 角色列表（含权限矩阵数据）
+      description: 需 Bearer；**`admin.roles.manage`**。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RolesDetailedSuccess"
+        "401":
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "403":
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "500":
+          description: 服务端异常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+
+    post:
+      tags: [管理端]
+      summary: 新建自定义角色
+      description: 需 Bearer；**`admin.roles.manage`**。
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, slug]
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                slug:
+                  type: string
+                  pattern: "^[a-z0-9_-]+$"
+                  minLength: 1
+                  maxLength: 64
+                isStaff:
+                  type: boolean
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "400":
+          description: slug 冲突或校验失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "401":
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "403":
+          description: 无权限（非超级管理员或未授予 roles.manage）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "500":
+          description: 服务端异常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+
+  /api/admin/roles/{id}:
+    patch:
+      tags: [管理端]
+      summary: 更新角色或权限绑定
+      description: 需 Bearer；**`admin.roles.manage`**。可传 `permissionCodes` 全量覆盖绑定。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[1-9]\\d*$"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                isStaff:
+                  type: boolean
+                permissionCodes:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "400":
+          description: 校验失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "401":
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "403":
+          description: 无权限或禁止修改系统内置角色
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "404":
+          description: 角色不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "500":
+          description: 服务端异常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+
+    delete:
+      tags: [管理端]
+      summary: 删除自定义角色
+      description: 需 Bearer；**`admin.roles.manage`**。存在用户引用时拒绝；系统内置角色不可删。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[1-9]\\d*$"
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "400":
+          description: 仍有用户使用该角色或系统角色
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "401":
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "403":
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "404":
+          description: 角色不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "500":
+          description: 服务端异常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+
+  /api/admin/comments:
+    get:
+      tags: [管理端]
+      summary: 全站评论巡查列表
+      description: |
+        需 Bearer；**`admin.comments.read`**。可选筛选 `postId`、`authorId`、`q`。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 10 }
+        - name: postId
+          in: query
+          schema: { type: integer, minimum: 1 }
+        - name: authorId
+          in: query
+          schema: { type: integer, minimum: 1 }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminCommentsListSuccess"
+        "400":
+          description: 分页参数非法
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "401":
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "403":
+          description: 无权限
           content:
             application/json:
               schema:

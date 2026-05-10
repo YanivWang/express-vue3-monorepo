@@ -98,6 +98,10 @@ export interface CurrentUserProfile {
   username: string;
   avatar: string | null;
   role: number;
+  roleId?: number;
+  roleSlug?: string;
+  /** RBAC 权限码列表；超级管理员为全部业务码 */
+  permissions?: string[];
 }
 
 export interface CurrentUserResult {

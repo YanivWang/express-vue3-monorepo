@@ -2,32 +2,27 @@ import { Op } from "sequelize";
 
 import { Comment, Post, User } from "../db.js";
 import { createHttpError } from "../middlewares/error.middleware.js";
+import { assertNoSensitiveText, sanitizePlainTextComment } from "../utils/content-safety.js";
+import { escapeMysqlLikePattern } from "../utils/escapeMysqlLike.js";
 import { trimmedStringFromUnknown } from "../utils/trimmedStringFromUnknown.js";
 
 import { findPostByIdPublic } from "./post.service.js";
+import { userHasPermissions } from "./rbac.service.js";
 
 import type { AppJwtUser } from "../types/jwt-user.js";
 import type { Model } from "sequelize";
 
 const authorAttributes = ["id", "username", "avatar"];
 
-/** 是否与 post.service 的 canEdit 语义一致：作者或 admin */
-function canModeratePost(post: Model, operator: { id: number; role?: number }) {
-  const uid = operator.id;
-  if (Number(post.get("authorId")) === uid) return true;
-  return Number(operator.role) === 1;
+async function canDeleteComment(comment: Model, post: Model, operatorId: number): Promise<boolean> {
+  if (Number(comment.get("authorId")) === operatorId) return true;
+  if (Number(post.get("authorId")) === operatorId) return true;
+  return userHasPermissions(operatorId, ["admin.comments.delete"], "all");
 }
 
 async function syncCommentCountForPost(postId: string | number) {
   const total = await Comment.count({ where: { postId } });
   await Post.update({ commentCount: total }, { where: { id: postId } });
-}
-
-function canDeleteComment(comment: Model, post: Model, operator: { id: number; role?: number }) {
-  const uid = operator.id;
-  if (Number(comment.get("authorId")) === uid) return true;
-  if (canModeratePost(post, operator)) return true;
-  return false;
 }
 
 type PostAuthorDto = { id: number; username: string; avatar?: string | null };
@@ -168,7 +163,7 @@ export async function findCommentsPageByPost(
     include: [{ model: User, as: "author", attributes: authorAttributes }],
   });
 
-  const parentIds = [...new Set(flatRows.map((r) => Number(r.get("parentId"))))];
+  const parentIds: number[] = [...new Set(flatRows.map((r) => Number(r.get("parentId"))))];
   const parents = parentIds.length
     ? await Comment.findAll({
         where: { id: { [Op.in]: parentIds } },
@@ -200,7 +195,7 @@ export async function findCommentsPageByPost(
     list.push(commentRowToJson(replyRow, replyToUser));
   }
 
-  const comments = rows.map((root) => {
+  const comments = rows.map((root: Model) => {
     const rid = Number(root.get("id"));
     const rootJson = commentRowToJson(root, null);
     rootJson.replies = byRoot.get(rid) ?? [];
@@ -217,7 +212,12 @@ export async function createComment(
 ) {
   await findPostByIdPublic(postId, authorId);
 
-  const content = trimmedStringFromUnknown(payload.content);
+  const contentRaw = trimmedStringFromUnknown(payload.content);
+  if (!contentRaw) {
+    throw createHttpError(400, "评论内容不能为空");
+  }
+  assertNoSensitiveText(contentRaw);
+  const content = sanitizePlainTextComment(contentRaw);
   if (!content) {
     throw createHttpError(400, "评论内容不能为空");
   }
@@ -296,15 +296,64 @@ export async function removeComment(
     throw createHttpError(404, "评论不存在");
   }
 
-  if (
-    !canDeleteComment(comment, post, {
-      id: user.get("id") as number,
-      role: user.get("role") as number,
-    })
-  ) {
+  if (!(await canDeleteComment(comment, post, user.get("id") as number))) {
     throw createHttpError(403, "无权删除该评论");
   }
 
   await comment.destroy();
   await syncCommentCountForPost(postId);
+}
+
+/** 全站评论巡查（管理端） */
+export async function findCommentsPageAdmin(
+  page: number,
+  limit: number,
+  {
+    postId,
+    authorId,
+    q,
+  }: {
+    postId?: number | null;
+    authorId?: number | null;
+    q?: string | null;
+  } = {},
+) {
+  const offset = (page - 1) * limit;
+  const where: Record<string, unknown> = {};
+  if (postId != null) {
+    where.postId = postId;
+  }
+  if (authorId != null) {
+    where.authorId = authorId;
+  }
+  const kw = q?.trim();
+  if (kw) {
+    const pattern = `%${escapeMysqlLikePattern(kw)}%`;
+    where.content = { [Op.like]: pattern };
+  }
+
+  const [rows, total] = await Promise.all([
+    Comment.findAll({
+      where,
+      limit,
+      offset,
+      order: [["id", "DESC"]],
+      include: [
+        { model: User, as: "author", attributes: authorAttributes },
+        { model: Post, as: "post", attributes: ["id", "title"] },
+      ],
+    }),
+    Comment.count({ where }),
+  ]);
+  const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
+  const list = rows.map((r: Model) => {
+    const plain = r.get({ plain: true }) as Record<string, unknown>;
+    const excerpt = trimmedStringFromUnknown(plain.content);
+    return {
+      ...commentRowToJson(r, null),
+      postTitle: (plain.post as { title?: string } | undefined)?.title ?? null,
+      contentExcerpt: excerpt.length > 160 ? `${excerpt.slice(0, 160)}…` : excerpt,
+    };
+  });
+  return { comments: list, total, totalPages };
 }

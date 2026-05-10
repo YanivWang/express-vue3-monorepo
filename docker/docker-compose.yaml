@@ -2,19 +2,19 @@
 # pnpm docker:prod
 #
 # HTTP 网关 `${GATEWAY_HOST_PORT:-2026}`：`docker/nginx/gateway.prod.docker.conf`；
-# pc-portal 容器内 nginx 仅托管 SPA。
+# pc-portal 容器内 nginx 仅托管门户 SPA；pc-admin 挂载在 `/pc-admin/`。
 
-name: express-demo-02-prod
+name: vue3-express-monorepo-prod
 
 services:
   mysql:
-    container_name: express-demo-02-mysql
+    container_name: vue3-express-monorepo-mysql
     volumes:
       - mysql_data:/var/lib/mysql
 
   gateway:
     image: nginx:alpine
-    container_name: express-demo-02-gateway
+    container_name: vue3-express-monorepo-gateway
     volumes:
       - ./nginx/${NGINX_GATEWAY_CONF:-gateway.prod.docker.conf}:/etc/nginx/nginx.conf:ro
     ports:
@@ -24,10 +24,12 @@ services:
         condition: service_started
       pc-portal:
         condition: service_started
+      pc-admin:
+        condition: service_started
     restart: unless-stopped
 
   rest-api:
-    container_name: express-demo-02-rest-api
+    container_name: vue3-express-monorepo-rest-api
     env_file:
       - ../.env.production
     environment:
@@ -40,7 +42,20 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.pc-portal
-    container_name: express-demo-02-pc-portal
+    container_name: vue3-express-monorepo-pc-portal
+    restart: unless-stopped
+    depends_on:
+      rest-api:
+        condition: service_started
+
+  pc-admin:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.pc-admin
+      args:
+        VITE_ADMIN_BASE: /pc-admin/
+        VITE_API_BASE_URL: ""
+    container_name: vue3-express-monorepo-pc-admin
     restart: unless-stopped
     depends_on:
       rest-api:

@@ -1,5 +1,5 @@
 /**
- * @express-vue3-monorepo/shared/utils
+ * @vue3-express-monorepo/shared/utils
  *
  * 与 UI 无关的通用工具（两端共享）
  */

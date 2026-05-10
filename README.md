@@ -1,4 +1,4 @@
-# express-vue3-monorepo
+# vue3-express-monorepo
 
 基于 **pnpm workspace** 的全栈单体仓库：**Express REST API**（`apps/backend/rest-api`）+ **Vue 3 / Vite** 前台与管理端（`apps/frontend/pc-portal`、`pc-admin`），共享逻辑置于 **`packages/*`**。根目录提供脚本编排、Docker Compose、统一代码风格与提交约定。
 
@@ -59,19 +59,19 @@
 
 | 目录                      | `package.json` name                   |
 | ------------------------- | ------------------------------------- |
-| `apps/backend/rest-api`   | `@express-vue3-monorepo/rest-api`     |
-| `apps/frontend/pc-portal` | `@express-vue3-monorepo/pc-portal`    |
-| `apps/frontend/pc-admin`  | `@express-vue3-monorepo/pc-admin`     |
-| `packages/shared`         | `@express-vue3-monorepo/shared`       |
-| `packages/request-core`   | `@express-vue3-monorepo/request-core` |
-| `packages/js-bridge`      | `@express-vue3-monorepo/js-bridge`    |
-| `packages/web-monitor`    | `@express-vue3-monorepo/web-monitor`  |
+| `apps/backend/rest-api`   | `@vue3-express-monorepo/rest-api`     |
+| `apps/frontend/pc-portal` | `@vue3-express-monorepo/pc-portal`    |
+| `apps/frontend/pc-admin`  | `@vue3-express-monorepo/pc-admin`     |
+| `packages/shared`         | `@vue3-express-monorepo/shared`       |
+| `packages/request-core`   | `@vue3-express-monorepo/request-core` |
+| `packages/js-bridge`      | `@vue3-express-monorepo/js-bridge`    |
+| `packages/web-monitor`    | `@vue3-express-monorepo/web-monitor`  |
 
 示例：
 
 ```bash
-pnpm --filter @express-vue3-monorepo/rest-api run build
-pnpm --filter @express-vue3-monorepo/pc-portal run dev
+pnpm --filter @vue3-express-monorepo/rest-api run build
+pnpm --filter @vue3-express-monorepo/pc-portal run dev
 ```
 
 ---

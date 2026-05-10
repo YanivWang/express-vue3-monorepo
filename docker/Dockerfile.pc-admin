@@ -1,0 +1,47 @@
+# pc-admin：Vite base 设为 /pc-admin/ 后静态构建；入口由网关 /pc-admin/ 剥离前缀转发到本容器根路径。
+# 构建上下文为仓库根目录：
+#   docker build -f docker/Dockerfile.pc-admin .
+
+FROM node:22-bookworm-slim AS builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
+
+ARG PNPM_VERSION=10.17.0
+RUN npm config set registry https://registry.npmmirror.com \
+  && npm install -g pnpm@${PNPM_VERSION}
+
+WORKDIR /app
+
+ENV HUSKY=0
+
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY tsconfig.base.json ./
+COPY .npmrc ./
+
+COPY apps/backend/rest-api/package.json apps/backend/rest-api/
+COPY apps/frontend/pc-portal/package.json apps/frontend/pc-portal/
+COPY apps/frontend/pc-admin/package.json apps/frontend/pc-admin/
+COPY packages/request-core/package.json packages/request-core/
+COPY packages/shared/package.json packages/shared/
+COPY packages/js-bridge/package.json packages/js-bridge/
+COPY packages/web-monitor/package.json packages/web-monitor/
+
+RUN pnpm install --frozen-lockfile --filter "@vue3-express-monorepo/pc-admin..."
+
+COPY apps/frontend/pc-admin apps/frontend/pc-admin
+COPY packages/request-core packages/request-core
+COPY packages/shared packages/shared
+COPY packages/js-bridge packages/js-bridge
+
+ARG VITE_API_BASE_URL=
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+ARG VITE_ADMIN_BASE=/pc-admin/
+ENV VITE_ADMIN_BASE=${VITE_ADMIN_BASE}
+
+RUN pnpm --filter @vue3-express-monorepo/pc-admin run build
+
+FROM nginx:1.27-alpine
+
+COPY --from=builder /app/apps/frontend/pc-admin/dist /usr/share/nginx/html
+COPY docker/nginx/pc-admin-static.conf /etc/nginx/nginx.conf

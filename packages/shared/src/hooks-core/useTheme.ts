@@ -9,7 +9,7 @@ import {
   type BrandId,
   type BrandPalette,
   type ThemeModeId,
-} from "@express-vue3-monorepo/shared/styles/tokens";
+} from "@vue3-express-monorepo/shared/styles/tokens";
 
 import type { Ref } from "vue";
 

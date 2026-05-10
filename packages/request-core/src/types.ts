@@ -17,6 +17,8 @@ export interface RequestConfig extends AxiosRequestConfig {
   withToken?: boolean;
   /** 为 true 时 401 不触发自动刷新与重试（如登录、登出）；内置 refresh 使用独立 axios，不依赖本字段 */
   skipAuthRefresh?: boolean;
+  /** 为 true 时 401 不调用 onUnauthorized（如应用启动拉取 /me，由业务侧静默清会话并跳转登录） */
+  skipUnauthorizedDialog?: boolean;
   /** 请求重试次数（仅 5xx 生效） */
   retryCount?: number;
   /** 请求重试间隔（ms） */

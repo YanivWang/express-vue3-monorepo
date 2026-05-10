@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { h } from "vue";
 import { createRouter, createWebHistory } from "vue-router";
 
-import { __resetHistoryStack } from "@express-vue3-monorepo/shared/hooks-core";
+import { __resetHistoryStack } from "@vue3-express-monorepo/shared/hooks-core";
 
 import { useHistoryStackH5, __resetHistoryStackH5ForTests } from "./useHistoryStackH5";
 

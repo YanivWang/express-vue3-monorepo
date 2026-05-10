@@ -15,7 +15,7 @@ export const components = [ErrorBoundary, PageContainer, ProTable, Skeleton, Svg
  * 全量注册所有 PC 共享组件到 Vue app
  *
  * @example
- * import { installComponents } from '@express-vue3-monorepo/shared/components-pc'
+ * import { installComponents } from '@vue3-express-monorepo/shared/components-pc'
  * installComponents(app)
  */
 export function installComponents(app: App): void {
