@@ -19,7 +19,7 @@ export const globalRateLimitMiddleware = rateLimit({
 
 export const authRateLimitMiddleware = rateLimit({
   windowMs: 1 * 60 * 1000, // 1分钟
-  max: 5, // 最大请求数
+  max: 60, // 登录/注册专用窗口；略高于常规交互上限，仍防暴力枚举
   handler: (req, res) => {
     return fail(res, 429, "请求过于频繁，请稍后再试");
   },

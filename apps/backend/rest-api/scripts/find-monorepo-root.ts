@@ -3,7 +3,8 @@ import path from "node:path";
 
 /**
  * 自 `startDir` 起向上查找包含 `pnpm-workspace.yaml` 的目录（monorepo 根）。
- * 开发与 `scripts/find-monorepo-root.ts` 保持同步。
+ * 供 `scripts/**` 使用，避免从脚本 import `src/utils/monorepoRoot`（与运行时代码解耦）。
+ * 行为须与 `src/utils/monorepoRoot.ts` 保持一致；若修改请同步两处。
  */
 export function findMonorepoRoot(startDir: string): string {
   let dir = path.resolve(startDir);

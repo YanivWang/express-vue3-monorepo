@@ -16,8 +16,6 @@ export function definePermissionModel(sequelize: Sequelize) {
         comment: "说明",
       },
     },
-    {
-      indexes: [{ name: "permissions_code_uidx", unique: true, fields: ["code"] }],
-    },
+    {},
   );
 }

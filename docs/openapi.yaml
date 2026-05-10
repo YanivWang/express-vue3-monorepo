@@ -8,7 +8,7 @@ info:
     - 文档：`GET /openapi.yaml`（YAML 原文）、`GET /api-docs`（Swagger UI）；契约源文件为仓库根 `docs/openapi.yaml`，由 `src/swagger.ts` 加载。
     - 安全与传输：`helmet`（`/api-docs` 路径关闭 CSP 以便 Swagger UI）；`cors` 行为见 `src/env.ts`（生产须配置 `CORS_ORIGINS`）。较大 JSON 响应可能经 `compression.middleware.ts` 压缩（`Content-Encoding: gzip` 等）。
     - 追踪：`requestId.middleware.ts` 写入响应头 **`X-Request-Id`**；客户端可传入同名请求头透传（最长 128 字符）。
-    - 限流（`middlewares/rateLimit.middleware.ts`）：`/health`、`/ready` 与 **GET `/uploads/...` 静态** 在 `src/app.ts` 中先于全局限流挂载，故 **15 分钟窗口计数不作用于这些路径**；限流器内对 `/health`、`/ready` 的 `skip` 为兜底。其余进入全局限流的 API **15 分钟 / 最多 100 次**，超限 HTTP 429，`msg` 为「请求过于频繁，请稍后再试」。`POST /api/register`、`POST /api/login` 另挂载 **1 分钟 / 最多 5 次**。
+    - 限流（`middlewares/rateLimit.middleware.ts`）：`/health`、`/ready` 与 **GET `/uploads/...` 静态** 在 `src/app.ts` 中先于全局限流挂载，故 **15 分钟窗口计数不作用于这些路径**；限流器内对 `/health`、`/ready` 的 `skip` 为兜底。其余进入全局限流的 API **15 分钟 / 最多 100 次**，超限 HTTP 429，`msg` 为「请求过于频繁，请稍后再试」。`POST /api/register`、`POST /api/login` 另挂载 **1 分钟 / 最多 60 次**。
     - 认证：`POST /api/register`、`POST /api/login` 无需登录。注册/登录请求体校验见 `src/schema/auth.schema.ts`（用户名 trim 后长度 2～100；密码 6～100）；用户更新接口见 `src/schema/user.schema.ts`（username/password 规则与注册不同）。
     - 用户：`src/routes/user.routes.ts` 仅保留 **`GET /api/me`** 与别名 **`GET /api/users/me`**（需 Bearer），返回资料与 **`permissions`** RBAC 快照；注册用户/职员的运维请走 **`/api/admin/portal-users`**、**`/api/admin/staff`**。
     - 分类：`GET /api/categories` 公开；**`POST /api/categories`** 创建二级叶子须在 **Bearer** 下且具备 **`admin.categories.write`**。返回两级树，节点含 `id`、`name`、`parentId`、`sortOrder`，根的 `children` 为二级叶子。文章创建时 `categoryId` 必须为二级叶子 id；`GET /api/posts` 可选 `parentId`（一级 id）或 `categoryId`（叶子 id），二者不得同传。一级分类与 PATCH/DELETE 见 **`/api/admin/categories/...`**。
@@ -474,6 +474,14 @@ components:
           maxItems: 24
           items:
             type: string
+        externalSource:
+          type: string
+          maxLength: 64
+          description: 可选；与 `externalKey` 须同时提供。具备 `admin.posts.write` 时可用于导入幂等（同一 `(externalSource, externalKey)` 返回已有帖子）。
+        externalKey:
+          type: string
+          maxLength: 128
+          description: 可选；与 `externalSource` 须同时提供。
     UpdatePostBody:
       type: object
       description: 部分更新；至少提供一个字段（否则服务端 400「没有要更新的字段」）
@@ -892,7 +900,7 @@ paths:
                 code: 409
                 msg: 用户名已存在
         "429":
-          description: 登录/注册路由限流（1 分钟内超过 5 次）
+          description: 登录/注册路由限流（1 分钟内超过 60 次）
           content:
             application/json:
               schema:
@@ -940,7 +948,7 @@ paths:
                 code: 401
                 msg: 用户名或密码错误
         "429":
-          description: 登录/注册路由限流（1 分钟内超过 5 次）
+          description: 登录/注册路由限流（1 分钟内超过 60 次）
           content:
             application/json:
               schema:

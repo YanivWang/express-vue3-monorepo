@@ -54,4 +54,8 @@ Desktop.ini
 # 业务：本地上传目录（rest-api 静态资源）
 uploads/
 
-apps/backend/rest-api/scripts/synthetic-it-posts/applied-comments.json
+apps/backend/rest-api/scripts/synthetic-it-applied-comments.json
+
+# 合成帖种子私密配置（仅存本地；模板见 synthetic-it.env.example）
+apps/backend/rest-api/scripts/synthetic-it.env
+apps/backend/rest-api/scripts/synthetic-it.env.local

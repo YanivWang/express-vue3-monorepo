@@ -26,7 +26,7 @@ function submitCategoryFeedSearch() {
   <header class="cf__header">
     <div class="cf__header-inner">
       <div class="cf__header-left">
-        <RouterLink class="cf__logo" :to="{ path: '/' }">简书</RouterLink>
+        <RouterLink class="cf__logo" :to="{ path: '/' }">码笺</RouterLink>
         <nav class="cf__nav" aria-label="主导航">
           <a
             href="javascript:void(0)"

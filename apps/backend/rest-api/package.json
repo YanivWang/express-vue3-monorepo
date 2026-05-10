@@ -12,7 +12,11 @@
     "test:unit": "vitest run",
     "test:env": "tsx scripts/test-env.ts",
     "db:reset": "tsx scripts/reset-db.ts",
-    "synthetic-it:seed": "tsx scripts/synthetic-it-posts/run.ts",
+    "ensure-super-admin": "tsx scripts/ensure-super-admin.ts",
+    "db:dedupe-indexes": "tsx scripts/dedupe-mysql-redundant-indexes.ts",
+    "it:seed-categories": "tsx scripts/it-seed-categories.ts",
+    "synthetic-it:clear": "tsx scripts/it-seed-categories.ts && tsx scripts/synthetic-it-clear-posts.ts",
+    "synthetic-it:seed": "tsx scripts/dedupe-mysql-redundant-indexes.ts && tsx scripts/it-seed-categories.ts && tsx scripts/synthetic-it-clear-posts.ts && tsx scripts/synthetic-it-run.ts",
     "dev": "cross-env NODE_ENV=development nodemon --exec tsx src/server.ts",
     "dev:debug": "cross-env NODE_ENV=development nodemon --inspect=0.0.0.0:9229 --exec tsx src/server.ts",
     "start": "cross-env NODE_ENV=production node dist/server.js"

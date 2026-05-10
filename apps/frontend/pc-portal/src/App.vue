@@ -32,7 +32,7 @@ body {
   margin: 0;
 }
 
-/* 与简书 PC 一致：正文 14px / 行高约 1.43 */
+/* PC：正文 14px / 行高约 1.43 */
 body {
   font-family:
     -apple-system, blinkmacsystemfont, "SF UI Text", arial, "PingFang SC", "Hiragino Sans GB",

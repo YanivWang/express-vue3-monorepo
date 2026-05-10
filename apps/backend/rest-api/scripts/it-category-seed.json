@@ -1,0 +1,13 @@
+{
+  "rootName": "IT技术",
+  "rootSortOrder": 0,
+  "children": [
+    { "name": "后端", "sortOrder": 0 },
+    { "name": "前端", "sortOrder": 1 },
+    { "name": "Android", "sortOrder": 2 },
+    { "name": "iOS", "sortOrder": 3 },
+    { "name": "人工智能", "sortOrder": 4 },
+    { "name": "数据库", "sortOrder": 5 },
+    { "name": "程序开发", "sortOrder": 6 }
+  ]
+}

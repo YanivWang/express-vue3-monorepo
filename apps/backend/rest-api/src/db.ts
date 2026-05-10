@@ -40,36 +40,6 @@ async function backfillPostAggregatesFromRelations() {
   }
 }
 
-/** Categories 表为空时写入示例两级类目（与新库 / reset-db 配合） */
-async function seedDefaultCategoriesIfEmpty() {
-  const n = await Category.count();
-  if (n > 0) return;
-
-  const root = await Category.create({
-    name: "IT技术",
-    parentId: null,
-    sortOrder: 0,
-  });
-
-  const children: [string, number][] = [
-    ["后端", 0],
-    ["前端", 1],
-    ["Android", 2],
-    ["iOS", 3],
-    ["人工智能", 4],
-    ["数据库", 5],
-    ["程序开发", 6],
-  ];
-
-  await Category.bulkCreate(
-    children.map(([name, sortOrder]) => ({
-      name,
-      parentId: root.get("id") as number,
-      sortOrder,
-    })),
-  );
-}
-
 /**
  * 启动时 `authenticate()` 校验连通性（账号、库名、网络等）；失败则抛错，避免拖到首条业务 SQL 才暴露。
  * development：默认 `sync({ alter: true })`；`DB_SYNC_ALTER=0` 时不 alter（仅建缺表）。
@@ -96,7 +66,6 @@ export async function connectDatabase() {
       console.warn("[db] backfillCommentRootIds skipped:", err);
     }
   }
-  await seedDefaultCategoriesIfEmpty();
   const { bootstrapRbacIfNeeded } = await import("./services/rbac-bootstrap.service.js");
   await bootstrapRbacIfNeeded();
 }

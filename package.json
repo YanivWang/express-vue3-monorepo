@@ -21,6 +21,7 @@
     "test": "pnpm --filter @vue3-express-monorepo/rest-api test",
     "test:all": "pnpm run test && playwright test",
     "db:reset": "pnpm --filter @vue3-express-monorepo/rest-api db:reset",
+    "ensure-super-admin": "pnpm --filter @vue3-express-monorepo/rest-api ensure-super-admin",
     "typecheck": "pnpm -r --parallel run --if-present typecheck",
     "typecheck:solution": "tsc -b --pretty",
     "typecheck:packages": "pnpm -r --parallel --filter './packages/**' run --if-present typecheck",

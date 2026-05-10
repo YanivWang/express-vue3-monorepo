@@ -61,6 +61,8 @@ export function sanitizeTitleForStorage(title: string): string {
   }).trim();
 }
 
+const UPLOAD_IMG_SRC_RE = /^\/uploads\/[a-zA-Z0-9._/-]+$/;
+
 /** 正文：偏向严格白名单（与入库前服务端为准） */
 const contentSanitizeOpts: sanitizeHtml.IOptions = {
   allowedTags: [
@@ -78,15 +80,38 @@ const contentSanitizeOpts: sanitizeHtml.IOptions = {
     "blockquote",
     "code",
     "pre",
+    "h2",
+    "h3",
+    "img",
   ],
   allowedAttributes: {
     a: ["href", "title", "rel", "target"],
+    img: ["src", "alt", "loading", "width", "height"],
   },
   allowedSchemesByTag: {
     a: ["http", "https", "mailto"],
   },
   transformTags: {
     a: sanitizeHtml.simpleTransform("a", { rel: "noopener noreferrer", target: "_blank" }),
+    img: (_tagName, attribs) => {
+      const src = (attribs.src ?? "").trim();
+      if (!UPLOAD_IMG_SRC_RE.test(src) || src.includes("..")) {
+        return { tagName: "span", attribs: {} };
+      }
+      const alt = (attribs.alt ?? "").trim().slice(0, 500);
+      const loading = attribs.loading === "lazy" ? "lazy" : undefined;
+      const width = /^\d+$/.test((attribs.width ?? "").trim())
+        ? (attribs.width ?? "").trim()
+        : undefined;
+      const height = /^\d+$/.test((attribs.height ?? "").trim())
+        ? (attribs.height ?? "").trim()
+        : undefined;
+      const next: Record<string, string> = { src, alt };
+      if (loading) next.loading = loading;
+      if (width) next.width = width;
+      if (height) next.height = height;
+      return { tagName: "img", attribs: next };
+    },
   },
 };
 

@@ -42,7 +42,7 @@ export function definePostModel(
       externalSource: {
         type: DataTypes.STRING(64),
         allowNull: true,
-        comment: "外部数据来源标识（如 jianshu），与 externalKey 成对用于导入幂等",
+        comment: "外部数据来源标识，与 externalKey 成对用于导入幂等",
       },
       externalKey: {
         type: DataTypes.STRING(128),
