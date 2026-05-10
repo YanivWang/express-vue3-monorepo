@@ -1,5 +1,5 @@
 /**
- * 与 apps/backend/rest-api 默认 JSON 形态对齐（见 `src/utils/response.js`）
+ * 与 apps/backend/rest-api 默认 JSON 形态对齐（success / fail；源码见 `src/utils/response.ts`）
  * 具体业务 DTO 在 openapi / 各 app 中扩展
  */
 
@@ -37,7 +37,7 @@ export interface UserInfo {
   permissions: string[];
 }
 
-/** 登录请求参数（rest-api：`schema/auth.schema.js`） */
+/** 登录请求参数（rest-api：`schema/auth.schema.ts`） */
 export interface LoginParams {
   username: string;
   password: string;

@@ -34,7 +34,7 @@ export type ResponseStyle = "rest-api" | "nested-data";
 
 /**
  * rest-api：扁平载荷，`success(res, msg, data)` 展开为 `code` + `msg` + data 内字段。
- * 参见 `apps/backend/rest-api/src/utils/response.js`
+ * 参见 `apps/backend/rest-api/src/utils/response.ts`
  */
 export type RestApiSuccessJson = Record<string, unknown> & {
   code: number;

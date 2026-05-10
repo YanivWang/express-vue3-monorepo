@@ -22,6 +22,7 @@
     "test:all": "pnpm run test && playwright test",
     "db:reset": "pnpm --filter @express-vue3-monorepo/rest-api db:reset",
     "typecheck": "pnpm -r --parallel run --if-present typecheck",
+    "typecheck:solution": "tsc -b --pretty",
     "typecheck:packages": "pnpm -r --parallel --filter './packages/**' run --if-present typecheck",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -44,7 +45,7 @@
     "docker:prod": "cross-env APP_ENV=production docker compose --env-file .env.production -f docker/docker-compose.base.yaml -f docker/docker-compose.yaml up -d --build"
   },
   "lint-staged": {
-    "apps/backend/**/*.{js,mjs,cjs}": "eslint --fix",
+    "apps/backend/**/*.{ts,mts,cts}": "eslint --fix",
     "apps/frontend/**/*.{ts,vue,js,mjs}": "eslint --fix",
     "packages/**/*.{ts,vue,js,mjs}": "eslint --fix",
     "apps/frontend/**/*.{scss,vue,css}": "stylelint --fix",
@@ -60,6 +61,7 @@
     "eslint": "catalog:",
     "eslint-config-prettier": "catalog:",
     "eslint-plugin-import": "catalog:",
+    "eslint-import-resolver-typescript": "catalog:",
     "eslint-plugin-vue": "catalog:",
     "globals": "catalog:",
     "husky": "catalog:",

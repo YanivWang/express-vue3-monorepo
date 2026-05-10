@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { fetchCategories } from "@/api/categories";
-import type { CategoryTreeNode } from "@/api/types";
-import { useAuthStore } from "@/stores/auth";
 import { storeToRefs } from "pinia";
 import { onMounted, ref, watch } from "vue";
 import { RouterLink, useRoute, useRouter } from "vue-router";
+
+import { fetchCategories } from "@/api/categories";
+import type { CategoryTreeNode } from "@/api/types";
+import { useAuthStore } from "@/stores/auth";
 
 const categories = ref<CategoryTreeNode[]>([]);
 const route = useRoute();
@@ -21,7 +22,10 @@ function syncTabFromRoute() {
   }
   const p = route.query.parentId;
   if (p == null || p === "") activeChannel.value = "all";
-  else activeChannel.value = `p-${p}`;
+  else {
+    const raw = Array.isArray(p) ? p[0] : p;
+    activeChannel.value = `p-${raw ?? ""}`;
+  }
 }
 
 watch(

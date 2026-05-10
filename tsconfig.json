@@ -1,5 +1,10 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
   "files": [],
-  "references": [{ "path": "./apps/frontend/pc-portal" }, { "path": "./apps/frontend/pc-admin" }]
+  // Vue / shared / rest-api 由各包脚本检查；此处仅为纯 TS workspace 包的 tsc -b 构图（见各包 tsconfig.build.json）。
+  "references": [
+    { "path": "./packages/request-core/tsconfig.build.json" },
+    { "path": "./packages/js-bridge/tsconfig.build.json" },
+    { "path": "./packages/web-monitor/tsconfig.build.json" }
+  ]
 }
