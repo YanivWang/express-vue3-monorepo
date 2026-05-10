@@ -185,6 +185,25 @@ export async function createPost(authorId: number, payload: Record<string, unkno
 
   const images = normalizePostImagesInput(payload.images) ?? [];
 
+  const extSource = trimmedStringFromUnknown(payload.externalSource);
+  const extKey = trimmedStringFromUnknown(payload.externalKey);
+  if (!!extSource !== !!extKey) {
+    throw createHttpError(400, "externalSource 与 externalKey 须同时提供或同时省略");
+  }
+  if (extSource && extKey) {
+    const actor = await User.findByPk(authorId);
+    if (!actor || Number(actor.get("role")) !== 1) {
+      throw createHttpError(403, "仅管理员可指定外部键导入");
+    }
+    const existing = await Post.findOne({
+      where: { externalSource: extSource, externalKey: extKey },
+      include: [postIncludeAuthor, postIncludeCategory],
+    });
+    if (existing) {
+      return existing;
+    }
+  }
+
   const post = await Post.create({
     title,
     content,
@@ -192,6 +211,7 @@ export async function createPost(authorId: number, payload: Record<string, unkno
     authorId,
     categoryId: Number(categoryId),
     images,
+    ...(extSource && extKey ? { externalSource: extSource, externalKey: extKey } : {}),
   });
 
   return Post.findByPk(post.get("id") as number, {

@@ -81,12 +81,26 @@ const postBodySchema = z.object({
   images: postImagesSchema,
 });
 
-const createPostBodySchema = postBodySchema.extend({
-  categoryId: z.coerce
-    .number({ error: "分类 ID 须为正整数" })
-    .int("分类 ID 须为正整数")
-    .positive("分类 ID 须为正整数"),
-});
+const createPostBodySchema = postBodySchema
+  .extend({
+    categoryId: z.coerce
+      .number({ error: "分类 ID 须为正整数" })
+      .int("分类 ID 须为正整数")
+      .positive("分类 ID 须为正整数"),
+    externalSource: z.string().trim().max(64, "externalSource 过长").optional(),
+    externalKey: z.string().trim().max(128, "externalKey 过长").optional(),
+  })
+  .superRefine((body, ctx) => {
+    const hasSrc = body.externalSource != null && body.externalSource !== "";
+    const hasKey = body.externalKey != null && body.externalKey !== "";
+    if (hasSrc !== hasKey) {
+      ctx.addIssue({
+        code: "custom",
+        message: "externalSource 与 externalKey 须同时提供或同时省略",
+        path: ["externalSource"],
+      });
+    }
+  });
 
 export const createPostSchema = z.object({
   body: createPostBodySchema,

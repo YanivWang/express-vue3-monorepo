@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { RouterLink } from "vue-router";
+
 import type { PrimaryKey } from "../types";
 
 defineProps<{
@@ -15,7 +17,7 @@ const emit = defineEmits<{
   <header class="cf__header">
     <div class="cf__header-inner">
       <div class="cf__header-left">
-        <a class="cf__logo" href="javascript:void(0)">博客</a>
+        <RouterLink class="cf__logo" :to="{ path: '/' }">简书</RouterLink>
         <nav class="cf__nav" aria-label="主导航">
           <a
             href="javascript:void(0)"
@@ -183,13 +185,15 @@ const emit = defineEmits<{
 
 .cf__logo {
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
-  margin-right: 18px;
-  font-size: 26px;
+  margin-right: 14px;
+  font-size: 18px;
   font-weight: 600;
   line-height: 1;
   color: $cf-primary;
   letter-spacing: 0.02em;
+  white-space: nowrap;
   text-decoration: none;
 }
 
@@ -204,9 +208,9 @@ const emit = defineEmits<{
   align-items: center;
   height: $cf-header-h;
   padding: 0 14px;
-  font-size: 17px;
+  font-size: 14px;
   font-weight: 400;
-  line-height: 1;
+  line-height: 26px;
   color: $cf-text;
   white-space: nowrap;
   text-decoration: none;
@@ -224,7 +228,7 @@ const emit = defineEmits<{
 .cf__nav-ico {
   display: inline-flex;
   margin-right: 6px;
-  font-size: 16px;
+  font-size: 18px;
   color: currentColor;
   opacity: 0.95;
 

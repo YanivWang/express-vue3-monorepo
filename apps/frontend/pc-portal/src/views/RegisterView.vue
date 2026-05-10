@@ -1,21 +1,25 @@
 <script setup lang="ts">
 import { ElMessage } from "element-plus";
 import { reactive, ref } from "vue";
-import { RouterLink, useRouter } from "vue-router";
+import { RouterLink, useRoute, useRouter } from "vue-router";
 
 import { useAuthStore } from "@/stores/auth";
 
 const auth = useAuthStore();
 const router = useRouter();
+const route = useRoute();
 const loading = ref(false);
 const form = reactive({ username: "", password: "" });
 
 async function submit() {
   loading.value = true;
   try {
-    await auth.register({ username: form.username.trim(), password: form.password });
-    ElMessage.success("注册成功，请登录");
-    await router.push({ name: "login" });
+    const username = form.username.trim();
+    await auth.register({ username, password: form.password });
+    await auth.login({ username, password: form.password });
+    ElMessage.success("注册成功");
+    const r = route.query.redirect;
+    await router.push(typeof r === "string" ? r : "/");
   } finally {
     loading.value = false;
   }
@@ -50,7 +54,7 @@ async function submit() {
 
 h1 {
   margin: 0 0 20px;
-  font-size: 22px;
+  font-size: 18px;
 }
 
 .btn {

@@ -53,7 +53,7 @@ const emit = defineEmits<{
   align-items: center;
   min-height: 42px;
   padding: 8px 12px 8px 20px;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 400;
   line-height: 22px;
   color: $cf-text;

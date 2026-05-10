@@ -74,6 +74,18 @@ export interface CommentsListResult {
   pagination: Pagination;
 }
 
+/** 与 GET /api/me 返回的 `user` 对齐（服务端为准，不含密码） */
+export interface CurrentUserProfile {
+  id: number;
+  username: string;
+  avatar: string | null;
+  role: number;
+}
+
+export interface CurrentUserResult {
+  user: CurrentUserProfile;
+}
+
 export interface ListPostsQuery {
   page?: number;
   limit?: number;

@@ -39,11 +39,29 @@ export function definePostModel(
         defaultValue: [],
         comment: "正文配图 URL 列表（本站 /uploads/... 路径）",
       },
+      externalSource: {
+        type: DataTypes.STRING(64),
+        allowNull: true,
+        comment: "外部数据来源标识（如 jianshu），与 externalKey 成对用于导入幂等",
+      },
+      externalKey: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+        comment: "外部实体键（如 note slug），与 externalSource 成对唯一",
+      },
     },
     // 模型级选项
     // indexes 在字段 published 列上建索引，加快按 “是否发布” 筛选的查询
     {
-      indexes: [{ fields: ["published"] }, { fields: ["categoryId"] }],
+      indexes: [
+        { fields: ["published"] },
+        { fields: ["categoryId"] },
+        {
+          name: "posts_external_source_key_uidx",
+          unique: true,
+          fields: ["externalSource", "externalKey"],
+        },
+      ],
     },
   );
 

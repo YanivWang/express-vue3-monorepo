@@ -52,7 +52,7 @@ async function submit() {
 
 h1 {
   margin: 0 0 20px;
-  font-size: 22px;
+  font-size: 18px;
 }
 
 .btn {

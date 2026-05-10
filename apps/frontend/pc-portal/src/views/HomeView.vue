@@ -99,23 +99,59 @@ watch(
 watch([page, parentId, leafCategoryId], load, { immediate: true });
 
 function goPost(id: number) {
-  void router.push({ name: "post-detail", params: { id: String(id) } });
+  void router.push({
+    name: "post-detail",
+    params: { id: String(id) },
+    query: { ...route.query },
+  });
 }
 
-function excerpt(text: string) {
-  const t = text.replace(/\s+/g, " ").trim();
-  return t.length > 160 ? `${t.slice(0, 160)}…` : t;
+function onCardClick(ev: MouseEvent, id: number) {
+  if ((ev.target as HTMLElement).closest("a")) return;
+  goPost(id);
 }
 
-function formatTime(iso: string) {
+/** 列表摘要用纯文本，贴近简书摘要展示 */
+function stripToPlain(html: string | undefined): string {
+  if (html == null || html === "") return "";
+  return html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function cardAbstract(p: PostItem): string {
+  return stripToPlain(p.content);
+}
+
+function cardCoverUrl(p: PostItem): string | null {
+  const first = p.images?.[0];
+  if (first != null && first !== "") return first;
+  const m = (p.content ?? "").match(/<img[^>]+src=["']([^"']+)["']/i);
+  return m?.[1] ?? null;
+}
+
+function authorInitial(p: PostItem): string {
+  const name = p.author?.username;
+  if (name == null || name === "") return "作";
+  return name.slice(0, 1);
+}
+
+function formatFeedTime(iso: string) {
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString();
+  if (Number.isNaN(d.getTime())) return iso;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}.${m}.${day}`;
 }
 </script>
 
 <template>
   <div class="home" :class="{ 'home--with-side': showSecondarySidebar }">
     <aside v-if="showSecondarySidebar" class="secondary-aside" aria-label="二级分类">
+      <div class="secondary-aside__title">分类</div>
       <nav class="secondary-nav">
         <RouterLink
           v-if="resolvedParentId != null"
@@ -123,7 +159,7 @@ function formatTime(iso: string) {
           :class="{ 'secondary-link--active': isAllSecondaryActive }"
           :to="{ path: '/', query: { parentId: String(resolvedParentId) } }"
         >
-          全部
+          首页
         </RouterLink>
         <RouterLink
           v-for="c in secondaryList"
@@ -138,51 +174,74 @@ function formatTime(iso: string) {
     </aside>
 
     <div v-loading="loading" class="feed-wrap">
-      <div class="feed">
-        <el-empty v-if="!loading && posts.length === 0" description="暂无文章" />
+      <div class="feed-board">
+        <el-empty v-if="!loading && posts.length === 0" class="feed-empty" description="暂无文章" />
         <article
           v-for="p in posts"
           :key="p.id"
-          class="card"
+          class="feed-card"
           role="link"
           tabindex="0"
-          @click="goPost(p.id)"
+          @click="onCardClick($event, p.id)"
           @keydown.enter="goPost(p.id)"
         >
-          <h2 class="title">{{ p.title }}</h2>
-          <p class="excerpt">{{ excerpt(p.content) }}</p>
-          <div class="meta">
-            <span>{{ p.author?.username ?? "—" }}</span>
-            <span class="dot">·</span>
-            <span>{{ p.category?.name ?? "未分类" }}</span>
-            <span class="dot">·</span>
-            <span>{{ formatTime(p.createdAt) }}</span>
+          <div class="feed-card__inner">
+            <div class="feed-card__main">
+              <h2 class="feed-card__title">{{ p.title }}</h2>
+              <p v-if="cardAbstract(p)" class="feed-card__abstract">
+                {{ cardAbstract(p) }}
+              </p>
+              <div class="feed-card__meta">
+                <el-avatar
+                  class="feed-card__avatar"
+                  :size="22"
+                  :src="p.author?.avatar ?? undefined"
+                >
+                  {{ authorInitial(p) }}
+                </el-avatar>
+                <span class="feed-card__author">{{ p.author?.username ?? "—" }}</span>
+                <span class="feed-card__dot">·</span>
+                <time class="feed-card__time" :datetime="p.createdAt">{{
+                  formatFeedTime(p.createdAt)
+                }}</time>
+                <span class="feed-card__dot">·</span>
+                <span class="feed-card__cat">{{ p.category?.name ?? "未分类" }}</span>
+              </div>
+            </div>
+            <div v-if="cardCoverUrl(p)" class="feed-card__thumb-wrap">
+              <img class="feed-card__thumb" :src="cardCoverUrl(p)!" alt="" loading="lazy" />
+            </div>
           </div>
         </article>
+      </div>
 
-        <div v-if="pagination && pagination.totalPages > 1" class="pager">
-          <el-pagination
-            :current-page="page"
-            :page-size="pagination.limit"
-            :total="pagination.total"
-            layout="prev, pager, next"
-            background
-            @current-change="(pn: number) => (page = pn)"
-          />
-        </div>
+      <div v-if="pagination && pagination.totalPages > 1" class="pager">
+        <el-pagination
+          :current-page="page"
+          :page-size="pagination.limit"
+          :total="pagination.total"
+          layout="prev, pager, next"
+          background
+          @current-change="(pn: number) => (page = pn)"
+        />
       </div>
     </div>
   </div>
 </template>
 
 <style scoped lang="scss">
+$brand: #ea6f5a;
+$text: #333;
+$muted: #969696;
+$line: #f0f0f0;
+
 .home {
   display: block;
 }
 
 .home--with-side {
   display: flex;
-  gap: 24px;
+  gap: 28px;
   align-items: flex-start;
 }
 
@@ -191,40 +250,64 @@ function formatTime(iso: string) {
   top: 68px;
   flex: 0 0 200px;
   width: 200px;
-  padding: 12px 0;
+  padding: 16px 0 12px;
   background: #fff;
-  border: 1px solid #eee;
-  border-radius: 4px;
+  border: 1px solid rgb(0 0 0 / 4%);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 3%);
+}
+
+.secondary-aside__title {
+  padding: 0 18px 10px;
+  margin-bottom: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: $text;
+  border-bottom: 1px solid $line;
 }
 
 .secondary-nav {
   display: flex;
   flex-direction: column;
+  padding: 4px 0;
 }
 
 .secondary-link {
-  padding: 10px 16px;
-  font-size: 15px;
-  color: #333;
+  padding: 10px 18px;
+  font-size: 14px;
+  color: #404040;
   text-decoration: none;
-  border-radius: 4px;
   transition:
     background-color 0.15s ease,
     color 0.15s ease;
 
   &:hover {
-    color: #ea6f5a;
-    background: #f5f5f5;
+    color: $brand;
+    background: #fafafa;
   }
 }
 
 .secondary-link--active {
-  color: #ea6f5a;
-  background: #f0f0f0;
+  position: relative;
+  font-weight: 600;
+  color: $brand;
+  background: rgb(234 111 90 / 6%);
+
+  &::before {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 3px;
+    height: 18px;
+    content: "";
+    background: $brand;
+    border-radius: 0 2px 2px 0;
+    transform: translateY(-50%);
+  }
 
   &:hover {
-    color: #ea6f5a;
-    background: #f0f0f0;
+    color: $brand;
+    background: rgb(234 111 90 / 6%);
   }
 }
 
@@ -233,50 +316,153 @@ function formatTime(iso: string) {
   min-width: 0;
 }
 
-.feed {
+.feed-board {
   min-height: 240px;
-}
-
-.card {
-  padding: 20px 20px 16px;
-  margin-bottom: 12px;
-  cursor: pointer;
+  overflow: hidden;
   background: #fff;
-  border: 1px solid #eee;
-  border-radius: 4px;
-  transition: box-shadow 0.15s;
+  border: 1px solid rgb(0 0 0 / 4%);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 3%);
 }
 
-.card:hover {
-  box-shadow: 0 2px 12px rgb(0 0 0 / 6%);
+.feed-empty {
+  padding: 48px 24px;
 }
 
-.title {
-  margin: 0 0 8px;
+.feed-card {
+  margin: 0;
+  cursor: pointer;
+  outline: none;
+  border-bottom: 1px solid $line;
+  transition: background 0.15s ease;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background: #f9f9f9;
+
+    .feed-card__title {
+      color: $brand;
+    }
+
+    .feed-card__thumb {
+      transform: scale(1.02);
+    }
+  }
+
+  &:focus-visible {
+    background: #fafafa;
+    box-shadow: inset 0 0 0 2px rgb(234 111 90 / 35%);
+  }
+}
+
+.feed-card__inner {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  padding: 22px 26px 20px;
+
+  @media (width <= 640px) {
+    flex-direction: column-reverse;
+    gap: 14px;
+    padding: 18px 16px 16px;
+  }
+}
+
+.feed-card__main {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.feed-card__title {
+  display: -webkit-box;
+  margin: 0 0 10px;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   font-size: 18px;
-  font-weight: 600;
-  color: #333;
+  font-weight: 700;
+  line-height: 1.4;
+  color: $text;
+  transition: color 0.15s ease;
+  -webkit-box-orient: vertical;
 }
 
-.excerpt {
-  margin: 0 0 12px;
-  font-size: 14px;
-  line-height: 1.6;
-  color: #666;
+.feed-card__abstract {
+  display: -webkit-box;
+  max-height: none;
+  margin: 0 0 14px;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  font-size: 13px;
+  line-height: 1.75;
+  color: $muted;
+  -webkit-box-orient: vertical;
 }
 
-.meta {
+.feed-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 0;
+  align-items: center;
   font-size: 12px;
-  color: #999;
+  line-height: 1.5;
+  color: $muted;
 }
 
-.dot {
-  margin: 0 6px;
+.feed-card__avatar {
+  flex-shrink: 0;
+  margin-right: 6px;
+}
+
+.feed-card__author {
+  color: #5a5a5a;
+}
+
+.feed-card__dot {
+  margin: 0 5px;
+  color: #d8d8d8;
+}
+
+.feed-card__time {
+  color: $muted;
+}
+
+.feed-card__cat {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feed-card__thumb-wrap {
+  flex-shrink: 0;
+  width: 148px;
+  height: 98px;
+  overflow: hidden;
+  border: 1px solid rgb(0 0 0 / 6%);
+  border-radius: 6px;
+
+  @media (width <= 640px) {
+    width: 100%;
+    height: 160px;
+  }
+}
+
+.feed-card__thumb {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.25s ease;
 }
 
 .pager {
   display: flex;
   justify-content: center;
-  margin-top: 24px;
+  margin-top: 28px;
 }
 </style>

@@ -56,7 +56,7 @@ const emit = defineEmits<{
 
 .cf__pager-btn {
   padding: 6px 12px;
-  font-size: 13px;
+  font-size: 14px;
   color: $cf-text;
   cursor: pointer;
   background: #fff;
@@ -83,7 +83,7 @@ const emit = defineEmits<{
   min-width: 32px;
   height: 32px;
   padding: 0 8px;
-  font-size: 13px;
+  font-size: 14px;
   color: $cf-muted;
   cursor: pointer;
   background: transparent;

@@ -1,4 +1,6 @@
+import { createHttpError } from "../middlewares/error.middleware.js";
 import {
+  findPublicProfileById,
   findUsersPage,
   findUserById,
   removeUser,
@@ -15,6 +17,18 @@ import type {
   ValidatedUpdateUserSchema,
 } from "../schema/user.schema.js";
 import type { Request, Response } from "express";
+
+export async function getMe(req: Request, res: Response) {
+  const uid = req.user?.id;
+  if (typeof uid !== "number" || !Number.isFinite(uid)) {
+    throw createHttpError(401, "未登录或登录已过期");
+  }
+  const user = await findPublicProfileById(uid);
+  if (!user) {
+    throw createHttpError(401, "用户不存在或登录已失效，请重新登录");
+  }
+  return success(res, "获取当前用户成功", { user });
+}
 
 export async function getUsers(req: Request, res: Response) {
   const { query } = getValidated<ValidatedGetUsersSchema>(req);

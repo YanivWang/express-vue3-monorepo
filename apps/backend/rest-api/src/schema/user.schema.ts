@@ -69,8 +69,16 @@ export const getUsersSchema = z.object({
   }),
 });
 
+/** GET /me：无查询参数；仅配合 authMiddleware 使用 */
+export const getMeSchema = z.object({
+  body: z.unknown(),
+  query: z.unknown(),
+  params: z.unknown(),
+});
+
 export type ValidatedUpdateUserSchema = z.infer<typeof updateUserSchema>;
 export type ValidatedDeleteUserSchema = z.infer<typeof deleteUserSchema>;
 export type ValidatedGetUserSchema = z.infer<typeof getUserSchema>;
 export type ValidatedGetOneUserSchema = z.infer<typeof getOneUserSchema>;
 export type ValidatedGetUsersSchema = z.infer<typeof getUsersSchema>;
+export type ValidatedGetMeSchema = z.infer<typeof getMeSchema>;

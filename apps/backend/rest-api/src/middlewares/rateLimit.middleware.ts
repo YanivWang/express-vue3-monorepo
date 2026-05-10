@@ -10,7 +10,7 @@ function skipProbePaths(req: { path?: string }) {
 
 export const globalRateLimitMiddleware = rateLimit({
   windowMs: 15 * 60 * 1000, // 15分钟
-  max: 100, // 最大请求数
+  max: 10000, // 最大请求数（开发期批量导入等场景临时放宽；上线前请恢复合理阈值）
   skip: skipProbePaths,
   handler: (req, res) => {
     return fail(res, 429, "请求过于频繁，请稍后再试");

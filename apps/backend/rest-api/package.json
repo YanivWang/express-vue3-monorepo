@@ -12,6 +12,7 @@
     "test:unit": "vitest run",
     "test:env": "tsx scripts/test-env.ts",
     "db:reset": "tsx scripts/reset-db.ts",
+    "synthetic-it:seed": "tsx scripts/synthetic-it-posts/run.ts",
     "dev": "cross-env NODE_ENV=development nodemon --exec tsx src/server.ts",
     "dev:debug": "cross-env NODE_ENV=development nodemon --inspect=0.0.0.0:9229 --exec tsx src/server.ts",
     "start": "cross-env NODE_ENV=production node dist/server.js"

@@ -14,6 +14,7 @@
     "@express-vue3-monorepo/request-core": "workspace:*",
     "@express-vue3-monorepo/shared": "workspace:*",
     "@vueuse/core": "catalog:",
+    "dompurify": "^3.4.2",
     "element-plus": "catalog:",
     "pinia": "catalog:",
     "vue": "catalog:",

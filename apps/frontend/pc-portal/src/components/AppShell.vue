@@ -12,12 +12,22 @@ const categories = ref<CategoryTreeNode[]>([]);
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
-const { isLoggedIn, claims } = storeToRefs(auth);
+const { isLoggedIn, displayName } = storeToRefs(auth);
 
 const activeChannel = ref("all");
 
+/** 首页、帖子详情、登录/注册共用顶栏分类导航（详情页沿用 URL query 以保持选中状态） */
+function isChannelShellRoute(): boolean {
+  return (
+    route.path === "/" ||
+    route.name === "post-detail" ||
+    route.name === "login" ||
+    route.name === "register"
+  );
+}
+
 function syncTabFromRoute() {
-  if (route.path !== "/") {
+  if (!isChannelShellRoute()) {
     activeChannel.value = "";
     return;
   }
@@ -42,7 +52,7 @@ function syncTabFromRoute() {
 }
 
 watch(
-  () => [route.path, route.query.parentId, route.query.categoryId, categories.value],
+  () => [route.path, route.name, route.query.parentId, route.query.categoryId, categories.value],
   () => syncTabFromRoute(),
   { immediate: true },
 );
@@ -75,6 +85,14 @@ function goEditor() {
   void router.push({ name: "editor-new" });
 }
 
+function goWriteArticle() {
+  if (auth.isLoggedIn) {
+    goEditor();
+    return;
+  }
+  void router.push({ name: "login", query: { redirect: "/mine/editor" } });
+}
+
 function goLogin() {
   void router.push({ name: "login", query: { redirect: route.fullPath } });
 }
@@ -93,35 +111,94 @@ function onLogout() {
   <div class="app-shell">
     <header class="top">
       <div class="top-inner">
-        <RouterLink class="logo" :to="{ path: '/', query: {} }">门户</RouterLink>
-        <el-menu
-          v-if="route.path === '/'"
-          :key="activeChannel"
-          mode="horizontal"
-          class="channel-menu"
-          :ellipsis="false"
-          :default-active="activeChannel"
-          @select="onChannelSelect"
-        >
-          <el-menu-item index="all">全部</el-menu-item>
-          <el-menu-item v-for="c in categories" :key="c.id" :index="`p-${c.id}`">
-            {{ c.name }}
-          </el-menu-item>
-        </el-menu>
-        <div v-else class="channel-spacer" />
+        <div class="top-left">
+          <RouterLink class="logo" :to="{ path: '/', query: {} }">码笺</RouterLink>
+          <nav v-if="isChannelShellRoute()" class="channel-nav" aria-label="频道">
+            <button
+              type="button"
+              class="channel-nav__item"
+              :class="{ 'is-active': activeChannel === 'all' }"
+              @click="onChannelSelect('all')"
+            >
+              首页
+            </button>
+            <button
+              v-for="c in categories"
+              :key="c.id"
+              type="button"
+              class="channel-nav__item"
+              :class="{ 'is-active': activeChannel === `p-${c.id}` }"
+              @click="onChannelSelect(`p-${c.id}`)"
+            >
+              {{ c.name }}
+            </button>
+          </nav>
+        </div>
 
-        <div class="actions">
+        <div class="top-gap" aria-hidden="true" />
+
+        <div class="top-search">
+          <label class="search">
+            <input
+              class="search__input"
+              type="search"
+              placeholder="搜索"
+              autocomplete="off"
+              aria-label="搜索"
+            />
+            <span class="search__ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="18" height="18">
+                <circle cx="11" cy="11" r="6.5" fill="none" stroke="#969696" stroke-width="2" />
+                <path stroke="#969696" stroke-width="2" stroke-linecap="round" d="M16 16l4 4" />
+              </svg>
+            </span>
+          </label>
+        </div>
+
+        <div class="top-gap" aria-hidden="true" />
+
+        <nav class="actions" aria-label="站点与账户">
           <template v-if="isLoggedIn">
-            <span class="hello">你好，{{ claims?.username }}</span>
-            <el-button link type="primary" @click="goEditor">写文章</el-button>
-            <el-button link type="primary" @click="goMine">我的文章</el-button>
-            <el-button link @click="onLogout">退出</el-button>
+            <button type="button" class="btn-write" @click="goEditor">
+              <span class="btn-write__pen" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="18" height="18">
+                  <path
+                    fill="currentColor"
+                    d="M4 20.5L4.5 17l10-10 3 3-10 10L4 20.5zm12.2-11.7l-1-1 1.8-1.8a1 1 0 0 1 1.4 0l.6.6a1 1 0 0 1 0 1.4l-1.8 1.8-1-1z"
+                  />
+                </svg>
+              </span>
+              <span>写文章</span>
+            </button>
+            <button type="button" class="action-link" @click="goMine">我的文章</button>
+            <span class="actions__divider" aria-hidden="true" />
+            <div class="actions__user">
+              <span class="hello" :title="displayName || undefined">
+                你好，<span class="hello__name">{{ displayName || "用户" }}</span>
+              </span>
+              <button type="button" class="action-link action-link--subtle" @click="onLogout">
+                退出
+              </button>
+            </div>
           </template>
           <template v-else>
-            <el-button link type="primary" @click="goLogin">登录</el-button>
-            <el-button link @click="goRegister">注册</el-button>
+            <button type="button" class="action-link action-link--login" @click="goLogin">
+              登录
+            </button>
+            <button type="button" class="btn-register" @click="goRegister">注册</button>
+            <button type="button" class="btn-write" @click="goWriteArticle">
+              <span class="btn-write__pen" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="18" height="18">
+                  <path
+                    fill="currentColor"
+                    d="M4 20.5L4.5 17l10-10 3 3-10 10L4 20.5zm12.2-11.7l-1-1 1.8-1.8a1 1 0 0 1 1.4 0l.6.6a1 1 0 0 1 0 1.4l-1.8 1.8-1-1z"
+                  />
+                </svg>
+              </span>
+              <span>写文章</span>
+            </button>
           </template>
-        </div>
+        </nav>
       </div>
     </header>
     <main class="main">
@@ -146,52 +223,303 @@ function onLogout() {
 }
 
 .top-inner {
+  box-sizing: border-box;
   display: flex;
-  gap: 12px;
   align-items: center;
-  max-width: 960px;
-  padding: 0 16px;
+  max-width: 1200px;
+  min-height: 58px;
+  padding: 0 24px;
   margin: 0 auto;
 }
 
+.top-left {
+  display: flex;
+  flex: 0 1 auto;
+  gap: 4px;
+  align-items: center;
+  min-width: 0;
+}
+
 .logo {
-  font-size: 18px;
-  font-weight: 600;
+  flex-shrink: 0;
+  margin-right: 14px;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 24px;
+  font-weight: bolder;
+  line-height: 1;
   color: #ea6f5a;
+  letter-spacing: 0.02em;
   white-space: nowrap;
   text-decoration: none;
 }
 
-.channel-menu {
-  flex: 1;
-  border-bottom: none !important;
-
-  --el-menu-horizontal-height: 52px;
+.channel-nav {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: nowrap;
+  gap: 0;
+  align-items: center;
+  min-width: 0;
 }
 
-.channel-menu :deep(.el-menu-item) {
-  font-size: 15px;
+.channel-nav__item {
+  box-sizing: border-box;
+  flex-shrink: 0;
+  padding: 0 18px;
+  margin: 0;
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 58px;
+  color: #333;
+  text-align: center;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  cursor: pointer;
+  outline: none;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
+
+  &:hover {
+    color: #ea6f5a;
+    background-color: rgb(0 0 0 / 0.02);
+  }
+
+  &.is-active {
+    font-weight: 600;
+    color: #ea6f5a;
+    background-color: transparent;
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgb(234 111 90 / 0.45);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
 }
 
-.channel-spacer {
-  flex: 1;
+.top-gap {
+  flex: 1 1 0;
+  min-width: 16px;
+}
+
+.top-search {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  justify-content: center;
+  max-width: min(420px, 36vw);
+}
+
+.search {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.search__input {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-width: 200px;
+  height: 38px;
+  padding: 0 40px 0 16px;
+  margin: 0;
+  font: inherit;
+  font-size: 14px;
+  color: #333;
+  outline: none;
+  background: #f3f3f3;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+
+  &::placeholder {
+    color: #9a9a9a;
+  }
+
+  &:hover {
+    background: #eee;
+  }
+
+  &:focus {
+    background: #fff;
+    border-color: rgb(234 111 90 / 0.4);
+    box-shadow: 0 0 0 3px rgb(234 111 90 / 0.12);
+  }
+}
+
+.search__ico {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  pointer-events: none;
+  transform: translateY(-50%);
 }
 
 .actions {
   display: flex;
-  gap: 4px;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 4px 12px;
   align-items: center;
   white-space: nowrap;
 }
 
+.actions__divider {
+  flex-shrink: 0;
+  width: 1px;
+  height: 14px;
+  margin: 0 2px;
+  background: #e5e5e5;
+}
+
+.actions__user {
+  display: flex;
+  flex-shrink: 0;
+  gap: 10px;
+  align-items: center;
+  max-width: min(220px, 28vw);
+}
+
+.action-link {
+  padding: 6px 10px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.25;
+  color: #404040;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  transition:
+    color 0.18s ease,
+    background-color 0.18s ease;
+
+  &:hover {
+    color: #ea6f5a;
+    background-color: rgb(0 0 0 / 0.03);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgb(234 111 90 / 0.45);
+    outline-offset: 1px;
+  }
+}
+
+.action-link--subtle {
+  color: #888;
+
+  &:hover {
+    color: #ea6f5a;
+  }
+}
+
+.action-link--login {
+  padding-right: 6px;
+}
+
+.btn-register {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+  padding: 6px 18px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  color: #ea6f5a;
+  white-space: nowrap;
+  cursor: pointer;
+  background: #fff;
+  border: 1px solid #ea6f5a;
+  border-radius: 999px;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
+
+  &:hover {
+    background: rgb(234 111 90 / 0.08);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgb(234 111 90 / 0.45);
+    outline-offset: 2px;
+  }
+}
+
+.btn-write {
+  box-sizing: border-box;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+  padding: 0 20px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  color: #fff;
+  white-space: nowrap;
+  cursor: pointer;
+  background: #ea6f5a;
+  border: none;
+  border-radius: 999px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+  transition:
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+
+  &:hover {
+    background: #e25b46;
+    box-shadow: 0 2px 6px rgb(234 111 90 / 0.28);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgb(234 111 90 / 0.55);
+    outline-offset: 2px;
+  }
+}
+
+.btn-write__pen {
+  display: inline-flex;
+  line-height: 0;
+  opacity: 0.95;
+}
+
 .hello {
-  margin-right: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 13px;
-  color: #666;
+  line-height: 1.3;
+  color: #888;
+  white-space: nowrap;
+}
+
+.hello__name {
+  font-weight: 500;
+  color: #333;
 }
 
 .main {
-  max-width: 960px;
+  max-width: 1000px;
   padding: 24px 16px 48px;
   margin: 0 auto;
 }

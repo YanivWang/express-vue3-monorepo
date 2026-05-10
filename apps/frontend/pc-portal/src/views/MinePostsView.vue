@@ -108,7 +108,7 @@ function formatTime(iso: string) {
 
 .toolbar h1 {
   margin: 0;
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .row {
@@ -132,8 +132,8 @@ function formatTime(iso: string) {
 }
 
 .title {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 700;
 }
 
 .meta {
