@@ -12,6 +12,12 @@ const router = createRouter({
       meta: { title: "首页" },
     },
     {
+      path: "/search",
+      name: "search",
+      component: () => import("@/views/SearchPostsView.vue"),
+      meta: { title: "搜索" },
+    },
+    {
       path: "/demo/category-feed",
       name: "category-feed-demo",
       component: () => import("@/views/category-feed/CategoryFeedDemoView.vue"),

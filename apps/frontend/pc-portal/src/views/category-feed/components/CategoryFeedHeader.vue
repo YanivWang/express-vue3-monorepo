@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { RouterLink } from "vue-router";
+import { ref } from "vue";
+import { RouterLink, useRouter } from "vue-router";
 
 import type { PrimaryKey } from "../types";
 
@@ -11,6 +12,14 @@ defineProps<{
 const emit = defineEmits<{
   selectPrimary: [key: PrimaryKey];
 }>();
+
+const router = useRouter();
+const categoryFeedSearchDraft = ref("");
+
+function submitCategoryFeedSearch() {
+  const t = categoryFeedSearchDraft.value.trim();
+  void router.push({ path: "/search", query: t ? { q: t } : {} });
+}
 </script>
 
 <template>
@@ -113,17 +122,25 @@ const emit = defineEmits<{
 
       <div class="cf__header-flex" aria-hidden="true" />
 
-      <div class="cf__search-wrap">
+      <form class="cf__search-wrap" @submit.prevent="submitCategoryFeedSearch">
         <label class="cf__search">
-          <input class="cf__search-input" type="search" placeholder="搜索" autocomplete="off" />
-          <span class="cf__search-ico" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="18" height="18">
+          <input
+            v-model="categoryFeedSearchDraft"
+            class="cf__search-input"
+            type="search"
+            placeholder="搜索"
+            autocomplete="off"
+            maxlength="200"
+            enterkeyhint="search"
+          />
+          <button type="submit" class="cf__search-ico" aria-label="搜索">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
               <circle cx="11" cy="11" r="6.5" fill="none" stroke="#969696" stroke-width="2" />
               <path stroke="#969696" stroke-width="2" stroke-linecap="round" d="M16 16l4 4" />
             </svg>
-          </span>
+          </button>
         </label>
-      </div>
+      </form>
 
       <div class="cf__header-flex" aria-hidden="true" />
 
@@ -250,6 +267,9 @@ const emit = defineEmits<{
   display: flex;
   flex: 0 0 auto;
   justify-content: center;
+  padding: 0;
+  margin: 0;
+  border: none;
 }
 
 .cf__search {
@@ -287,13 +307,25 @@ const emit = defineEmits<{
   position: absolute;
   top: 50%;
   right: 12px;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 22px;
   height: 22px;
-  pointer-events: none;
+  padding: 0;
+  margin: 0;
+  appearance: none;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
   transform: translateY(-50%);
+
+  &:focus-visible {
+    outline: 2px solid rgb(234 111 90 / 0.55);
+    outline-offset: 2px;
+  }
 }
 
 .cf__header-right {

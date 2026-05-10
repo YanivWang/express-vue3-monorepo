@@ -24,32 +24,60 @@ const paginationLimitSchema = z.preprocess(
     .max(100, "每页条数不能超过 100"),
 );
 
-const listPostsQuerySchema = z
-  .object({
-    page: paginationNumberSchema(1),
-    limit: paginationLimitSchema,
-    parentId: z.preprocess(
-      (v) => (v === "" || v === undefined || v === null ? undefined : v),
-      z
-        .string()
-        .trim()
-        .regex(/^[1-9]\d*$/, "parentId 必须是正整数")
-        .transform(Number)
-        .optional(),
-    ),
-    categoryId: z.preprocess(
-      (v) => (v === "" || v === undefined || v === null ? undefined : v),
-      z
-        .string()
-        .trim()
-        .regex(/^[1-9]\d*$/, "categoryId 必须是正整数")
-        .transform(Number)
-        .optional(),
-    ),
+const optionalSearchQuery = z.preprocess(
+  (v) => (v === "" || v === undefined || v === null ? undefined : v),
+  z.string().trim().max(200, "搜索关键词过长").optional(),
+);
+
+const listPostsBaseFields = z.object({
+  page: paginationNumberSchema(1),
+  limit: paginationLimitSchema,
+  parentId: z.preprocess(
+    (v) => (v === "" || v === undefined || v === null ? undefined : v),
+    z
+      .string()
+      .trim()
+      .regex(/^[1-9]\d*$/, "parentId 必须是正整数")
+      .transform(Number)
+      .optional(),
+  ),
+  categoryId: z.preprocess(
+    (v) => (v === "" || v === undefined || v === null ? undefined : v),
+    z
+      .string()
+      .trim()
+      .regex(/^[1-9]\d*$/, "categoryId 必须是正整数")
+      .transform(Number)
+      .optional(),
+  ),
+});
+
+const listPostsPaginationCategorySchema = listPostsBaseFields.refine(
+  (q) => !(q.parentId != null && q.categoryId != null),
+  {
+    message: "parentId 与 categoryId 不能同时传递",
+  },
+);
+
+const listPostsQuerySchema = listPostsBaseFields
+  .extend({
+    q: optionalSearchQuery,
+    keyword: optionalSearchQuery,
   })
   .refine((q) => !(q.parentId != null && q.categoryId != null), {
     message: "parentId 与 categoryId 不能同时传递",
-  });
+  })
+  .refine(
+    (q) => {
+      const term = (q.q ?? q.keyword)?.trim();
+      if (!term) return true;
+      return q.parentId == null && q.categoryId == null;
+    },
+    {
+      message: "搜索关键词不能与 parentId/categoryId 同时使用",
+      path: ["q"],
+    },
+  );
 
 export const listPostsSchema = z.object({
   query: listPostsQuerySchema,
@@ -126,7 +154,7 @@ export const deletePostSchema = z.object({
 });
 
 export const listMyPostsSchema = z.object({
-  query: listPostsQuerySchema,
+  query: listPostsPaginationCategorySchema,
 });
 
 export type ValidatedListPostsSchema = z.infer<typeof listPostsSchema>;

@@ -22,8 +22,35 @@ function isChannelShellRoute(): boolean {
     route.path === "/" ||
     route.name === "post-detail" ||
     route.name === "login" ||
-    route.name === "register"
+    route.name === "register" ||
+    route.name === "search"
   );
+}
+
+const globalSearchDraft = ref("");
+
+watch(
+  () => [route.name, route.query.q] as const,
+  () => {
+    if (route.name !== "search") {
+      globalSearchDraft.value = "";
+      return;
+    }
+    const raw = route.query.q;
+    const s =
+      typeof raw === "string"
+        ? raw
+        : Array.isArray(raw) && raw.length > 0 && raw[0] != null
+          ? String(raw[0])
+          : "";
+    globalSearchDraft.value = s;
+  },
+  { immediate: true },
+);
+
+function submitGlobalSearch() {
+  const t = globalSearchDraft.value.trim();
+  void router.push({ path: "/search", query: t ? { q: t } : {} });
 }
 
 function syncTabFromRoute() {
@@ -137,23 +164,26 @@ function onLogout() {
 
         <div class="top-gap" aria-hidden="true" />
 
-        <div class="top-search">
+        <form class="top-search" @submit.prevent="submitGlobalSearch">
           <label class="search">
             <input
+              v-model="globalSearchDraft"
               class="search__input"
               type="search"
               placeholder="搜索"
               autocomplete="off"
               aria-label="搜索"
+              maxlength="200"
+              enterkeyhint="search"
             />
-            <span class="search__ico" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="18" height="18">
+            <button type="submit" class="search__ico" aria-label="搜索">
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
                 <circle cx="11" cy="11" r="6.5" fill="none" stroke="#969696" stroke-width="2" />
                 <path stroke="#969696" stroke-width="2" stroke-linecap="round" d="M16 16l4 4" />
               </svg>
-            </span>
+            </button>
           </label>
-        </div>
+        </form>
 
         <div class="top-gap" aria-hidden="true" />
 
@@ -313,6 +343,9 @@ function onLogout() {
   align-items: center;
   justify-content: center;
   max-width: min(420px, 36vw);
+  padding: 0;
+  margin: 0;
+  border: none;
 }
 
 .search {
@@ -360,13 +393,25 @@ function onLogout() {
   position: absolute;
   top: 50%;
   right: 12px;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 22px;
   height: 22px;
-  pointer-events: none;
+  padding: 0;
+  margin: 0;
+  appearance: none;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
   transform: translateY(-50%);
+
+  &:focus-visible {
+    outline: 2px solid rgb(234 111 90 / 0.55);
+    outline-offset: 2px;
+  }
 }
 
 .actions {

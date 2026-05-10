@@ -91,4 +91,7 @@ export interface ListPostsQuery {
   limit?: number;
   parentId?: number;
   categoryId?: number;
+  /** 全站公开文章关键字（与服务端 GET /api/posts 的 q 对齐；不能与 parentId/categoryId 同时传） */
+  q?: string;
+  keyword?: string;
 }

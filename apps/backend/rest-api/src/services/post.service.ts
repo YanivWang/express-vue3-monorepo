@@ -2,7 +2,9 @@ import { Op } from "sequelize";
 
 import { Category, Post, User } from "../db.js";
 import { createHttpError } from "../middlewares/error.middleware.js";
+import { escapeMysqlLikePattern } from "../utils/escapeMysqlLike.js";
 import { trimmedStringFromUnknown } from "../utils/trimmedStringFromUnknown.js";
+
 
 import { assertPostCategoryLeaf, resolveLeafIdsUnderParentOrEmpty } from "./category.service.js";
 
@@ -114,12 +116,37 @@ async function buildMyPostsCategoryWhere(
 export async function findPostsPagePublic(
   page: number,
   limit: number,
-  { parentId, categoryId }: { parentId?: number | null; categoryId?: number | null } = {},
+  {
+    parentId,
+    categoryId,
+    keyword,
+  }: { parentId?: number | null; categoryId?: number | null; keyword?: string | null } = {},
 ) {
+  const offset = (page - 1) * limit;
+  const kw = keyword?.trim();
+  if (kw) {
+    const pattern = `%${escapeMysqlLikePattern(kw)}%`;
+    const where = {
+      published: true,
+      [Op.or]: [{ title: { [Op.like]: pattern } }, { content: { [Op.like]: pattern } }],
+    };
+    const [rows, total] = await Promise.all([
+      Post.findAll({
+        where,
+        limit,
+        offset,
+        order: [["id", "DESC"]],
+        include: [postIncludeAuthor, postIncludeCategory],
+      }),
+      Post.count({ where }),
+    ]);
+    const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
+    return { posts: rows, total, totalPages };
+  }
+
   if (categoryId != null) {
     await assertPostCategoryLeaf(categoryId);
   }
-  const offset = (page - 1) * limit;
   const where = await buildPublishedCategoryWhere(parentId, categoryId);
   if (where === null) {
     return { posts: [], total: 0, totalPages: 0 };

@@ -22,10 +22,12 @@ import type { Request, Response } from "express";
 
 export async function getPosts(req: Request, res: Response) {
   const { query } = getValidated<ValidatedListPostsSchema>(req);
-  const { page, limit, parentId, categoryId } = query;
+  const { page, limit, parentId, categoryId, q, keyword } = query;
+  const searchTerm = (q ?? keyword ?? "").trim() || undefined;
   const { posts, total, totalPages } = await findPostsPagePublic(page, limit, {
     parentId,
     categoryId,
+    keyword: searchTerm,
   });
   const hasNext = totalPages > 0 && page < totalPages;
   return success(res, "获取文章列表成功", {
