@@ -6,8 +6,8 @@ import type { PermissionMode } from "../rbac/permission-codes.js";
 import type { NextFunction, Request, Response } from "express";
 
 /**
- * `requirePermission(['a','b'], 'all')`：须同时拥有 a 与 b（超级管理员通配）。
- * `requirePermission(['a','b'], 'any')`：满足其一即可。
+ * `requirePermission(['a','b'], 'all')`：须同时拥有 a 与 b（超级管理员在 rbac.service 中视为拥有全部权限码）。
+ * `requirePermission(['a','b'], 'any')`：满足其一即可；`codes` 为空则直接放行。
  */
 export function requirePermission(codes: readonly string[], mode: PermissionMode = "all") {
   return async (req: Request, res: Response, next: NextFunction) => {

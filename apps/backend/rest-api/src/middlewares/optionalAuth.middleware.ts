@@ -16,7 +16,7 @@ export function optionalAuthMiddleware(req: Request, _res: Response, next: NextF
   try {
     req.user = jwt.verify(token, JWT_SECRET) as AppJwtUser;
   } catch {
-    // ignore
+    // token 无效：不设置 req.user，按匿名请求继续
   }
   next();
 }

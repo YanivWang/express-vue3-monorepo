@@ -1,8 +1,7 @@
 import type { HttpAppError } from "./error.middleware.js";
 import type { NextFunction, Request, Response } from "express";
 
-// 异步中间件：若是 async function，await 里的异常不会自动进到 Express4，
-// 需要自己 try/catch 再 next(err)，或者用你们那种 asyncHandler 包装。
+// Express 4 默认不会捕获异步路由里 reject 的 Promise，须在路由内 try/catch 并 next(err)，或使用本函数的包装。
 
 export function asyncHandler(
   fn: (req: Request, res: Response, next: NextFunction) => Promise<void | Response>,
@@ -18,7 +17,7 @@ export function asyncHandler(
       const httpErr = normalizedError as HttpAppError;
       httpErr.failureMessage = httpErr.failureMessage ?? failureMessage;
 
-      //express 看到 next(error)，就会跳过其它中间件，直接进入错误处理中间件
+      // next(error)：Express 会跳到已注册的错误处理中间件
       next(normalizedError);
     }
   };

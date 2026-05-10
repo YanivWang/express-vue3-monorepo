@@ -17,7 +17,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
   }
 
   try {
-    //jwt.verify() 校验，成功后写入 req.user
+    // Bearer JWT：verify 成功后把载荷写入 req.user（类型见 AppJwtUser）
     req.user = jwt.verify(token, JWT_SECRET) as AppJwtUser;
     next();
   } catch {

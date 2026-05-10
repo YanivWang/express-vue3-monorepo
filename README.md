@@ -11,6 +11,7 @@
 - [Workspace 包命名](#workspace-包命名)
 - [环境要求](#环境要求)
 - [快速开始](#快速开始)
+- [首个超级管理员（bootstrap）](#首个超级管理员bootstrap)
 - [常用脚本](#常用脚本)
 - [类目种子与合成帖子（推荐）](#类目种子与合成帖子推荐)
 - [类型检查：`typecheck` 与 `typecheck:solution`](#类型检查typecheck-与-typechecksolution)
@@ -89,13 +90,23 @@ pnpm --filter @vue3-express-monorepo/pc-portal run dev
 
 ```bash
 pnpm install
-cp .env.example .env.development
-# 按需编辑 .env.development（勿提交真实密钥）
 ```
+
+在仓库根目录创建 **`.env.development`**（以及按需使用 **`.env.development.local`**；加载顺序与优先级见 `apps/backend/rest-api/src/env.ts`：`APP_ENV` 与 `NODE_ENV` 合并后须一致，且只能是 `development` | `test` | `production`）。至少配置：
+
+| 变量                                                   | 说明                                                                                                     |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| `JWT_SECRET`                                           | 必填，长度 ≥ 32，勿使用弱口令                                                                            |
+| `DB_HOST`、`DB_USER`、`DB_PWD`、`DB_NAME`              | 必填；`DB_PORT` 缺省为 3306                                                                              |
+| `ADMIN_BOOTSTRAP_USERNAME`、`ADMIN_BOOTSTRAP_PASSWORD` | 首个后台 `super_admin` 及 `ensure-super-admin` / synthetic-it 默认登录依赖，须非空；**代码内无默认账号** |
 
 **推荐**：数据库、rest-api、pc-portal 与网关均在 Docker 内运行——见 **`pnpm docker:dev`**。
 
 若仅在**宿主**调试后端进程，可在仓库根执行 **`pnpm rest-api:dev`**（需能连上 MySQL：例如先 **`pnpm docker:dev`** 保持 MySQL 容器运行，在 `docker/docker-compose.dev.yaml` 为 mysql **取消注释 `3306:3306`**，并在 `.env.development` 中设置 **`DB_HOST=127.0.0.1`**）。
+
+### 首个超级管理员（bootstrap）
+
+库中尚无任何 `super_admin` 时，API 启动流程中的 `bootstrapRbacIfNeeded()` 会使用根目录配置的两项 **`ADMIN_BOOTSTRAP_*`** 创建首个超级管理员（密码 bcrypt 存储）。亦可不重启、在 `apps/backend/rest-api` 下执行 **`pnpm ensure-super-admin`**（或根目录 `pnpm --filter @vue3-express-monorepo/rest-api ensure-super-admin`）幂等补账号或重设密码。合成帖子链路等详见 **[`docs/admin-bootstrap.md`](docs/admin-bootstrap.md)**。
 
 ---
 
@@ -107,6 +118,7 @@ cp .env.example .env.development
 | `pnpm rest-api:dev` / `pnpm rest-api:dev:debug`                      | 宿主运行后端（debug 暴露 Inspector **9229**）                                                                            |
 | `pnpm pc-portal:dev` / `pnpm pc-admin:dev`                           | 宿主运行对应前端                                                                                                         |
 | `pnpm --filter @vue3-express-monorepo/rest-api db:reset`             | 重置后端所用数据库（或在 `apps/backend/rest-api` 下执行 `pnpm db:reset`）                                                |
+| `pnpm --filter @vue3-express-monorepo/rest-api ensure-super-admin`   | 按根目录 `.env.*` 的 `ADMIN_BOOTSTRAP_*` 幂等创建或更新超级管理员（或在 rest-api 包目录执行 `pnpm ensure-super-admin`）  |
 | `pnpm test`                                                          | 后端测试脚本                                                                                                             |
 | `pnpm test:all`                                                      | `pnpm test` + `playwright test`                                                                                          |
 | `pnpm typecheck`                                                     | 各包并行执行各自的 `typecheck`（**全仓类型正确性的权威入口**）                                                           |
@@ -145,7 +157,9 @@ cd apps/backend/rest-api && pnpm db:init-post
 3. **synthetic-it-clear-posts** — **删光所有点赞/踩、收藏与帖子**；**评论（含回复）**随帖子 `CASCADE`；**仅删除磁盘上 `uploads/posts/` 下文件**（保留 `uploads/profiles/` 等）；若 `User.avatar` 以 `/uploads/posts/` 开头会置空
 4. **synthetic-it-run** — 通过 **HTTP** 调用你的 REST API 写入帖子与评论
 
-**前提**：需要先起好后端（或使用 Docker 网关可达的 API），且 `.env.development` 中数据库等配置与平时开发一致。环境变量与可选静态 / LLM / 配图说明见 `apps/backend/rest-api/scripts/synthetic-it.env` 与 `synthetic-it-run.ts` 头部注释。
+**前提**：需要先起好后端（或使用 Docker 网关可达的 API），且根目录 **`.env.*`** 中数据库等配置与平时开发一致（脚本会先合并 monorepo 根 dotenv，再合并 `apps/backend/rest-api/scripts/synthetic-it.env` 中的 **种子专用键**：`REST_API_*`、`SYNTHETIC_*`、`DEDUPE_INDEXES*`，后者可覆盖根目录同名变量；**`ADMIN_BOOTSTRAP_*` 仅来自根目录 `.env.*`**，不会从 `synthetic-it.env` 注入）。
+
+**管理员认证（优先级从高到低）**：环境变量 **`REST_API_IMPORT_TOKEN`**（Bearer JWT）；或成对的 **`REST_API_IMPORT_USERNAME`** / **`REST_API_IMPORT_PASSWORD`**；若均未设置，则使用根目录 **`ADMIN_BOOTSTRAP_*`** 调用 `POST /login`。完整说明见 `synthetic-it-resolve-import-token.ts` 与 **`apps/backend/rest-api/scripts/synthetic-it.env`**、`synthetic-it-run.ts` 头部注释。
 
 ---
 
@@ -195,7 +209,7 @@ Compose 拉起 **MySQL 8.4（默认仅容器内）+ rest-api + pc-portal + Nginx
 若需在宿主连接 MySQL 或宿主跑 `pnpm rest-api:dev`：按需取消 `docker/docker-compose.dev.yaml` 里 **`mysql`** 的 **`ports`** 注释。
 
 ```bash
-cp .env.example .env.development   # 若尚未创建
+# 若尚未创建：在仓库根准备 .env.development（见上文「快速开始」）
 pnpm docker:dev
 ```
 
@@ -241,16 +255,18 @@ pnpm docker:prod
 ## npm 镜像与安全
 
 - 根目录 [`.npmrc`](.npmrc) 可能配置了 **registry 镜像**（如国内镜像）。若 CI 或海外环境安装失败，可为流水线单独指定 registry 或使用 `.npmrc` 分层策略。
-- **切勿**将含密码、JWT 密钥的 `.env.*` 提交至 Git；模板与说明见 `.env.example`。若历史提交曾泄露真实密钥，须在目标环境**轮换**对应口令与密钥。
+- **切勿**将含密码、JWT 密钥的 `.env.*` 提交至 Git；钥匙项命名与必填校验见 `apps/backend/rest-api/src/env.ts`，首个后台账号见 [`docs/admin-bootstrap.md`](docs/admin-bootstrap.md)。若历史提交曾泄露真实密钥，须在目标环境**轮换**对应口令与密钥。
 
 ---
 
 ## 文档与契约文件
 
-| 资源       | 路径                                       |
-| ---------- | ------------------------------------------ |
-| OpenAPI    | [`docs/openapi.yaml`](docs/openapi.yaml)   |
-| 本文档     | [`README.md`](README.md)                   |
-| 代码所有者 | [`.github/CODEOWNERS`](.github/CODEOWNERS) |
+| 资源             | 路径                                                     |
+| ---------------- | -------------------------------------------------------- |
+| OpenAPI          | [`docs/openapi.yaml`](docs/openapi.yaml)                 |
+| 首个超级管理员   | [`docs/admin-bootstrap.md`](docs/admin-bootstrap.md)     |
+| 权限码与路由对照 | [`docs/admin-permissions.md`](docs/admin-permissions.md) |
+| 本文档           | [`README.md`](README.md)                                 |
+| 代码所有者       | [`.github/CODEOWNERS`](.github/CODEOWNERS)               |
 
 欢迎在 [`docs/openapi.yaml`](docs/openapi.yaml) 顶部 `info.description` 中维护与实现一致的变更说明（限流、校验、鉴权等）。

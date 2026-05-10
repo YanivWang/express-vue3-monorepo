@@ -83,7 +83,7 @@ app.use(express.json());
 setupSwagger(app);
 
 // 业务路由 ======================================
-// 往往是「路由里最靠后的那个处理函数」（例如 controller）在响应，而不是 app.js 里最后那一行 app.use
+// 往往是「路由里最靠后的那个处理函数」（例如 controller）在响应，而不是入口文件末尾的空壳 app.use
 //"/api"：业务 REST 的挂载前缀；下列子路由的真实路径为 /api + 各 Router 内 path（探针、/uploads、/api-docs 等不在此前缀下）
 // authRoutes / userRoutes：都是 express.Router()，当成一整块中间件挂在 /api 下面
 // app.use("/api", xxx) = 把 xxx 这套路由表接到 /api 后面；真实路径 = /api + 子路由里的 path。

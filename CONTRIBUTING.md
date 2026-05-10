@@ -9,9 +9,16 @@
 ## 常用脚本
 
 - 后端：`pnpm rest-api:dev`、`pnpm rest-api:start`
+- 首个超级管理员（根目录已配置 `ADMIN_BOOTSTRAP_USERNAME` / `ADMIN_BOOTSTRAP_PASSWORD`）：`pnpm --filter @vue3-express-monorepo/rest-api ensure-super-admin`
 - 前端：`pnpm pc-portal:dev`（5173）、`pnpm pc-admin:dev`（5174）
 - 全仓库并行开发：`pnpm dev`
 - 类型检查 / 质量：`pnpm typecheck`、`pnpm lint`、`pnpm lint:style`、`pnpm format:check`
+
+## 文档
+
+- 首个超级管理员与合成脚本认证：[`docs/admin-bootstrap.md`](docs/admin-bootstrap.md)
+- 权限码与路由对照：[`docs/admin-permissions.md`](docs/admin-permissions.md)
+- 主说明：[`README.md`](README.md)
 
 ## 提交信息（Conventional Commits）
 

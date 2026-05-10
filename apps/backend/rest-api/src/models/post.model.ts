@@ -97,8 +97,8 @@ export function definePostModel(
 
   //声明 多 对 一: 多篇Post属于一个User
   //按 Sequelize 的约定，外键写在「多」的这一边，也就是 Post 表。
-  //foreignKey: "authorId"：Post 表上的外键列明，指定这张表的外键列的名字叫 authorId(（通常对应 User 表的主键 id）)
-  //预加载时用 include: { model: User, as: "author" } 时的别名
+  // foreignKey: "authorId"：Post 表上的外键列名，指向 User.id（主键）
+  // 预加载：`include: { model: User, as: "author" }` 与下方 `as` 一致
   // 删除用户/分类前须先处理关联帖子，避免孤儿数据（RESTRICT 由数据库拒绝删除）
   Post.belongsTo(User, {
     foreignKey: "authorId",

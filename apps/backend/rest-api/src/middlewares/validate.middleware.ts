@@ -5,7 +5,7 @@ import type * as z from "zod";
 
 type ParsedParts = { body?: unknown; query?: unknown; params?: unknown };
 
-//validate 只是一个普通方法，用来包装一个中间件
+// 工厂函数：返回带 Zod 校验的请求中间件，成功后写入 req.validated
 export function validate<A extends ParsedParts>(schema: z.ZodType<A>) {
   return (req: Request, res: Response, next: NextFunction) => {
     // 用 Zod schema 校验请求参数（body / query / params）
@@ -17,7 +17,7 @@ export function validate<A extends ParsedParts>(schema: z.ZodType<A>) {
 
     if (!result.success) {
       const message = result.error.issues.map((issue) => issue.message).join("; ");
-      //校验失败，抛出400, 并进入错误处理中间件
+      // 校验失败：400，交由全局 error 中间件输出统一错误体
       next(createHttpError(400, message));
       return;
     }

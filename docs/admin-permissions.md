@@ -1,5 +1,7 @@
 # 权限码—路由—业务对照（唯一清单）
 
+> 权威清单与实现一致：`apps/backend/rest-api/src/rbac/permission-codes.ts` 中的 `PERMISSION_CODES`。
+
 > 超级管理员（`super_admin`）在库中绑定以下 **全部** code，代码层亦按 slug 通配放行。其他角色必须显式勾选；默认拒绝（deny-by-default）。
 
 | 权限码                       | 主要路由                                                               | Service 二次校验示例                                 |
