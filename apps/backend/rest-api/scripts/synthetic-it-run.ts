@@ -11,7 +11,7 @@
  * 环境变量：
  * - REST_API_BASE：API 根路径（默认 http://127.0.0.1:2026/api，对齐 Compose 宿主网关 GATEWAY_HOST_PORT）。本机直连 `pnpm rest-api:dev`（PORT=3000）时可设为 `http://127.0.0.1:3000/api`。
  * - REST_API_IMPORT_TOKEN：管理员 Bearer JWT（可选；不设则调用登录接口）
- * - REST_API_IMPORT_USERNAME / REST_API_IMPORT_PASSWORD：专为种子登录（可选）；未设置时回退 `ENSURE_SUPER_ADMIN_*`，再默认 root / `123456`（与 ensure-super-admin 一致，仅建议在本地开发使用）
+ * - REST_API_IMPORT_USERNAME / REST_API_IMPORT_PASSWORD：专为种子登录（可选；须成对）；未设置时须能读取根 `.env.${APP_ENV}` 的非空 `ADMIN_BOOTSTRAP_*`
  * - SYNTHETIC_RATE_MS（默认 120）
  * - SYNTHETIC_USE_STATIC_BUNDLE：`1`|`true`|`0`|`false` 如上；不传则按是否配置 LLM Key 自动选择
  * - SYNTHETIC_LLM_API_KEY：走 LLM 时必填（自动静态模式下可不设）

@@ -2,7 +2,6 @@ import bcrypt from "bcrypt";
 import { Op } from "sequelize";
 
 import { Permission, Role, User } from "../db.js";
-import { APP_ENV } from "../env.js";
 import {
   PERMISSION_CODES,
   ROLE_SLUG_MODERATOR,
@@ -66,7 +65,9 @@ export async function bootstrapRbacIfNeeded(): Promise<void> {
   await (
     superAdminRole as unknown as { setPermissions: (p: typeof allPerms) => Promise<void> }
   ).setPermissions(allPerms);
-  await (userRole as unknown as { setPermissions: (p: unknown[]) => Promise<void> }).setPermissions([]);
+  await (userRole as unknown as { setPermissions: (p: unknown[]) => Promise<void> }).setPermissions(
+    [],
+  );
 
   const superId = superAdminRole.get("id") as number;
   const userRid = userRole.get("id") as number;
@@ -97,16 +98,13 @@ export async function bootstrapRbacIfNeeded(): Promise<void> {
     return;
   }
 
-  const username = trimUnset(process.env.ADMIN_BOOTSTRAP_USERNAME) ?? "admin";
-  const explicitPwd = trimUnset(process.env.ADMIN_BOOTSTRAP_PASSWORD);
-  const password =
-    explicitPwd ??
-    (APP_ENV === "development" ? "admin_dev_change_me" : undefined);
+  const username = trimUnset(process.env.ADMIN_BOOTSTRAP_USERNAME);
+  const password = trimUnset(process.env.ADMIN_BOOTSTRAP_PASSWORD);
 
-  if (!password) {
+  if (!username || !password) {
     logger.warn(
       "rbac_bootstrap_no_super_admin",
-      "库中无任何 super_admin。请在环境变量中设置 ADMIN_BOOTSTRAP_USERNAME / ADMIN_BOOTSTRAP_PASSWORD 后重启以创建首个后台账号，或通过数据库将某用户 roleId 指向 super_admin。",
+      "库中无任何 super_admin。请在 monorepo 根 .env.* 设置非空的 ADMIN_BOOTSTRAP_USERNAME 与 ADMIN_BOOTSTRAP_PASSWORD 后重启以创建首个后台账号，或通过数据库将某用户 roleId 指向 super_admin。",
     );
     return;
   }
@@ -126,8 +124,5 @@ export async function bootstrapRbacIfNeeded(): Promise<void> {
     await row.update({ roleId: superId, legacyRole: 1, password: hashPwd });
   }
 
-  logger.info("rbac_bootstrap_super_admin_created", {
-    username,
-    note: APP_ENV === "development" && !explicitPwd ? "development 默认密码，务必修改" : "from env",
-  });
+  logger.info("rbac_bootstrap_super_admin_created", { username });
 }

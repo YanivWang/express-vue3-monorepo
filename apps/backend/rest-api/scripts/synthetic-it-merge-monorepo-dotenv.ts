@@ -9,10 +9,7 @@ import { findMonorepoRoot } from "./find-monorepo-root.js";
 /** 种子脚本专用键：来自 `synthetic-it.env(.local)` 时可覆盖 monorepo 根 `.env.*` 中的同名项。 */
 function isSyntheticSeedEnvKey(key: string): boolean {
   return (
-    key.startsWith("REST_API_") ||
-    key.startsWith("SYNTHETIC_") ||
-    key.startsWith("DEDUPE_INDEXES") ||
-    key.startsWith("ENSURE_SUPER_ADMIN_")
+    key.startsWith("REST_API_") || key.startsWith("SYNTHETIC_") || key.startsWith("DEDUPE_INDEXES")
   );
 }
 

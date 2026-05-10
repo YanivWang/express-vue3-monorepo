@@ -1,7 +1,6 @@
 /**
  * 幂等：确保指定用户名为超级管理员（super_admin），并写入 bcrypt 密码。
- * 默认用户名 root、密码 123456（仅适合本地开发）；可用环境变量覆盖：
- *   ENSURE_SUPER_ADMIN_USERNAME、ENSURE_SUPER_ADMIN_PASSWORD
+ * 账号来源：仅 `ADMIN_BOOTSTRAP_*`（由 monorepo 根 `.env.${APP_ENV}` 注入），二者均须非空。
  *
  * 依赖与 HTTP 服务相同：须能加载 src/env.js（DB/JWT 等），并执行 connectDatabase（RBAC bootstrap；不包含示例类目）。
  */
@@ -17,11 +16,12 @@ process.chdir(apiRoot);
 
 mergeDotenvFromMonorepoRoot();
 
-const username = (process.env.ENSURE_SUPER_ADMIN_USERNAME ?? "root").trim();
-const password = process.env.ENSURE_SUPER_ADMIN_PASSWORD ?? "123456";
-
-if (!username) {
-  console.error("[ensure-super-admin] ENSURE_SUPER_ADMIN_USERNAME 不能为空");
+const username = (process.env.ADMIN_BOOTSTRAP_USERNAME ?? "").trim();
+const password = (process.env.ADMIN_BOOTSTRAP_PASSWORD ?? "").trim();
+if (!username || !password) {
+  console.error(
+    "[ensure-super-admin] 请在 monorepo 根 .env.* 设置非空的 ADMIN_BOOTSTRAP_USERNAME 与 ADMIN_BOOTSTRAP_PASSWORD",
+  );
   process.exit(1);
 }
 
