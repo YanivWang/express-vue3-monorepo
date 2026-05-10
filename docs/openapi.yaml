@@ -19,7 +19,7 @@ info:
     - 未匹配路由：全局 404，`msg` 为「接口不存在」。
     - `GET /api/users`：`page`、`limit` 缺省 1、10，`limit` 最大 100；响应含 `users` 与 `pagination`。
     - `GET /api/posts`、`GET /api/posts/mine/list`：分页与同上分类筛选参数；响应含 `posts` 与 `pagination`。
-    - `GET /api/posts/{postId}/comments`：`page`、`limit` 缺省 1、20，`limit` 最大 100；顶层评论按 id 降序分页，每条含 `replies`（直接回复、按 id 升序）。删文章时评论随 Post 关联 `ON DELETE CASCADE`。
+    - `GET /api/posts/{postId}/comments`：`page`、`limit` 缺省 1、20，`limit` 最大 100；**`pagination.total` / `totalPages` / `hasNext` 仅针对顶层评论（主评）**；**`pagination.commentTotal` 为该文下评论总条数（含全部回复）**。每条顶层评论含 **`replies`：同一楼主下的全部回复的扁平列表**（按 `createdAt` 升序、`id` 升序；**含对回复的再回复**），每项可含 **`replyToUser`**（被直接回复评论的作者快照）以支持「A ▸ B」展示。删文章时评论随 Post 关联 `ON DELETE CASCADE`。
 
 servers:
   - url: http://127.0.0.1:{gw}
@@ -520,7 +520,7 @@ components:
 
     CommentReplyItem:
       type: object
-      description: 单条评论（含嵌套回复时不含 `replies` 字段）；与 Sequelize 序列化一致
+      description: 单条评论（楼内 `replies` 数组中的项为扁平结构，不含嵌套 `replies`）；与 `services/comment.service.ts` 返回的 JSON 一致
       properties:
         id:
           type: integer
@@ -532,6 +532,10 @@ components:
           type: integer
           nullable: true
           description: 顶层为 null；回复时为父评论 id
+        rootId:
+          type: integer
+          nullable: true
+          description: 楼主评 id；顶层评论与自身 id 相同；回复为所属主评 id
         content:
           type: string
         createdAt:
@@ -542,6 +546,38 @@ components:
           format: date-time
         author:
           $ref: "#/components/schemas/PostAuthor"
+        replyToUser:
+          allOf:
+            - $ref: "#/components/schemas/PostAuthor"
+          nullable: true
+          description: 被直接回复的一方作者（A ▸ B）；主评或省略时为 null
+    CommentsListPagination:
+      type: object
+      description: 评论列表分页；`total` 为主评条数（与文章列表 `PostsListPagination.total` 语义不同）
+      required: [page, limit, total, totalPages, hasNext, commentTotal]
+      properties:
+        page:
+          type: integer
+          minimum: 1
+          example: 1
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          example: 20
+        total:
+          type: integer
+          minimum: 0
+          description: 主评（parentId 为 null）总数，用于 totalPages
+        totalPages:
+          type: integer
+          minimum: 0
+        hasNext:
+          type: boolean
+        commentTotal:
+          type: integer
+          minimum: 0
+          description: 该文下评论总条数（主评 + 全部回复）
     CommentThreadItem:
       allOf:
         - $ref: "#/components/schemas/CommentReplyItem"
@@ -549,7 +585,7 @@ components:
           properties:
             replies:
               type: array
-              description: 仅列表接口顶层评论含此字段；该顶层下的全部直接回复（按 id 升序，`services/comment.service.ts` 不再截断条数）
+              description: 仅列表接口顶层含此字段；该主楼下全部回复的扁平列表（按 createdAt、id 升序；含对回复的再回复）
               items:
                 $ref: "#/components/schemas/CommentReplyItem"
     CommentsListSuccess:
@@ -567,7 +603,7 @@ components:
               items:
                 $ref: "#/components/schemas/CommentThreadItem"
             pagination:
-              $ref: "#/components/schemas/PostsListPagination"
+              $ref: "#/components/schemas/CommentsListPagination"
     CreateCommentBody:
       type: object
       required: [content]
@@ -1523,7 +1559,7 @@ paths:
       description: |
         文章可见性与 `services/post.service.ts` 中 `findPostByIdPublic` 一致：公开访客仅可读**已发布**文章下的评论；路径中文章不存在或未发布时为 404「文章不存在」。作者浏览自己**未发布**文章下的评论须携带合法 Bearer JWT（见 `middlewares/optionalAuth.middleware.ts`）；**非法或过期 token 静默忽略**，不报错。
         查询参数：`page` 缺省 `1`，`limit` 缺省 `20`、最大 `100`（与 `schema/comment.schema.ts` 一致）。
-        分页数据为顶层评论（`parentId` 为 null），每条下的 `replies` 为该顶层下的全部直接回复（按 id 升序，不截断）。
+        **`pagination.total` / `totalPages` / `hasNext` 仅针对主评分页**；**`pagination.commentTotal` 为该文评论总条数（含回复）**。每条主评的 `replies` 为该楼内全部回复的**扁平列表**（非仅一层子节点），项含可选 `replyToUser`。
       security:
         - {}
         - bearerAuth: []

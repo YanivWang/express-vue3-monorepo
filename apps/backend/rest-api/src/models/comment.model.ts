@@ -14,9 +14,20 @@ export function defineCommentModel(
         allowNull: false,
         comment: "评论正文",
       },
+      rootId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: "楼主评 id（与顶层评论自身 id 相同）；楼层内回复均指向该 id",
+      },
     },
     {
-      indexes: [{ fields: ["postId"] }, { fields: ["authorId"] }, { fields: ["parentId"] }],
+      indexes: [
+        { fields: ["postId"] },
+        { fields: ["authorId"] },
+        { fields: ["parentId"] },
+        { fields: ["rootId"] },
+        { fields: ["postId", "rootId"] },
+      ],
     },
   );
 

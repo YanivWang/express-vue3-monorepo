@@ -80,8 +80,20 @@ export async function connectDatabase() {
     const alter = process.env.DB_SYNC_ALTER !== "0";
     await sequelize.sync(alter ? { alter: true } : {});
     await backfillPostAggregatesFromRelations();
+    try {
+      const { backfillCommentRootIds } = await import("./services/comment.service.js");
+      await backfillCommentRootIds();
+    } catch (err) {
+      console.warn("[db] backfillCommentRootIds skipped:", err);
+    }
   } else {
     await sequelize.sync();
+    try {
+      const { backfillCommentRootIds } = await import("./services/comment.service.js");
+      await backfillCommentRootIds();
+    } catch (err) {
+      console.warn("[db] backfillCommentRootIds skipped:", err);
+    }
   }
   await seedDefaultCategoriesIfEmpty();
 }

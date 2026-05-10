@@ -8,6 +8,11 @@ export interface Pagination {
   hasNext: boolean;
 }
 
+/** GET /api/posts/:postId/comments 的分页：total 为主评条数，commentTotal 为该文下评论总条数 */
+export interface CommentsPagination extends Pagination {
+  commentTotal: number;
+}
+
 export interface PostAuthor {
   id: number;
   username: string;
@@ -55,10 +60,14 @@ export interface CommentReplyItem {
   postId: number;
   authorId: number;
   parentId: number | null;
+  /** 楼主评 id；顶层评论与自身 id 相同 */
+  rootId: number | null;
   content: string;
   createdAt: string;
   updatedAt: string;
   author?: PostAuthor;
+  /** 被直接回复的评论作者（用于 A ▸ B）；顶层主评行通常无此字段 */
+  replyToUser?: PostAuthor | null;
 }
 
 export interface CommentThreadItem extends CommentReplyItem {
@@ -80,7 +89,7 @@ export interface PostOneResult {
 
 export interface CommentsListResult {
   comments: CommentThreadItem[];
-  pagination: Pagination;
+  pagination: CommentsPagination;
 }
 
 /** 与 GET /api/me 返回的 `user` 对齐（服务端为准，不含密码） */

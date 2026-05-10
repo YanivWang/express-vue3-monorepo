@@ -19,7 +19,7 @@ export async function getComments(req: Request, res: Response) {
   const { postId } = params;
   const { page, limit } = query;
   const viewerUserId = req.user?.id ?? null;
-  const { comments, total, totalPages } = await findCommentsPageByPost(
+  const { comments, threadTotal, commentTotal, totalPages } = await findCommentsPageByPost(
     postId,
     viewerUserId,
     page,
@@ -28,7 +28,14 @@ export async function getComments(req: Request, res: Response) {
   const hasNext = totalPages > 0 && page < totalPages;
   return success(res, "获取评论列表成功", {
     comments,
-    pagination: { page, limit, total, totalPages, hasNext },
+    pagination: {
+      page,
+      limit,
+      total: threadTotal,
+      totalPages,
+      hasNext,
+      commentTotal,
+    },
   });
 }
 

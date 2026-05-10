@@ -2,7 +2,7 @@
 import DOMPurify from "dompurify";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { storeToRefs } from "pinia";
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import * as commentsApi from "@/api/comments";
@@ -19,13 +19,18 @@ import { useAuthStore } from "@/stores/auth";
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
-const { isLoggedIn, claims } = storeToRefs(auth);
+const { isLoggedIn, claims, profile } = storeToRefs(auth);
 
 const post = ref<PostItem | null>(null);
 const recommended = ref<PostItem[]>([]);
 const comments = ref<CommentThreadItem[]>([]);
 const commentPage = ref(1);
-const commentPagination = ref<{ total: number; limit: number; hasNext: boolean } | null>(null);
+const commentPagination = ref<{
+  total: number;
+  commentTotal: number;
+  limit: number;
+  hasNext: boolean;
+} | null>(null);
 const loading = ref(false);
 const interactionLoading = ref(false);
 const commentsLoading = ref(false);
@@ -34,7 +39,9 @@ const commentSort = ref<"desc" | "asc">("desc");
 const postId = computed(() => Number(route.params.id));
 
 const newComment = ref("");
-const replyTo = ref<CommentReplyItem | null>(null);
+/** 内联回复目标（主评或楼内回复）；顶栏仅发主评 */
+const activeInlineTarget = ref<CommentReplyItem | null>(null);
+const inlineDraft = ref("");
 
 const sortedComments = computed(() => {
   const arr = [...comments.value];
@@ -100,6 +107,7 @@ async function loadComments() {
     comments.value = res.comments;
     commentPagination.value = {
       total: res.pagination.total,
+      commentTotal: res.pagination.commentTotal,
       limit: res.pagination.limit,
       hasNext: res.pagination.hasNext,
     };
@@ -111,6 +119,8 @@ async function loadComments() {
 watch(
   () => route.params.id,
   async () => {
+    activeInlineTarget.value = null;
+    inlineDraft.value = "";
     await loadPost();
     commentPage.value = 1;
     await loadComments();
@@ -146,7 +156,9 @@ function canDeleteComment(c: CommentReplyItem) {
   const uid = claims.value?.id;
   if (uid == null || !post.value) return false;
   if (c.authorId === uid) return true;
-  return post.value.authorId === uid;
+  if (post.value.authorId === uid) return true;
+  if (profile.value?.role === 1) return true;
+  return false;
 }
 
 async function onDeleteComment(cid: number) {
@@ -169,22 +181,48 @@ async function submitComment() {
   }
   await commentsApi.createComment(postId.value, {
     content,
-    parentId: replyTo.value?.id ?? undefined,
   });
   ElMessage.success("发表成功");
   newComment.value = "";
-  replyTo.value = null;
+  commentPage.value = 1;
+  activeInlineTarget.value = null;
+  inlineDraft.value = "";
+  await loadPost();
+  await loadComments();
+}
+
+function startInlineReply(c: CommentReplyItem) {
+  activeInlineTarget.value = c;
+  inlineDraft.value = "";
+}
+
+function cancelInlineReply() {
+  activeInlineTarget.value = null;
+  inlineDraft.value = "";
+}
+
+async function submitInlineReply() {
+  const target = activeInlineTarget.value;
+  if (!target) return;
+  const content = inlineDraft.value.trim();
+  if (!content) {
+    ElMessage.warning("请输入回复内容");
+    return;
+  }
+  await commentsApi.createComment(postId.value, {
+    content,
+    parentId: target.id,
+  });
+  ElMessage.success("发表成功");
+  activeInlineTarget.value = null;
+  inlineDraft.value = "";
   commentPage.value = 1;
   await loadPost();
   await loadComments();
 }
 
-function startReply(c: CommentReplyItem) {
-  replyTo.value = c;
-}
-
-function cancelReply() {
-  replyTo.value = null;
+function showReplyChain(r: CommentReplyItem, threadId: number) {
+  return r.parentId !== threadId && Boolean(r.replyToUser?.username);
 }
 
 async function onDeletePost() {
@@ -259,6 +297,14 @@ async function toggleFavoriteDetail() {
     interactionLoading.value = false;
   }
 }
+
+onMounted(() => {
+  if (isLoggedIn.value) void auth.fetchProfile();
+});
+
+watch(isLoggedIn, (loggedIn) => {
+  if (loggedIn) void auth.fetchProfile();
+});
 </script>
 
 <template>
@@ -374,7 +420,9 @@ async function toggleFavoriteDetail() {
           <div class="comments-hd">
             <h2 class="side-heading">
               全部评论
-              <span class="count">{{ commentPagination?.total ?? 0 }}</span>
+              <span class="count">{{
+                (commentPagination?.commentTotal ?? post.commentCount ?? 0).toLocaleString()
+              }}</span>
             </h2>
             <div class="sort-row">
               <button
@@ -397,10 +445,6 @@ async function toggleFavoriteDetail() {
           </div>
 
           <div v-if="isLoggedIn" class="composer">
-            <div v-if="replyTo" class="reply-hint">
-              回复 @{{ replyTo.author?.username }}
-              <el-button link type="primary" @click="cancelReply">取消</el-button>
-            </div>
             <el-input
               v-model="newComment"
               class="comment-input"
@@ -429,7 +473,7 @@ async function toggleFavoriteDetail() {
                       link
                       type="primary"
                       size="small"
-                      @click="startReply(thread)"
+                      @click="startInlineReply(thread)"
                     >
                       回复
                     </el-button>
@@ -445,40 +489,107 @@ async function toggleFavoriteDetail() {
                   </div>
                 </div>
                 <p class="c-body">{{ thread.content }}</p>
-                <div v-for="r in thread.replies" :key="r.id" class="reply">
-                  <el-avatar
-                    class="c-avatar c-avatar--sm"
-                    :size="32"
-                    :src="r.author?.avatar ?? undefined"
+                <div
+                  v-if="isLoggedIn && activeInlineTarget?.id === thread.id"
+                  class="inline-composer"
+                >
+                  <div class="inline-hint">
+                    回复 {{ thread.author?.username }}
+                    <el-button link type="primary" size="small" @click="cancelInlineReply"
+                      >取消</el-button
+                    >
+                  </div>
+                  <el-input
+                    v-model="inlineDraft"
+                    class="comment-input comment-input--inline"
+                    type="textarea"
+                    :rows="3"
+                    maxlength="5000"
+                    show-word-limit
+                    :placeholder="`回复 ${thread.author?.username ?? ''}…`"
+                  />
+                  <el-button
+                    type="primary"
+                    round
+                    size="small"
+                    class="inline-send"
+                    @click="submitInlineReply"
+                    >发布</el-button
                   >
-                    {{ (r.author?.username ?? "?").slice(0, 1) }}
-                  </el-avatar>
-                  <div class="c-main">
-                    <div class="c-head">
-                      <strong class="c-user">{{ r.author?.username }}</strong>
-                      <span class="c-time">{{ formatCommentTime(r.createdAt) }}</span>
-                      <div class="c-actions">
+                </div>
+                <div class="replies-wrap">
+                  <div v-for="r in thread.replies ?? []" :key="r.id" class="reply">
+                    <el-avatar
+                      class="c-avatar c-avatar--sm"
+                      :size="32"
+                      :src="r.author?.avatar ?? undefined"
+                    >
+                      {{ (r.author?.username ?? "?").slice(0, 1) }}
+                    </el-avatar>
+                    <div class="c-main">
+                      <div class="c-head c-head--reply">
+                        <template v-if="showReplyChain(r, thread.id)">
+                          <span class="c-reply-chain">
+                            <strong class="c-user">{{ r.author?.username }}</strong>
+                            <span class="c-chain-sep"> ▸ </span>
+                            <span class="c-reply-to">{{ r.replyToUser?.username }}</span>
+                          </span>
+                        </template>
+                        <template v-else>
+                          <strong class="c-user">{{ r.author?.username }}</strong>
+                        </template>
+                        <span class="c-time">{{ formatCommentTime(r.createdAt) }}</span>
+                        <div class="c-actions">
+                          <el-button
+                            v-if="isLoggedIn"
+                            link
+                            type="primary"
+                            size="small"
+                            @click="startInlineReply(r)"
+                          >
+                            回复
+                          </el-button>
+                          <el-button
+                            v-if="canDeleteComment(r)"
+                            link
+                            type="danger"
+                            size="small"
+                            @click="onDeleteComment(r.id)"
+                          >
+                            删除
+                          </el-button>
+                        </div>
+                      </div>
+                      <p class="c-body">{{ r.content }}</p>
+                      <div
+                        v-if="isLoggedIn && activeInlineTarget?.id === r.id"
+                        class="inline-composer inline-composer--nested"
+                      >
+                        <div class="inline-hint">
+                          回复 {{ r.author?.username }}
+                          <el-button link type="primary" size="small" @click="cancelInlineReply"
+                            >取消</el-button
+                          >
+                        </div>
+                        <el-input
+                          v-model="inlineDraft"
+                          class="comment-input comment-input--inline"
+                          type="textarea"
+                          :rows="3"
+                          maxlength="5000"
+                          show-word-limit
+                          :placeholder="`回复 ${r.author?.username ?? ''}…`"
+                        />
                         <el-button
-                          v-if="isLoggedIn"
-                          link
                           type="primary"
+                          round
                           size="small"
-                          @click="startReply(r)"
+                          class="inline-send"
+                          @click="submitInlineReply"
+                          >发布</el-button
                         >
-                          回复
-                        </el-button>
-                        <el-button
-                          v-if="canDeleteComment(r)"
-                          link
-                          type="danger"
-                          size="small"
-                          @click="onDeleteComment(r.id)"
-                        >
-                          删除
-                        </el-button>
                       </div>
                     </div>
-                    <p class="c-body">{{ r.content }}</p>
                   </div>
                 </div>
               </div>
@@ -892,10 +1003,65 @@ $bg-soft: #fafafa;
   border-color: rgb(234 111 90 / 55%);
 }
 
-.reply-hint {
-  margin-bottom: 10px;
+.inline-composer {
+  padding: 12px 0 4px;
+  margin-top: 4px;
+  border-top: 1px dashed rgb(234 111 90 / 25%);
+
+  &--nested {
+    padding-bottom: 0;
+    margin-top: 10px;
+    border-top: none;
+  }
+}
+
+.inline-hint {
+  margin-bottom: 8px;
   font-size: 13px;
   color: #666;
+}
+
+.comment-input--inline :deep(.el-textarea__inner) {
+  min-height: 72px;
+  font-size: 14px;
+}
+
+.inline-send {
+  margin-top: 8px;
+  background: $brand;
+  border-color: $brand;
+
+  &:hover {
+    background: #e25b46;
+    border-color: #e25b46;
+  }
+}
+
+.c-head--reply {
+  align-items: flex-start;
+}
+
+.c-reply-chain {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  align-items: center;
+  max-width: 100%;
+  font-size: 13px;
+}
+
+.c-chain-sep {
+  font-weight: 400;
+  color: $muted;
+}
+
+.c-reply-to {
+  font-weight: 600;
+  color: $text;
+}
+
+.replies-wrap {
+  margin-top: 4px;
 }
 
 .send {
