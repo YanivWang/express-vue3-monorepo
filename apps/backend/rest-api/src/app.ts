@@ -32,7 +32,7 @@ if (tp === "1" || tp?.toLowerCase() === "true") {
 }
 
 //注册 / 挂载中间件 ======================================
-// (全局中间件，对所有路由都生效)
+// 以下按 app.use 顺序执行；若某中间件已结束响应，后续中间件不会再执行
 //之后进来的每个请求（在匹配规则下）会按 app.use 的先后顺序依次经过这些中间件。
 
 // helmet 是 Express 里的安全中间件，用来自动设置一组常见的 HTTP 安全响应头，降低一些 Web 攻击风险
@@ -65,10 +65,10 @@ app.use(httpRequestLogMiddleware);
 // 现在可以访问具有/uploads路径前缀的 uploadsRoot 目录下的文件
 app.use("/uploads", express.static(uploadsRoot));
 
-// 存活/就绪（限流中间件已跳过 /health、/ready）
+// 存活/就绪探针挂在本中间件之前，不经全局限流
 app.use(healthRoutes);
 
-//全局请求频率限制（对所有路由都生效）
+// 全局请求频率限制（/uploads 静态与上述探针已先挂载，不会进入此处；其余仍未结束响应的请求会经过本中间件）
 app.use(globalRateLimitMiddleware);
 
 // 仅压缩较大的 API JSON（阈值见 compression 中间件）；HTML/CSS/JS 等由 CDN/Nginx 处理
@@ -83,7 +83,7 @@ setupSwagger(app);
 
 // 业务路由 ======================================
 // 往往是「路由里最靠后的那个处理函数」（例如 controller）在响应，而不是 app.js 里最后那一行 app.use
-//"/api"：挂载路径前缀，所有路由都会以"/api"开头
+//"/api"：业务 REST 的挂载前缀；下列子路由的真实路径为 /api + 各 Router 内 path（探针、/uploads、/api-docs 等不在此前缀下）
 // authRoutes / userRoutes：都是 express.Router()，当成一整块中间件挂在 /api 下面
 // app.use("/api", xxx) = 把 xxx 这套路由表接到 /api 后面；真实路径 = /api + 子路由里的 path。
 app.use("/api", authRoutes);

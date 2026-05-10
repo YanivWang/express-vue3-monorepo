@@ -8,9 +8,7 @@ export function asyncHandler(
   fn: (req: Request, res: Response, next: NextFunction) => Promise<void | Response>,
   failureMessage?: string,
 ) {
-  // asyncHandler 把controller中的异步函数包装成一个中间件
-  // 统一加上try catch
-  // 来捕获异步函数中的错误，并交个错误中间件处理，核心功能就是帮 controller，中async函数接住错误
+  // 将 controller 中的异步函数包成中间件，统一 try/catch，把异常交给错误处理中间件
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       await fn(req, res, next);

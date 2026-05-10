@@ -1,9 +1,10 @@
 import { H5Host, detectHost } from "./host";
-import type { Bridge, BridgeAbility, BridgeStrategy } from "./types";
-import { createBrowserStrategy } from "./strategies/browser";
-import { createWxMiniStrategy, type WxMiniStrategyOptions } from "./strategies/wx-mini";
 import { createAlipayMiniStrategy, type AlipayMiniStrategyOptions } from "./strategies/ali-mini";
+import { createBrowserStrategy } from "./strategies/browser";
 import { createNativeAppStrategy, type NativeAppStrategyOptions } from "./strategies/native-app";
+import { createWxMiniStrategy, type WxMiniStrategyOptions } from "./strategies/wx-mini";
+
+import type { Bridge, BridgeAbility, BridgeStrategy } from "./types";
 
 export * from "./types";
 export * from "./host";
@@ -24,7 +25,8 @@ export interface CreateBridgeOptions {
 }
 
 /**
- * 根据当前宿主（或选项强制）创建 Bridge 单例。
+ * 根据当前宿主（或选项强制）创建 Bridge 实例。
+ * 进程内复用请使用 {@link useBridge}。
  *
  * @example
  *   import { createBridge } from '@express-vue3-monorepo/js-bridge'

@@ -2,7 +2,7 @@ import Cookies from "js-cookie";
 
 /**
  * 通用存储工具（Cookie / localStorage / sessionStorage）
- * - Cookie 封装默认用于 Token 存储，可搭配 HttpOnly 策略
+ * - Cookie 基于 js-cookie，仅适用于可被 JavaScript 读写的 Cookie；HttpOnly 需由服务端 Set-Cookie，本模块无法读写
  * - localStorage 支持 JSON 序列化 + 可选过期时间（秒）
  * - sessionStorage 支持 JSON 序列化
  *

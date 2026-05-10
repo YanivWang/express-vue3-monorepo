@@ -2,7 +2,7 @@ import rateLimit from "express-rate-limit";
 
 import { fail } from "../utils/response.js";
 
-//全局限流白名单
+// 探针路径不计入限流（skip）；若 health 路由挂在限流之前则通常不会命中本函数
 function skipProbePaths(req: { path?: string }) {
   const p = req.path || "";
   return p === "/health" || p === "/ready";
