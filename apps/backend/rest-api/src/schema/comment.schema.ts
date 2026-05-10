@@ -67,3 +67,7 @@ export const deleteCommentSchema = z.object({
     commentId: commentIdSchema,
   }),
 });
+
+export type ValidatedListCommentsSchema = z.infer<typeof listCommentsSchema>;
+export type ValidatedCreateCommentSchema = z.infer<typeof createCommentSchema>;
+export type ValidatedDeleteCommentSchema = z.infer<typeof deleteCommentSchema>;

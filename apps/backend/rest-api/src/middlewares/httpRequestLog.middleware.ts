@@ -1,3 +1,4 @@
+import { expressRoutePath } from "../utils/expressRoutePath.js";
 import { logger } from "../utils/logger.js";
 
 import type { NextFunction, Request, Response } from "express";
@@ -9,6 +10,8 @@ export function httpRequestLogMiddleware(req: Request, res: Response, next: Next
   res.on("finish", () => {
     logger.info("http_request", {
       requestId: req.requestId,
+      userId: req.user?.id,
+      routePath: expressRoutePath(req),
       method: req.method,
       url: req.originalUrl,
       statusCode: res.statusCode,

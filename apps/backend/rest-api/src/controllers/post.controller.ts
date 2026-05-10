@@ -7,17 +7,22 @@ import {
   removePostById,
   updatePostById,
 } from "../services/post.service.js";
+import { getValidated } from "../utils/getValidated.js";
 import { success } from "../utils/response.js";
 
+import type {
+  ValidatedCreatePostSchema,
+  ValidatedDeletePostSchema,
+  ValidatedGetPostSchema,
+  ValidatedListMyPostsSchema,
+  ValidatedListPostsSchema,
+  ValidatedUpdatePostSchema,
+} from "../schema/post.schema.js";
 import type { Request, Response } from "express";
 
 export async function getPosts(req: Request, res: Response) {
-  const { page, limit, parentId, categoryId } = req.query as unknown as {
-    page: number;
-    limit: number;
-    parentId?: number;
-    categoryId?: number;
-  };
+  const { query } = getValidated<ValidatedListPostsSchema>(req);
+  const { page, limit, parentId, categoryId } = query;
   const { posts, total, totalPages } = await findPostsPagePublic(page, limit, {
     parentId,
     categoryId,
@@ -30,12 +35,8 @@ export async function getPosts(req: Request, res: Response) {
 }
 
 export async function getMyPosts(req: Request, res: Response) {
-  const { page, limit, parentId, categoryId } = req.query as unknown as {
-    page: number;
-    limit: number;
-    parentId?: number;
-    categoryId?: number;
-  };
+  const { query } = getValidated<ValidatedListMyPostsSchema>(req);
+  const { page, limit, parentId, categoryId } = query;
   const uid = req.user?.id;
   if (uid === undefined) {
     throw createHttpError(401, "未登录或登录已过期");
@@ -52,7 +53,8 @@ export async function getMyPosts(req: Request, res: Response) {
 }
 
 export async function getPost(req: Request, res: Response) {
-  const post = await findPostByIdPublic(req.params.id, req.user?.id ?? null);
+  const { params } = getValidated<ValidatedGetPostSchema>(req);
+  const post = await findPostByIdPublic(params.id, req.user?.id ?? null);
   return success(res, "获取文章成功", { post });
 }
 
@@ -61,7 +63,8 @@ export async function addPost(req: Request, res: Response) {
   if (uid === undefined) {
     throw createHttpError(401, "未登录或登录已过期");
   }
-  const post = await createPost(uid, req.body);
+  const { body } = getValidated<ValidatedCreatePostSchema>(req);
+  const post = await createPost(uid, body);
   return success(res, "创建文章成功", { post });
 }
 
@@ -70,7 +73,8 @@ export async function patchPost(req: Request, res: Response) {
   if (!user) {
     throw createHttpError(401, "未登录或登录已过期");
   }
-  const post = await updatePostById(req.params.id, user, req.body);
+  const { params, body } = getValidated<ValidatedUpdatePostSchema>(req);
+  const post = await updatePostById(params.id, user, body);
   return success(res, "更新文章成功", { post });
 }
 
@@ -79,6 +83,7 @@ export async function deletePost(req: Request, res: Response) {
   if (!user) {
     throw createHttpError(401, "未登录或登录已过期");
   }
-  await removePostById(req.params.id, user);
+  const { params } = getValidated<ValidatedDeletePostSchema>(req);
+  await removePostById(params.id, user);
   return success(res, "删除文章成功");
 }

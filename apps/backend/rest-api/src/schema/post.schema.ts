@@ -114,3 +114,10 @@ export const deletePostSchema = z.object({
 export const listMyPostsSchema = z.object({
   query: listPostsQuerySchema,
 });
+
+export type ValidatedListPostsSchema = z.infer<typeof listPostsSchema>;
+export type ValidatedGetPostSchema = z.infer<typeof getPostSchema>;
+export type ValidatedCreatePostSchema = z.infer<typeof createPostSchema>;
+export type ValidatedUpdatePostSchema = z.infer<typeof updatePostSchema>;
+export type ValidatedDeletePostSchema = z.infer<typeof deletePostSchema>;
+export type ValidatedListMyPostsSchema = z.infer<typeof listMyPostsSchema>;

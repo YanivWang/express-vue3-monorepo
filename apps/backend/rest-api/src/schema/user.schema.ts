@@ -68,3 +68,9 @@ export const getUsersSchema = z.object({
     limit: paginationLimitSchema,
   }),
 });
+
+export type ValidatedUpdateUserSchema = z.infer<typeof updateUserSchema>;
+export type ValidatedDeleteUserSchema = z.infer<typeof deleteUserSchema>;
+export type ValidatedGetUserSchema = z.infer<typeof getUserSchema>;
+export type ValidatedGetOneUserSchema = z.infer<typeof getOneUserSchema>;
+export type ValidatedGetUsersSchema = z.infer<typeof getUsersSchema>;

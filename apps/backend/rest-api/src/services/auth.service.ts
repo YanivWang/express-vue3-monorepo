@@ -9,11 +9,12 @@ import { User } from "../db.js";
 import { JWT_SECRET } from "../env.js";
 import { createHttpError } from "../middlewares/error.middleware.js";
 import { logger } from "../utils/logger.js";
+import { trimmedStringFromUnknown } from "../utils/trimmedStringFromUnknown.js";
 
 function normalizeCredentials(username: unknown, password: unknown) {
   return {
-    username: String(username ?? "").trim(),
-    password: String(password ?? "").trim(),
+    username: trimmedStringFromUnknown(username),
+    password: trimmedStringFromUnknown(password),
   };
 }
 

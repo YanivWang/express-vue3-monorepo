@@ -7,7 +7,10 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "tsx scripts/test-env.ts",
+    "lint": "eslint src scripts",
+    "test": "pnpm run test:unit && pnpm run test:env",
+    "test:unit": "vitest run",
+    "test:env": "tsx scripts/test-env.ts",
     "db:reset": "tsx scripts/reset-db.ts",
     "dev": "cross-env NODE_ENV=development nodemon --exec tsx src/server.ts",
     "dev:debug": "cross-env NODE_ENV=development nodemon --inspect=0.0.0.0:9229 --exec tsx src/server.ts",
@@ -40,9 +43,11 @@
     "@types/node": "catalog:",
     "@types/bcrypt": "catalog:",
     "@types/js-yaml": "catalog:",
+    "@types/swagger-ui-express": "catalog:",
     "nodemon": "^3.1.14",
     "tsx": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "engines": {
     "node": ">=20.19.5",

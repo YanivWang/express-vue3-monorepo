@@ -20,3 +20,6 @@ export const registerSchema = z.object({
 export const loginSchema = z.object({
   body: credentialsBodySchema,
 });
+
+export type ValidatedRegisterSchema = z.infer<typeof registerSchema>;
+export type ValidatedLoginSchema = z.infer<typeof loginSchema>;

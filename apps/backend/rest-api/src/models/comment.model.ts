@@ -1,10 +1,10 @@
-import { DataTypes, type Model, type ModelCtor, type Sequelize } from "sequelize";
+import { DataTypes, type Model, type ModelStatic, type Sequelize } from "sequelize";
 
 //新建 comment 的数据库模型
 export function defineCommentModel(
   sequelize: Sequelize,
-  User: ModelCtor<Model>,
-  Post: ModelCtor<Model>,
+  User: ModelStatic<Model>,
+  Post: ModelStatic<Model>,
 ) {
   const Comment = sequelize.define(
     "Comment",

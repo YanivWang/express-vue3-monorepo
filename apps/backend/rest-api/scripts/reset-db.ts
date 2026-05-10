@@ -13,7 +13,7 @@ process.chdir(root);
 const { DB_HOST, DB_PORT, DB_USER, DB_PWD, DB_NAME } = await import("../src/env.js");
 
 function quoteIdent(name: string) {
-  return "`" + String(name).replace(/`/g, "``") + "`";
+  return "`" + name.replace(/`/g, "``") + "`";
 }
 
 const conn = await mysql.createConnection({

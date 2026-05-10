@@ -1,5 +1,6 @@
 import { Comment, Post, User } from "../db.js";
 import { createHttpError } from "../middlewares/error.middleware.js";
+import { trimmedStringFromUnknown } from "../utils/trimmedStringFromUnknown.js";
 
 import { findPostByIdPublic } from "./post.service.js";
 
@@ -10,13 +11,13 @@ const authorAttributes = ["id", "username", "avatar"];
 
 /** 是否与 post.service 的 canEdit 语义一致：作者或 admin */
 function canModeratePost(post: Model, operator: { id: number; role?: number }) {
-  const uid = Number(operator.id);
+  const uid = operator.id;
   if (Number(post.get("authorId")) === uid) return true;
   return Number(operator.role) === 1;
 }
 
 function canDeleteComment(comment: Model, post: Model, operator: { id: number; role?: number }) {
-  const uid = Number(operator.id);
+  const uid = operator.id;
   if (Number(comment.get("authorId")) === uid) return true;
   if (canModeratePost(post, operator)) return true;
   return false;
@@ -64,7 +65,7 @@ export async function createComment(
 ) {
   await findPostByIdPublic(postId, authorId);
 
-  const content = String(payload.content ?? "").trim();
+  const content = trimmedStringFromUnknown(payload.content);
   if (!content) {
     throw createHttpError(400, "评论内容不能为空");
   }

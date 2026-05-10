@@ -4,13 +4,20 @@ import {
   findCommentsPageByPost,
   removeComment,
 } from "../services/comment.service.js";
+import { getValidated } from "../utils/getValidated.js";
 import { success } from "../utils/response.js";
 
+import type {
+  ValidatedCreateCommentSchema,
+  ValidatedDeleteCommentSchema,
+  ValidatedListCommentsSchema,
+} from "../schema/comment.schema.js";
 import type { Request, Response } from "express";
 
 export async function getComments(req: Request, res: Response) {
-  const { postId } = req.params;
-  const { page, limit } = req.query as unknown as { page: number; limit: number };
+  const { params, query } = getValidated<ValidatedListCommentsSchema>(req);
+  const { postId } = params;
+  const { page, limit } = query;
   const viewerUserId = req.user?.id ?? null;
   const { comments, total, totalPages } = await findCommentsPageByPost(
     postId,
@@ -26,21 +33,21 @@ export async function getComments(req: Request, res: Response) {
 }
 
 export async function addComment(req: Request, res: Response) {
-  const { postId } = req.params;
+  const { params, body } = getValidated<ValidatedCreateCommentSchema>(req);
   const uid = req.user?.id;
   if (uid === undefined) {
     throw createHttpError(401, "未登录或登录已过期");
   }
-  const comment = await createComment(postId, uid, req.body);
+  const comment = await createComment(params.postId, uid, body);
   return success(res, "发表评论成功", { comment });
 }
 
 export async function deleteComment(req: Request, res: Response) {
-  const { postId, commentId } = req.params;
+  const { params } = getValidated<ValidatedDeleteCommentSchema>(req);
   const user = req.user;
   if (!user) {
     throw createHttpError(401, "未登录或登录已过期");
   }
-  await removeComment(postId, commentId, user);
+  await removeComment(params.postId, params.commentId, user);
   return success(res, "删除评论成功");
 }

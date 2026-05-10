@@ -1,10 +1,10 @@
-import { DataTypes, type Model, type ModelCtor, type Sequelize } from "sequelize";
+import { DataTypes, type Model, type ModelStatic, type Sequelize } from "sequelize";
 
 //sequelize 已初始化的 Sequelize 实例
 export function definePostModel(
   sequelize: Sequelize,
-  User: ModelCtor<Model>,
-  Category: ModelCtor<Model>,
+  User: ModelStatic<Model>,
+  Category: ModelStatic<Model>,
 ) {
   //定义数据库一张表对应的 ORM 模型
   //后续通过这模型 Post 在路由对应的服务层，来操作数据库中对应的表

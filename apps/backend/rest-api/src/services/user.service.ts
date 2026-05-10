@@ -8,6 +8,7 @@ import bcrypt from "bcrypt";
 
 import { User } from "../db.js";
 import { createHttpError } from "../middlewares/error.middleware.js";
+import { trimmedStringFromUnknown } from "../utils/trimmedStringFromUnknown.js";
 
 async function findUserOrThrow(id: number) {
   const user = await User.findByPk(id);
@@ -47,8 +48,8 @@ export async function updateUserById(
   payload: { username?: unknown; password?: unknown },
 ) {
   const user = await findUserOrThrow(id);
-  const username = String(payload.username ?? "").trim();
-  const password = String(payload.password ?? "").trim();
+  const username = trimmedStringFromUnknown(payload.username);
+  const password = trimmedStringFromUnknown(payload.password);
 
   if (!username || !password) {
     throw createHttpError(400, "用户名或密码不能为空");

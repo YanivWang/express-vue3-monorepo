@@ -2,6 +2,7 @@ import { Op } from "sequelize";
 
 import { Category, Post, User } from "../db.js";
 import { createHttpError } from "../middlewares/error.middleware.js";
+import { trimmedStringFromUnknown } from "../utils/trimmedStringFromUnknown.js";
 
 import { assertPostCategoryLeaf, resolveLeafIdsUnderParentOrEmpty } from "./category.service.js";
 
@@ -26,7 +27,7 @@ function normalizePostImagesInput(raw: unknown) {
   }
   const out: string[] = [];
   for (const item of raw) {
-    const s = String(item ?? "").trim();
+    const s = trimmedStringFromUnknown(item);
     if (!s) {
       throw createHttpError(400, "图片路径不能为空");
     }
@@ -61,7 +62,7 @@ async function findPostOrThrow(
   }
 
   if (!allowUnpublished && !(post.get("published") as boolean)) {
-    const isAuthor = viewerUserId != null && Number(post.get("authorId")) === Number(viewerUserId);
+    const isAuthor = viewerUserId != null && Number(post.get("authorId")) === viewerUserId;
     if (!isAuthor) {
       throw createHttpError(404, "文章不存在");
     }
@@ -170,8 +171,8 @@ export async function findMyPostsPage(
 }
 
 export async function createPost(authorId: number, payload: Record<string, unknown>) {
-  const title = String(payload.title ?? "").trim();
-  const content = String(payload.content ?? "").trim();
+  const title = trimmedStringFromUnknown(payload.title);
+  const content = trimmedStringFromUnknown(payload.content);
   if (!title || !content) {
     throw createHttpError(400, "标题或正文不能为空");
   }
@@ -218,8 +219,10 @@ export async function updatePostById(
   }
 
   const next: Record<string, unknown> = {
-    ...(payload.title !== undefined ? { title: String(payload.title).trim() } : {}),
-    ...(payload.content !== undefined ? { content: String(payload.content).trim() } : {}),
+    ...(payload.title !== undefined ? { title: trimmedStringFromUnknown(payload.title) } : {}),
+    ...(payload.content !== undefined
+      ? { content: trimmedStringFromUnknown(payload.content) }
+      : {}),
     ...(payload.published !== undefined ? { published: Boolean(payload.published) } : {}),
   };
 

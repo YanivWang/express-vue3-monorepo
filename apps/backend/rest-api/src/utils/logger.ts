@@ -39,15 +39,25 @@ export function serializeError(value: unknown): unknown {
 const consoleFormat = printf(({ level, message, timestamp: ts, stack, ...meta }) => {
   const metaText = Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : "";
   const primary = stack ?? message;
-  const body =
-    typeof primary === "string"
-      ? primary
-      : primary == null
-        ? ""
-        : typeof primary === "object"
-          ? JSON.stringify(primary)
-          : String(primary);
-  return `${String(ts)} ${String(level)}: ${body}${metaText}`;
+  let body: string;
+  if (typeof primary === "string") {
+    body = primary;
+  } else if (primary == null) {
+    body = "";
+  } else if (typeof primary === "object") {
+    body = JSON.stringify(primary);
+  } else if (typeof primary === "number" || typeof primary === "boolean") {
+    body = String(primary);
+  } else if (typeof primary === "bigint") {
+    body = primary.toString();
+  } else if (typeof primary === "symbol") {
+    body = primary.description ?? primary.toString();
+  } else {
+    body = "";
+  }
+  const tsPart = typeof ts === "string" ? ts : "";
+  const levelPart = typeof level === "string" ? level : "";
+  return `${tsPart} ${levelPart}: ${body}${metaText}`;
 });
 
 // 创建一个日志记录器logger, 用来记录日志

@@ -42,7 +42,7 @@ function run(label: string, expectedAppEnv: string, envOverrides: NodeJS.Process
     console.error(`[test] ${label} exited ${r.status}\n${r.stderr || ""}${r.stdout || ""}`);
     process.exit(1);
   }
-  const got = String(r.stdout).trim();
+  const got = (typeof r.stdout === "string" ? r.stdout : "").trim();
   if (got !== expectedAppEnv) {
     console.error(`[test] ${label}: expected APP_ENV="${expectedAppEnv}", got "${got}"`);
     process.exit(1);

@@ -14,7 +14,7 @@ const validEnvs = new Set(["development", "test", "production"]);
 
 function trimUnset(value: string | undefined): string | undefined {
   if (value === undefined) return undefined;
-  const t = String(value).trim();
+  const t = value.trim();
   return t === "" ? undefined : t;
 }
 
@@ -64,11 +64,11 @@ if (!process.env.NODE_ENV) process.env.NODE_ENV = appEnv;
 
 function requireEnv(name: string): string {
   const raw = process.env[name];
-  if (raw === undefined || String(raw).trim() === "") {
+  if (raw === undefined || raw.trim() === "") {
     console.error(`[env] 缺少或未配置环境变量: ${name}`);
     process.exit(1);
   }
-  return String(raw).trim();
+  return raw.trim();
 }
 
 function requirePortLike(name: string, fallback: number): number {
