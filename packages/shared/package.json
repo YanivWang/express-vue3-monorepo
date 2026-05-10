@@ -1,9 +1,9 @@
 {
-  "name": "@vue3-express-monorepo/shared",
+  "name": "@express-vue3-monorepo/shared",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "PC / H5 共享源码（类型、工具、请求 preset、hooks、组件、指令、i18n）；HTTP 默认与 apps/backend/rest-api 对齐；依赖 **`@vue3-express-monorepo/request-core`**、**`@vue3-express-monorepo/js-bridge`**；**`@vue3-express-monorepo/web-monitor`** 由应用直连",
+  "description": "PC / H5 共享源码（类型、工具、请求 preset、hooks、组件、指令、i18n）；HTTP 默认与 apps/backend/rest-api 对齐；依赖 **`@express-vue3-monorepo/request-core`**、**`@express-vue3-monorepo/js-bridge`**；**`@express-vue3-monorepo/web-monitor`** 由应用直连",
   "sideEffects": [
     "**/*.css",
     "**/*.scss",
@@ -98,8 +98,8 @@
     "test:watch": "vitest -c vitest.config.ts"
   },
   "dependencies": {
-    "@vue3-express-monorepo/js-bridge": "workspace:*",
-    "@vue3-express-monorepo/request-core": "workspace:*",
+    "@express-vue3-monorepo/js-bridge": "workspace:*",
+    "@express-vue3-monorepo/request-core": "workspace:*",
     "dayjs": "catalog:",
     "echarts": "catalog:",
     "js-cookie": "catalog:",

@@ -49,7 +49,7 @@ docker compose \
 
 echo ""
 echo "=========================================="
-echo "  Docker 开发栈已启动（vue3-express-monorepo）"
+echo "  Docker 开发栈已启动（express-vue3-monorepo）"
 echo "=========================================="
 echo ""
 echo -e "  ${GREEN}浏览器统一入口（网关 → pc-portal / pc-admin Vite + rest-api）：${NC}"

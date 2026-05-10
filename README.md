@@ -1,4 +1,4 @@
-# vue3-express-monorepo
+# express-vue3-monorepo
 
 基于 **pnpm workspace** 的全栈单体仓库：**Express REST API**（`apps/backend/rest-api`）+ **Vue 3 / Vite** 前台与管理端（`apps/frontend/pc-portal`、`pc-admin`），共享逻辑置于 **`packages/*`**。根目录提供脚本编排、Docker Compose、统一代码风格与提交约定。
 
@@ -61,19 +61,19 @@
 
 | 目录                      | `package.json` name                   |
 | ------------------------- | ------------------------------------- |
-| `apps/backend/rest-api`   | `@vue3-express-monorepo/rest-api`     |
-| `apps/frontend/pc-portal` | `@vue3-express-monorepo/pc-portal`    |
-| `apps/frontend/pc-admin`  | `@vue3-express-monorepo/pc-admin`     |
-| `packages/shared`         | `@vue3-express-monorepo/shared`       |
-| `packages/request-core`   | `@vue3-express-monorepo/request-core` |
-| `packages/js-bridge`      | `@vue3-express-monorepo/js-bridge`    |
-| `packages/web-monitor`    | `@vue3-express-monorepo/web-monitor`  |
+| `apps/backend/rest-api`   | `@express-vue3-monorepo/rest-api`     |
+| `apps/frontend/pc-portal` | `@express-vue3-monorepo/pc-portal`    |
+| `apps/frontend/pc-admin`  | `@express-vue3-monorepo/pc-admin`     |
+| `packages/shared`         | `@express-vue3-monorepo/shared`       |
+| `packages/request-core`   | `@express-vue3-monorepo/request-core` |
+| `packages/js-bridge`      | `@express-vue3-monorepo/js-bridge`    |
+| `packages/web-monitor`    | `@express-vue3-monorepo/web-monitor`  |
 
 示例：
 
 ```bash
-pnpm --filter @vue3-express-monorepo/rest-api run build
-pnpm --filter @vue3-express-monorepo/pc-portal run dev
+pnpm --filter @express-vue3-monorepo/rest-api run build
+pnpm --filter @express-vue3-monorepo/pc-portal run dev
 ```
 
 ---
@@ -106,7 +106,7 @@ pnpm install
 
 ### 首个超级管理员（bootstrap）
 
-库中尚无任何 `super_admin` 时，API 启动流程中的 `bootstrapRbacIfNeeded()` 会使用根目录配置的两项 **`ADMIN_BOOTSTRAP_*`** 创建首个超级管理员（密码 bcrypt 存储）。亦可不重启、在 `apps/backend/rest-api` 下执行 **`pnpm ensure-super-admin`**（或根目录 `pnpm --filter @vue3-express-monorepo/rest-api ensure-super-admin`）幂等补账号或重设密码。合成帖子链路等详见 **[`docs/admin-bootstrap.md`](docs/admin-bootstrap.md)**。
+库中尚无任何 `super_admin` 时，API 启动流程中的 `bootstrapRbacIfNeeded()` 会使用根目录配置的两项 **`ADMIN_BOOTSTRAP_*`** 创建首个超级管理员（密码 bcrypt 存储）。亦可不重启、在 `apps/backend/rest-api` 下执行 **`pnpm ensure-super-admin`**（或根目录 `pnpm --filter @express-vue3-monorepo/rest-api ensure-super-admin`）幂等补账号或重设密码。合成帖子链路等详见 **[`docs/admin-bootstrap.md`](docs/admin-bootstrap.md)**。
 
 ---
 
@@ -117,8 +117,8 @@ pnpm install
 | `pnpm dev`                                                           | 对所有 workspace 子包并行执行 `dev`（若存在）                                                                            |
 | `pnpm rest-api:dev` / `pnpm rest-api:dev:debug`                      | 宿主运行后端（debug 暴露 Inspector **9229**）                                                                            |
 | `pnpm pc-portal:dev` / `pnpm pc-admin:dev`                           | 宿主运行对应前端                                                                                                         |
-| `pnpm --filter @vue3-express-monorepo/rest-api db:reset`             | 重置后端所用数据库（或在 `apps/backend/rest-api` 下执行 `pnpm db:reset`）                                                |
-| `pnpm --filter @vue3-express-monorepo/rest-api ensure-super-admin`   | 按根目录 `.env.*` 的 `ADMIN_BOOTSTRAP_*` 幂等创建或更新超级管理员（或在 rest-api 包目录执行 `pnpm ensure-super-admin`）  |
+| `pnpm --filter @express-vue3-monorepo/rest-api db:reset`             | 重置后端所用数据库（或在 `apps/backend/rest-api` 下执行 `pnpm db:reset`）                                                |
+| `pnpm --filter @express-vue3-monorepo/rest-api ensure-super-admin`   | 按根目录 `.env.*` 的 `ADMIN_BOOTSTRAP_*` 幂等创建或更新超级管理员（或在 rest-api 包目录执行 `pnpm ensure-super-admin`）  |
 | `pnpm test`                                                          | 后端测试脚本                                                                                                             |
 | `pnpm test:all`                                                      | `pnpm test` + `playwright test`                                                                                          |
 | `pnpm typecheck`                                                     | 各包并行执行各自的 `typecheck`（**全仓类型正确性的权威入口**）                                                           |

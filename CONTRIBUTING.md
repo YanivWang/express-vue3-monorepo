@@ -9,7 +9,7 @@
 ## 常用脚本
 
 - 后端：`pnpm rest-api:dev`、`pnpm rest-api:start`
-- 首个超级管理员（根目录已配置 `ADMIN_BOOTSTRAP_USERNAME` / `ADMIN_BOOTSTRAP_PASSWORD`）：`pnpm --filter @vue3-express-monorepo/rest-api ensure-super-admin`
+- 首个超级管理员（根目录已配置 `ADMIN_BOOTSTRAP_USERNAME` / `ADMIN_BOOTSTRAP_PASSWORD`）：`pnpm --filter @express-vue3-monorepo/rest-api ensure-super-admin`
 - 前端：`pnpm pc-portal:dev`（5173）、`pnpm pc-admin:dev`（5174）
 - 全仓库并行开发：`pnpm dev`
 - 类型检查 / 质量：`pnpm typecheck`、`pnpm lint`、`pnpm lint:style`、`pnpm format:check`

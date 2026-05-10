@@ -373,7 +373,7 @@ importers:
       '@element-plus/icons-vue':
         specifier: 'catalog:'
         version: 2.3.2(vue@3.5.34(typescript@5.5.4))
-      '@vue3-express-monorepo/shared':
+      '@express-vue3-monorepo/shared':
         specifier: workspace:*
         version: link:../../../packages/shared
       '@vueuse/core':
@@ -419,10 +419,10 @@ importers:
       '@element-plus/icons-vue':
         specifier: 'catalog:'
         version: 2.3.2(vue@3.5.34(typescript@5.5.4))
-      '@vue3-express-monorepo/request-core':
+      '@express-vue3-monorepo/request-core':
         specifier: workspace:*
         version: link:../../../packages/request-core
-      '@vue3-express-monorepo/shared':
+      '@express-vue3-monorepo/shared':
         specifier: workspace:*
         version: link:../../../packages/shared
       '@vueuse/core':
@@ -490,10 +490,10 @@ importers:
 
   packages/shared:
     dependencies:
-      '@vue3-express-monorepo/js-bridge':
+      '@express-vue3-monorepo/js-bridge':
         specifier: workspace:*
         version: link:../js-bridge
-      '@vue3-express-monorepo/request-core':
+      '@express-vue3-monorepo/request-core':
         specifier: workspace:*
         version: link:../request-core
       dayjs:

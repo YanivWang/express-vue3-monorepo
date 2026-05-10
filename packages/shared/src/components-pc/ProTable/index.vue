@@ -11,8 +11,8 @@ import {
 } from "element-plus";
 import { ref } from "vue";
 
-import { useTable } from "@vue3-express-monorepo/shared/hooks-core";
-import type { PaginationResult } from "@vue3-express-monorepo/shared/types";
+import { useTable } from "@express-vue3-monorepo/shared/hooks-core";
+import type { PaginationResult } from "@express-vue3-monorepo/shared/types";
 
 type AnyRow = Record<string, unknown>;
 
@@ -187,7 +187,7 @@ defineExpose({ fetchData, handleSearch, handleReset });
 </template>
 
 <style lang="scss" scoped>
-@use "@vue3-express-monorepo/shared/styles/tokens/variables" as *;
+@use "@express-vue3-monorepo/shared/styles/tokens/variables" as *;
 
 .pro-table {
   display: flex;

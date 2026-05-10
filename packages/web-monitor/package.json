@@ -1,5 +1,5 @@
 {
-  "name": "@vue3-express-monorepo/web-monitor",
+  "name": "@express-vue3-monorepo/web-monitor",
   "version": "0.0.0",
   "private": true,
   "type": "module",

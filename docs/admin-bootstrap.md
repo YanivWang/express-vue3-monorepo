@@ -21,7 +21,7 @@
 
 ```bash
 # 在仓库根（须已配置根目录 ADMIN_BOOTSTRAP_*）
-pnpm --filter @vue3-express-monorepo/rest-api ensure-super-admin
+pnpm --filter @express-vue3-monorepo/rest-api ensure-super-admin
 
 # 或在 apps/backend/rest-api 下
 pnpm ensure-super-admin
@@ -31,7 +31,7 @@ pnpm ensure-super-admin
 
 ## 推荐操作路径
 
-1. **方式 A（推荐，开发）**：根目录配置好 **`ADMIN_BOOTSTRAP_*`** 后，在 `apps/backend/rest-api` 执行 **`pnpm db:reset`**（或根目录 `pnpm --filter @vue3-express-monorepo/rest-api db:reset`），再启动 **`pnpm --filter @vue3-express-monorepo/rest-api dev`**。空库且无 `super_admin` 时，首次启动会按环境变量创建首个超级管理员。
+1. **方式 A（推荐，开发）**：根目录配置好 **`ADMIN_BOOTSTRAP_*`** 后，在 `apps/backend/rest-api` 执行 **`pnpm db:reset`**（或根目录 `pnpm --filter @express-vue3-monorepo/rest-api db:reset`），再启动 **`pnpm --filter @express-vue3-monorepo/rest-api dev`**。空库且无 `super_admin` 时，首次启动会按环境变量创建首个超级管理员。
 2. **方式 B（生产）**：同样配置非空的 **`ADMIN_BOOTSTRAP_USERNAME`** / **`ADMIN_BOOTSTRAP_PASSWORD`** 后部署并启动，由 `bootstrapRbacIfNeeded()` 在首次无超级管理员时创建。
 3. **方式 C（不推荐）**：在熟悉迁移与种子语义的前提下，直接在 `Roles` / `Users` 表为某用户写入 `super_admin` 的 `roleId`。
 

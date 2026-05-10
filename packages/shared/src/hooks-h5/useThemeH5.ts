@@ -7,8 +7,8 @@ import {
   createUseTheme,
   type ThemeStorage,
   type UseThemeReturn,
-} from "@vue3-express-monorepo/shared/hooks-core";
-import type { BrandId, ThemeModeId } from "@vue3-express-monorepo/shared/styles/tokens";
+} from "@express-vue3-monorepo/shared/hooks-core";
+import type { BrandId, ThemeModeId } from "@express-vue3-monorepo/shared/styles/tokens";
 
 export interface UseThemeH5Options {
   storage: ThemeStorage;

@@ -1,5 +1,5 @@
 {
-  "name": "@vue3-express-monorepo/pc-portal",
+  "name": "@express-vue3-monorepo/pc-portal",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,8 +11,8 @@
   },
   "dependencies": {
     "@element-plus/icons-vue": "catalog:",
-    "@vue3-express-monorepo/request-core": "workspace:*",
-    "@vue3-express-monorepo/shared": "workspace:*",
+    "@express-vue3-monorepo/request-core": "workspace:*",
+    "@express-vue3-monorepo/shared": "workspace:*",
     "@vueuse/core": "catalog:",
     "dompurify": "^3.4.2",
     "element-plus": "catalog:",

@@ -4,4 +4,4 @@ export {
   type HostDetection,
   isInWebview,
   isBrowser,
-} from "@vue3-express-monorepo/js-bridge";
+} from "@express-vue3-monorepo/js-bridge";

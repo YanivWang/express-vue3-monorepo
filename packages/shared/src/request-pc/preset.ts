@@ -4,7 +4,7 @@ import type {
   ErrorHookContext,
   RequestHooks,
   TokenProvider,
-} from "@vue3-express-monorepo/request-core";
+} from "@express-vue3-monorepo/request-core";
 
 export interface PcPresetOptions {
   /** 登录页路径，默认 '/login' */

@@ -1,5 +1,5 @@
 {
-  "name": "@vue3-express-monorepo/pc-admin",
+  "name": "@express-vue3-monorepo/pc-admin",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@element-plus/icons-vue": "catalog:",
-    "@vue3-express-monorepo/shared": "workspace:*",
+    "@express-vue3-monorepo/shared": "workspace:*",
     "@vueuse/core": "catalog:",
     "element-plus": "catalog:",
     "nprogress": "^0.2.0",

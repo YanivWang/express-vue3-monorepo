@@ -50,4 +50,4 @@ export enum TabAction {
   REFRESH = "refresh",
 }
 
-export { H5Host } from "@vue3-express-monorepo/js-bridge";
+export { H5Host } from "@express-vue3-monorepo/js-bridge";

@@ -1,5 +1,5 @@
 {
-  "name": "@vue3-express-monorepo/rest-api",
+  "name": "@express-vue3-monorepo/rest-api",
   "version": "1.0.0",
   "private": true,
   "type": "module",

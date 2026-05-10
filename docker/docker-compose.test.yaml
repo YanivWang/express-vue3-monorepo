@@ -3,17 +3,17 @@
 #
 # HTTP 网关 `${GATEWAY_HOST_PORT:-2026}`，与 Playwright 默认 baseURL（同端口）一致。
 
-name: vue3-express-monorepo-test
+name: express-vue3-monorepo-test
 
 services:
   mysql:
-    container_name: vue3-express-monorepo-mysql-test
+    container_name: express-vue3-monorepo-mysql-test
     volumes:
       - mysql_test_data:/var/lib/mysql
 
   gateway:
     image: nginx:alpine
-    container_name: vue3-express-monorepo-gateway-test
+    container_name: express-vue3-monorepo-gateway-test
     volumes:
       - ./nginx/${NGINX_GATEWAY_CONF:-gateway.prod.docker.conf}:/etc/nginx/nginx.conf:ro
     ports:
@@ -28,7 +28,7 @@ services:
     restart: unless-stopped
 
   rest-api:
-    container_name: vue3-express-monorepo-rest-api-test
+    container_name: express-vue3-monorepo-rest-api-test
     env_file:
       - ../.env.test
     environment:
@@ -41,7 +41,7 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.pc-portal
-    container_name: vue3-express-monorepo-pc-portal-test
+    container_name: express-vue3-monorepo-pc-portal-test
     restart: unless-stopped
     depends_on:
       rest-api:
@@ -54,7 +54,7 @@ services:
       args:
         VITE_ADMIN_BASE: /pc-admin/
         VITE_API_BASE_URL: ""
-    container_name: vue3-express-monorepo-pc-admin-test
+    container_name: express-vue3-monorepo-pc-admin-test
     restart: unless-stopped
     depends_on:
       rest-api:

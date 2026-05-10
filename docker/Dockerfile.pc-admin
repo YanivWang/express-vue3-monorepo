@@ -27,7 +27,7 @@ COPY packages/shared/package.json packages/shared/
 COPY packages/js-bridge/package.json packages/js-bridge/
 COPY packages/web-monitor/package.json packages/web-monitor/
 
-RUN pnpm install --frozen-lockfile --filter "@vue3-express-monorepo/pc-admin..."
+RUN pnpm install --frozen-lockfile --filter "@express-vue3-monorepo/pc-admin..."
 
 COPY apps/frontend/pc-admin apps/frontend/pc-admin
 COPY packages/request-core packages/request-core
@@ -39,7 +39,7 @@ ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 ARG VITE_ADMIN_BASE=/pc-admin/
 ENV VITE_ADMIN_BASE=${VITE_ADMIN_BASE}
 
-RUN pnpm --filter @vue3-express-monorepo/pc-admin run build
+RUN pnpm --filter @express-vue3-monorepo/pc-admin run build
 
 FROM nginx:1.27-alpine
 

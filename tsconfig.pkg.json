@@ -13,12 +13,12 @@
     "jsx": "preserve",
     "allowImportingTsExtensions": true,
     "paths": {
-      "@vue3-express-monorepo/shared": ["packages/shared/src/index.ts"],
-      "@vue3-express-monorepo/shared/styles/tokens": ["packages/shared/src/styles/tokens.ts"],
-      "@vue3-express-monorepo/shared/*": ["packages/shared/src/*"],
-      "@vue3-express-monorepo/request-core": ["packages/request-core/src/index.ts"],
-      "@vue3-express-monorepo/web-monitor": ["packages/web-monitor/src/index.ts"],
-      "@vue3-express-monorepo/js-bridge": ["packages/js-bridge/src/index.ts"]
+      "@express-vue3-monorepo/shared": ["packages/shared/src/index.ts"],
+      "@express-vue3-monorepo/shared/styles/tokens": ["packages/shared/src/styles/tokens.ts"],
+      "@express-vue3-monorepo/shared/*": ["packages/shared/src/*"],
+      "@express-vue3-monorepo/request-core": ["packages/request-core/src/index.ts"],
+      "@express-vue3-monorepo/web-monitor": ["packages/web-monitor/src/index.ts"],
+      "@express-vue3-monorepo/js-bridge": ["packages/js-bridge/src/index.ts"]
     }
   }
 }

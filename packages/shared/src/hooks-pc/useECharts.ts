@@ -27,7 +27,7 @@ function unwrapDark(
  *
  * @remarks
  * - ECharts 组件（LineChart / BarChart 等）需由消费方自行注册；
- *   可直接使用 `@vue3-express-monorepo/shared/utils` 已预注册的 `echarts`。
+ *   可直接使用 `@express-vue3-monorepo/shared/utils` 已预注册的 `echarts`。
  * - 本 hook 不依赖 Element Plus，但随 PC UI 体系一并提供（isDark 通常来自 admin 的 AppStore）。
  */
 export function useECharts(options: UseEChartsOptions = {}) {

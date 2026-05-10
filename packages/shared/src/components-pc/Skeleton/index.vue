@@ -56,7 +56,7 @@ withDefaults(defineProps<Props>(), {
 </template>
 
 <style lang="scss" scoped>
-@use "@vue3-express-monorepo/shared/styles/tokens/variables" as *;
+@use "@express-vue3-monorepo/shared/styles/tokens/variables" as *;
 
 $skeleton-color: var(--el-fill-color-light, #f2f3f5);
 $skeleton-shine: var(--el-fill-color-lighter, #e8eaed);

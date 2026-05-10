@@ -1,5 +1,5 @@
 {
-  "name": "@vue3-express-monorepo/request-core",
+  "name": "@express-vue3-monorepo/request-core",
   "version": "0.0.0",
   "private": true,
   "type": "module",

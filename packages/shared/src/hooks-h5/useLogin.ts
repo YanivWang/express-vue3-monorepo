@@ -1,7 +1,7 @@
 import { ref } from "vue";
 
-import type { Bridge } from "@vue3-express-monorepo/js-bridge";
-import { H5Host } from "@vue3-express-monorepo/shared/enums";
+import type { Bridge } from "@express-vue3-monorepo/js-bridge";
+import { H5Host } from "@express-vue3-monorepo/shared/enums";
 
 export interface LoginFormParams {
   username: string;
@@ -43,7 +43,7 @@ export interface UseLoginReturn<TFormResult, TCodeResult> {
  * H5 多宿主登录 composable。
  *
  * 设计要点：
- * - 严格依赖 bridge.auth 抽象，由 @vue3-express-monorepo/js-bridge 做宿主差异
+ * - 严格依赖 bridge.auth 抽象，由 @express-vue3-monorepo/js-bridge 做宿主差异
  * - 表单登录与 SSO 完全解耦，业务层只需提供 formLogin/exchangeCode 两个 API
  * - loginAuto 提供"宿主优先 + 回落表单"的默认流程
  */

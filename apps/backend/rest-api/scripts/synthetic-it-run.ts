@@ -1,6 +1,6 @@
 /**
  * 不向第三方站点抓取：按「IT技术」种子下的叶子分类注入合成技术短文与评论。
- * **执行**：在 monorepo 根 `pnpm db:init-post`，或在 `apps/backend/rest-api` 下 `pnpm db:init-post`，或根目录 `pnpm --filter @vue3-express-monorepo/rest-api db:init-post`。环境变量见 `synthetic-it.env`。
+ * **执行**：在 monorepo 根 `pnpm db:init-post`，或在 `apps/backend/rest-api` 下 `pnpm db:init-post`，或根目录 `pnpm --filter @express-vue3-monorepo/rest-api db:init-post`。环境变量见 `synthetic-it.env`。
  * 流程：先 `dedupe-mysql-redundant-indexes` 清理重复 BTREE 索引，再 `it-seed-categories`（空库写 IT 类目）、`synthetic-it-clear-posts`（清空点赞/踩·收藏后删全部帖子、评论 CASCADE、仅清空 `uploads/posts/` 下文件），最后本脚本经 HTTP 写入帖子与评论（`externalSource` + `externalKey` 发帖幂等；评论完成后写 manifest）。
  *
  * **认证**：可设 `REST_API_IMPORT_TOKEN`，或不设则由脚本 **`POST …/login`** 取 JWT（管理员账号）。

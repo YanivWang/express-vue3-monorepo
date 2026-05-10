@@ -29,7 +29,7 @@ export interface CreateBridgeOptions {
  * 进程内复用请使用 {@link useBridge}。
  *
  * @example
- *   import { createBridge } from '@vue3-express-monorepo/js-bridge'
+ *   import { createBridge } from '@express-vue3-monorepo/js-bridge'
  *   const bridge = createBridge({ wxMini: { loginPath: '/pages/login' } })
  *   await bridge.ui.toast({ message: 'hi' })
  *   const token = await bridge.auth.login()
