@@ -1,15 +1,14 @@
-import { Op } from "sequelize";
+import { Op, Sequelize, type Model, type Order } from "sequelize";
 
-import { Category, Post, User } from "../db.js";
+import { Category, Post, PostFavorite, PostVote, User } from "../db.js";
 import { createHttpError } from "../middlewares/error.middleware.js";
 import { escapeMysqlLikePattern } from "../utils/escapeMysqlLike.js";
 import { trimmedStringFromUnknown } from "../utils/trimmedStringFromUnknown.js";
 
-
 import { assertPostCategoryLeaf, resolveLeafIdsUnderParentOrEmpty } from "./category.service.js";
+import { voteValueToMyVote } from "./post-vote.service.js";
 
 import type { AppJwtUser } from "../types/jwt-user.js";
-import type { Model } from "sequelize";
 
 const authorAttributes = ["id", "username", "avatar"];
 const categoryAttributes = ["id", "name"];
@@ -113,6 +112,88 @@ async function buildMyPostsCategoryWhere(
   return base;
 }
 
+function effectiveListSort(keywordTrimmed: boolean, sort: "latest" | "hot"): "latest" | "hot" {
+  if (keywordTrimmed) return "latest";
+  return sort;
+}
+
+function listOrder(sort: "latest" | "hot") {
+  // ORDER BY 须与 Sequelize 在主查询里使用的别名一致：表名为 Posts（tableName），别名为模型名 Post（name）。
+  const mainAliasQuoted = `\`${Post.name}\``;
+  if (sort === "hot") {
+    return [
+      Sequelize.literal(
+        `(COALESCE(${mainAliasQuoted}.\`commentCount\`,0)+COALESCE(${mainAliasQuoted}.\`favoriteCount\`,0)+COALESCE(${mainAliasQuoted}.\`likeCount\`,0)) DESC`,
+      ),
+      ["id", "DESC"],
+    ] as Order;
+  }
+  return [
+    ["createdAt", "DESC"],
+    ["id", "DESC"],
+  ] as Order;
+}
+
+export async function incrementPostViewIfEligible(post: Model, viewerUserId: number | null) {
+  if (!(post.get("published") as boolean)) return;
+  const authorId = Number(post.get("authorId"));
+  if (viewerUserId != null && viewerUserId === authorId) return;
+  const id = post.get("id") as number;
+  await Post.increment("viewCount", { by: 1, where: { id } });
+  await post.reload({
+    include: [postIncludeAuthor, postIncludeCategory],
+  });
+}
+
+export async function enrichPublicPostForResponse(
+  post: Model,
+  viewerUserId: number | null,
+  options?: { bumpView?: boolean },
+): Promise<Record<string, unknown>> {
+  const bumpView = options?.bumpView ?? true;
+  if (bumpView) {
+    await incrementPostViewIfEligible(post, viewerUserId);
+  }
+  const plain = post.get({ plain: true }) as Record<string, unknown>;
+  if (viewerUserId != null) {
+    const pid = Number(post.get("id"));
+    const [vote, fav] = await Promise.all([
+      PostVote.findOne({ where: { postId: pid, userId: viewerUserId } }),
+      PostFavorite.findOne({ where: { postId: pid, userId: viewerUserId } }),
+    ]);
+    plain.myVote = voteValueToMyVote(vote == null ? null : Number(vote.get("value")));
+    plain.myFavorited = Boolean(fav);
+  }
+  return plain;
+}
+
+export async function decoratePostsListForViewer(
+  rows: Model[],
+  viewerUserId: number | null,
+): Promise<Record<string, unknown>[]> {
+  const base = rows.map((r) => r.get({ plain: true }) as Record<string, unknown>);
+  if (viewerUserId == null) return base;
+  const ids = rows.map((r) => Number(r.get("id")));
+  if (ids.length === 0) return base;
+  const [votes, favs] = await Promise.all([
+    PostVote.findAll({ where: { userId: viewerUserId, postId: { [Op.in]: ids } } }),
+    PostFavorite.findAll({ where: { userId: viewerUserId, postId: { [Op.in]: ids } } }),
+  ]);
+  const voteByPost = new Map<number, "like" | "dislike" | null>();
+  for (const v of votes) {
+    voteByPost.set(Number(v.get("postId")), voteValueToMyVote(Number(v.get("value"))));
+  }
+  const favSet = new Set(favs.map((f) => Number(f.get("postId"))));
+  return base.map((o) => {
+    const id = Number(o.id);
+    return {
+      ...o,
+      myVote: voteByPost.get(id) ?? null,
+      myFavorited: favSet.has(id),
+    };
+  });
+}
+
 export async function findPostsPagePublic(
   page: number,
   limit: number,
@@ -120,10 +201,18 @@ export async function findPostsPagePublic(
     parentId,
     categoryId,
     keyword,
-  }: { parentId?: number | null; categoryId?: number | null; keyword?: string | null } = {},
+    sort = "latest",
+  }: {
+    parentId?: number | null;
+    categoryId?: number | null;
+    keyword?: string | null;
+    sort?: "latest" | "hot";
+  } = {},
 ) {
   const offset = (page - 1) * limit;
   const kw = keyword?.trim();
+  const resolvedSort = effectiveListSort(Boolean(kw), sort);
+  const order = listOrder(resolvedSort);
   if (kw) {
     const pattern = `%${escapeMysqlLikePattern(kw)}%`;
     const where = {
@@ -135,7 +224,7 @@ export async function findPostsPagePublic(
         where,
         limit,
         offset,
-        order: [["id", "DESC"]],
+        order,
         include: [postIncludeAuthor, postIncludeCategory],
       }),
       Post.count({ where }),
@@ -156,7 +245,7 @@ export async function findPostsPagePublic(
       where,
       limit,
       offset,
-      order: [["id", "DESC"]],
+      order,
       include: [postIncludeAuthor, postIncludeCategory],
     }),
     Post.count({ where }),

@@ -1,5 +1,7 @@
 import { defineCategoryModel } from "./category.model.js";
 import { defineCommentModel } from "./comment.model.js";
+import { definePostFavoriteModel } from "./post-favorite.model.js";
+import { definePostVoteModel } from "./post-vote.model.js";
 import { definePostModel } from "./post.model.js";
 import { defineUserModel } from "./user.model.js";
 
@@ -13,12 +15,16 @@ export function initModels(sequelize: Sequelize) {
   const User = defineUserModel(sequelize);
   const Category = defineCategoryModel(sequelize);
   const Post = definePostModel(sequelize, User, Category);
+  const PostVote = definePostVoteModel(sequelize, User, Post);
+  const PostFavorite = definePostFavoriteModel(sequelize, User, Post);
   const Comment = defineCommentModel(sequelize, User, Post);
 
   return {
     User,
     Category,
     Post,
+    PostVote,
+    PostFavorite,
     Comment,
   };
 }

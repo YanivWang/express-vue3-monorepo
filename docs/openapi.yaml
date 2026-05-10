@@ -329,6 +329,31 @@ components:
           $ref: "#/components/schemas/PostAuthor"
         category:
           $ref: "#/components/schemas/PostCategory"
+        commentCount:
+          type: integer
+          minimum: 0
+          description: 评论条数（含回复）
+        favoriteCount:
+          type: integer
+          minimum: 0
+        likeCount:
+          type: integer
+          minimum: 0
+        dislikeCount:
+          type: integer
+          minimum: 0
+        viewCount:
+          type: integer
+          minimum: 0
+          description: 阅读次数 PV（仅在详情接口成功读取已发布正文时递增；作者浏览自身文章默认不计）
+        myVote:
+          type: string
+          nullable: true
+          enum: [like, dislike]
+          description: 当前登录用户对本文的立场；匿名或未投票时通常为 null（列表在无 JWT 时可省略字段）
+        myFavorited:
+          type: boolean
+          description: 当前登录用户是否已收藏；匿名时可省略字段
     PostsListPagination:
       type: object
       description: 与文章列表接口返回的 `pagination` 一致（结构与用户分页相同）
@@ -1060,10 +1085,13 @@ paths:
       tags: [文章]
       summary: 获取已发布文章列表（分页）
       description: |
-        无需 JWT。仅查询 `published: true`；排序为 id 降序。
-        查询参数 `page`、`limit`、`parentId`、`categoryId` 与 `schema/post.schema.ts` 中 `listPostsQuerySchema` 一致：缺省 `1`、`10`；须为正整数；`limit` 最大 100。
-        `parentId` 为**一级分类 id** 时返回归属其下任一叶子的文章；`categoryId` 为**叶子分类 id**；二者不得同时传递。
-        传 `categoryId` 时若不是有效叶子则 400。
+        可选 Bearer JWT：`optionalAuthMiddleware`；携带合法 JWT 时每条帖子附带 `myVote`、`myFavorited`。
+        `sort=latest`（默认）：按创建时间、`id` 降序；`sort=hot`：`commentCount + favoriteCount + likeCount` 降序。
+        关键字搜索（`q`/`keyword`）与分类参数互斥，且在搜索模式下强制按最新排序。
+        `parentId`/`categoryId`/`page`/`limit` 等与 `schema/post.schema.ts` 一致。
+      security:
+        - {}
+        - bearerAuth: []
       parameters:
         - name: page
           in: query
@@ -1094,6 +1122,26 @@ paths:
           schema:
             type: integer
             minimum: 1
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [latest, hot]
+            default: latest
+        - name: q
+          in: query
+          required: false
+          description: 全站标题/正文关键字；与 parentId/categoryId 互斥
+          schema:
+            type: string
+            maxLength: 200
+        - name: keyword
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 200
       responses:
         "200":
           description: 成功
@@ -1150,6 +1198,34 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MsgBody"
+
+  /api/posts/favorites:
+    get:
+      tags: [文章]
+      summary: 获取当前用户收藏的文章分页
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        "200":
+          description: 成功（结构与 PostsListSuccess 近似）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostsListSuccess"
 
   /api/posts/mine/list:
     get:
@@ -1218,7 +1294,12 @@ paths:
       tags: [文章]
       summary: 按 id 获取文章详情
       description: |
-        无需可选 JWT（未挂载 `optionalAuthMiddleware`），`getPost` 调用 `findPostByIdPublic(id, null)`：仅 **已发布**文章可匿名浏览；**未发布**文章对任意请求方（含作者本人）均 404。id 无效或无权访问未发布稿时，`msg` 为「文章不存在」。
+        支持可选 Bearer（`optionalAuthMiddleware`）；合法 JWT 时回填 `myVote`、`myFavorited`。
+        **已发布**正文每次成功读取会对 `viewCount +1`，作者本人命中默认不累加 PV。
+        仍仅 **已发布**文章可对匿名访客返回；未发布对外 404。
+      security:
+        - {}
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -1371,6 +1452,69 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MsgBody"
+
+  /api/posts/{id}/vote:
+    put:
+      tags: [文章]
+      summary: 对文章点赞或踩
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[1-9]\\d*$"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [vote]
+              properties:
+                vote:
+                  type: string
+                  enum: [like, dislike, none]
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostOneSuccess"
+
+  /api/posts/{id}/favorite:
+    put:
+      tags: [文章]
+      summary: 收藏或取消收藏文章
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[1-9]\\d*$"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [favorited]
+              properties:
+                favorited:
+                  type: boolean
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostOneSuccess"
 
   /api/posts/{postId}/comments:
     get:

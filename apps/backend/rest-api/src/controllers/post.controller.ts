@@ -1,6 +1,10 @@
 import { createHttpError } from "../middlewares/error.middleware.js";
+import { findFavoritePostsPage, setPostFavorite } from "../services/post-favorite.service.js";
+import { setPostVote } from "../services/post-vote.service.js";
 import {
   createPost,
+  decoratePostsListForViewer,
+  enrichPublicPostForResponse,
   findMyPostsPage,
   findPostByIdPublic,
   findPostsPagePublic,
@@ -13,25 +17,31 @@ import { success } from "../utils/response.js";
 import type {
   ValidatedCreatePostSchema,
   ValidatedDeletePostSchema,
+  ValidatedFavoritePostSchema,
   ValidatedGetPostSchema,
+  ValidatedListFavoritesSchema,
   ValidatedListMyPostsSchema,
   ValidatedListPostsSchema,
   ValidatedUpdatePostSchema,
+  ValidatedVotePostSchema,
 } from "../schema/post.schema.js";
 import type { Request, Response } from "express";
 
 export async function getPosts(req: Request, res: Response) {
   const { query } = getValidated<ValidatedListPostsSchema>(req);
-  const { page, limit, parentId, categoryId, q, keyword } = query;
+  const { page, limit, parentId, categoryId, q, keyword, sort } = query;
   const searchTerm = (q ?? keyword ?? "").trim() || undefined;
   const { posts, total, totalPages } = await findPostsPagePublic(page, limit, {
     parentId,
     categoryId,
     keyword: searchTerm,
+    sort,
   });
   const hasNext = totalPages > 0 && page < totalPages;
+  const viewerId = req.user?.id ?? null;
+  const payload = await decoratePostsListForViewer(posts, viewerId);
   return success(res, "获取文章列表成功", {
-    posts,
+    posts: payload,
     pagination: { page, limit, total, totalPages, hasNext },
   });
 }
@@ -54,10 +64,51 @@ export async function getMyPosts(req: Request, res: Response) {
   });
 }
 
+export async function getFavoritePosts(req: Request, res: Response) {
+  const uid = req.user?.id;
+  if (uid === undefined) {
+    throw createHttpError(401, "未登录或登录已过期");
+  }
+  const { query } = getValidated<ValidatedListFavoritesSchema>(req);
+  const { page, limit } = query;
+  const { posts, total, totalPages } = await findFavoritePostsPage(uid, page, limit);
+  const hasNext = totalPages > 0 && page < totalPages;
+  const decorated = await decoratePostsListForViewer(posts, uid);
+  return success(res, "获取收藏文章成功", {
+    posts: decorated,
+    pagination: { page, limit, total, totalPages, hasNext },
+  });
+}
+
 export async function getPost(req: Request, res: Response) {
   const { params } = getValidated<ValidatedGetPostSchema>(req);
-  const post = await findPostByIdPublic(params.id, req.user?.id ?? null);
+  const postModel = await findPostByIdPublic(params.id, req.user?.id ?? null);
+  const post = await enrichPublicPostForResponse(postModel, req.user?.id ?? null);
   return success(res, "获取文章成功", { post });
+}
+
+export async function putPostVote(req: Request, res: Response) {
+  const uid = req.user?.id;
+  if (uid === undefined) {
+    throw createHttpError(401, "未登录或登录已过期");
+  }
+  const { params, body } = getValidated<ValidatedVotePostSchema>(req);
+  await setPostVote(uid, params.id, body.vote);
+  const postModel = await findPostByIdPublic(params.id, uid);
+  const post = await enrichPublicPostForResponse(postModel, uid, { bumpView: false });
+  return success(res, "投票成功", { post });
+}
+
+export async function putPostFavorite(req: Request, res: Response) {
+  const uid = req.user?.id;
+  if (uid === undefined) {
+    throw createHttpError(401, "未登录或登录已过期");
+  }
+  const { params, body } = getValidated<ValidatedFavoritePostSchema>(req);
+  await setPostFavorite(uid, params.id, body.favorited);
+  const postModel = await findPostByIdPublic(params.id, uid);
+  const post = await enrichPublicPostForResponse(postModel, uid, { bumpView: false });
+  return success(res, "收藏已更新", { post });
 }
 
 export async function addPost(req: Request, res: Response) {

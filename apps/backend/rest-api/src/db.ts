@@ -18,7 +18,26 @@ const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PWD, {
   dialect: "mysql",
 });
 
-const { User, Category, Post, Comment } = initModels(sequelize);
+const { User, Category, Post, PostVote, PostFavorite, Comment } = initModels(sequelize);
+
+async function backfillPostAggregatesFromRelations() {
+  try {
+    const p = `\`${Post.tableName}\``;
+    const c = `\`${Comment.tableName}\``;
+    const f = `\`${PostFavorite.tableName}\``;
+    const v = `\`${PostVote.tableName}\``;
+    await sequelize.query(`
+      UPDATE ${p} AS o
+      SET
+        commentCount = (SELECT COUNT(*) FROM ${c} cc WHERE cc.postId = o.id),
+        favoriteCount = (SELECT COUNT(*) FROM ${f} ff WHERE ff.postId = o.id),
+        likeCount = (SELECT COUNT(*) FROM ${v} vv WHERE vv.postId = o.id AND vv.value = 1),
+        dislikeCount = (SELECT COUNT(*) FROM ${v} vv WHERE vv.postId = o.id AND vv.value = -1)
+    `);
+  } catch (err) {
+    console.warn("[db] backfillPostAggregatesFromRelations skipped:", err);
+  }
+}
 
 /** Categories 表为空时写入示例两级类目（与新库 / reset-db 配合） */
 async function seedDefaultCategoriesIfEmpty() {
@@ -58,13 +77,13 @@ async function seedDefaultCategoriesIfEmpty() {
 export async function connectDatabase() {
   await sequelize.authenticate();
   if (APP_ENV === "development") {
-    // 默认 alter；本地若需禁止改表结构可设 DB_SYNC_ALTER=0
     const alter = process.env.DB_SYNC_ALTER !== "0";
     await sequelize.sync(alter ? { alter: true } : {});
+    await backfillPostAggregatesFromRelations();
   } else {
     await sequelize.sync();
   }
   await seedDefaultCategoriesIfEmpty();
 }
 
-export { sequelize, User, Category, Post, Comment };
+export { sequelize, User, Category, Post, PostVote, PostFavorite, Comment };

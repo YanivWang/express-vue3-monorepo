@@ -29,6 +29,15 @@ export interface PostItem {
   images?: string[];
   createdAt: string;
   updatedAt: string;
+  commentCount?: number;
+  favoriteCount?: number;
+  likeCount?: number;
+  dislikeCount?: number;
+  viewCount?: number;
+  /** 登录且请求带 Token 时出现 */
+  myVote?: "like" | "dislike" | null;
+  /** 登录且请求带 Token 时出现 */
+  myFavorited?: boolean;
   author?: PostAuthor;
   category?: PostCategory;
 }
@@ -91,6 +100,8 @@ export interface ListPostsQuery {
   limit?: number;
   parentId?: number;
   categoryId?: number;
+  /** latest=按时间 hot=评论+收藏+赞 综合热度 */
+  sort?: "latest" | "hot";
   /** 全站公开文章关键字（与服务端 GET /api/posts 的 q 对齐；不能与 parentId/categoryId 同时传） */
   q?: string;
   keyword?: string;

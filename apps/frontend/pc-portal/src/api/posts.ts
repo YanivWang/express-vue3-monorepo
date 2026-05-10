@@ -18,6 +18,20 @@ export function fetchPostById(id: number) {
   return http.get<PostOneResult>(`/api/posts/${id}`);
 }
 
+export function votePost(id: number, vote: "like" | "dislike" | "none") {
+  return http.put<PostOneResult>(`/api/posts/${id}/vote`, { vote });
+}
+
+export function setPostFavoriteHttp(id: number, favorited: boolean) {
+  return http.put<PostOneResult>(`/api/posts/${id}/favorite`, { favorited });
+}
+
+export function fetchFavoritePostsList(q: { page?: number; limit?: number }) {
+  const page = q.page ?? 1;
+  const limit = q.limit ?? 10;
+  return http.get<PostsListResult>("/api/posts/favorites", { page, limit });
+}
+
 export interface CreatePostBody {
   title: string;
   content: string;

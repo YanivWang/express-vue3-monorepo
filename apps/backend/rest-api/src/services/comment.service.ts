@@ -16,6 +16,11 @@ function canModeratePost(post: Model, operator: { id: number; role?: number }) {
   return Number(operator.role) === 1;
 }
 
+async function syncCommentCountForPost(postId: string | number) {
+  const total = await Comment.count({ where: { postId } });
+  await Post.update({ commentCount: total }, { where: { id: postId } });
+}
+
 function canDeleteComment(comment: Model, post: Model, operator: { id: number; role?: number }) {
   const uid = operator.id;
   if (Number(comment.get("authorId")) === uid) return true;
@@ -86,6 +91,8 @@ export async function createComment(
     content,
   });
 
+  await syncCommentCountForPost(postId);
+
   return Comment.findByPk(comment.get("id") as number, {
     include: [{ model: User, as: "author", attributes: authorAttributes }],
   });
@@ -121,4 +128,5 @@ export async function removeComment(
   }
 
   await comment.destroy();
+  await syncCommentCountForPost(postId);
 }

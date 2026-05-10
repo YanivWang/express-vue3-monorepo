@@ -108,6 +108,10 @@ function goMine() {
   void router.push({ name: "mine" });
 }
 
+function goFavorites() {
+  void router.push({ name: "favorites" });
+}
+
 function goEditor() {
   void router.push({ name: "editor-new" });
 }
@@ -201,6 +205,7 @@ function onLogout() {
               <span>写文章</span>
             </button>
             <button type="button" class="action-link" @click="goMine">我的文章</button>
+            <button type="button" class="action-link" @click="goFavorites">我的收藏</button>
             <span class="actions__divider" aria-hidden="true" />
             <div class="actions__user">
               <span class="hello" :title="displayName || undefined">

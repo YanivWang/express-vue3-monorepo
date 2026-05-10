@@ -59,10 +59,16 @@ const listPostsPaginationCategorySchema = listPostsBaseFields.refine(
   },
 );
 
+const sortQuerySchema = z.preprocess(
+  (v) => (v === "" || v === undefined || v === null ? "latest" : v),
+  z.enum(["latest", "hot"]),
+);
+
 const listPostsQuerySchema = listPostsBaseFields
   .extend({
     q: optionalSearchQuery,
     keyword: optionalSearchQuery,
+    sort: sortQuerySchema,
   })
   .refine((q) => !(q.parentId != null && q.categoryId != null), {
     message: "parentId 与 categoryId 不能同时传递",
@@ -77,7 +83,14 @@ const listPostsQuerySchema = listPostsBaseFields
       message: "搜索关键词不能与 parentId/categoryId 同时使用",
       path: ["q"],
     },
-  );
+  )
+  .transform((q) => {
+    const term = (q.q ?? q.keyword)?.trim();
+    if (term && q.sort === "hot") {
+      return { ...q, sort: "latest" as const };
+    }
+    return q;
+  });
 
 export const listPostsSchema = z.object({
   query: listPostsQuerySchema,
@@ -153,11 +166,39 @@ export const deletePostSchema = z.object({
   }),
 });
 
+export const listFavoritesSchema = z.object({
+  query: z.object({
+    page: paginationNumberSchema(1),
+    limit: paginationLimitSchema,
+  }),
+});
+
+export const votePostSchema = z.object({
+  params: z.object({
+    id: idSchema,
+  }),
+  body: z.object({
+    vote: z.enum(["like", "dislike", "none"]),
+  }),
+});
+
+export const favoritePostSchema = z.object({
+  params: z.object({
+    id: idSchema,
+  }),
+  body: z.object({
+    favorited: z.coerce.boolean(),
+  }),
+});
+
 export const listMyPostsSchema = z.object({
   query: listPostsPaginationCategorySchema,
 });
 
 export type ValidatedListPostsSchema = z.infer<typeof listPostsSchema>;
+export type ValidatedListFavoritesSchema = z.infer<typeof listFavoritesSchema>;
+export type ValidatedVotePostSchema = z.infer<typeof votePostSchema>;
+export type ValidatedFavoritePostSchema = z.infer<typeof favoritePostSchema>;
 export type ValidatedGetPostSchema = z.infer<typeof getPostSchema>;
 export type ValidatedCreatePostSchema = z.infer<typeof createPostSchema>;
 export type ValidatedUpdatePostSchema = z.infer<typeof updatePostSchema>;

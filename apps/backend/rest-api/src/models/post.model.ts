@@ -49,6 +49,36 @@ export function definePostModel(
         allowNull: true,
         comment: "外部实体键（如 note slug），与 externalSource 成对唯一",
       },
+      likeCount: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+        comment: "点赞数",
+      },
+      dislikeCount: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+        comment: "踩数",
+      },
+      favoriteCount: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+        comment: "收藏数",
+      },
+      viewCount: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+        comment: "阅读次数(PV)",
+      },
+      commentCount: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+        comment: "评论总条数(含回复)",
+      },
     },
     // 模型级选项
     // indexes 在字段 published 列上建索引，加快按 “是否发布” 筛选的查询

@@ -34,10 +34,11 @@ export function toPostsListParams(q: ListPostsQuery): Record<string, number | st
   }
   if (q.categoryId != null) {
     params.categoryId = q.categoryId;
-    return params;
-  }
-  if (q.parentId != null) {
+  } else if (q.parentId != null) {
     params.parentId = q.parentId;
+  }
+  if (q.sort === "hot") {
+    params.sort = "hot";
   }
   return params;
 }

@@ -1,6 +1,14 @@
 <script setup lang="ts">
+import { ChatDotRound, Collection, StarFilled } from "@element-plus/icons-vue";
+
 import type { Pagination, PostItem } from "@/api/types";
 import { authorInitial, cardAbstract, cardCoverUrl, formatFeedTime } from "@/utils/postFeed";
+
+function displayStat(n: number | undefined) {
+  const v = Math.max(0, n ?? 0);
+  if (v > 99999) return "99999+";
+  return String(v);
+}
 
 withDefaults(
   defineProps<{
@@ -57,6 +65,20 @@ function onCardClick(ev: MouseEvent, id: number) {
               }}</time>
               <span class="feed-card__dot">·</span>
               <span class="feed-card__cat">{{ p.category?.name ?? "未分类" }}</span>
+            </div>
+            <div class="feed-card__stats" aria-label="互动数据">
+              <span class="feed-card__stat" title="评论数">
+                <el-icon class="feed-card__stat-ico"><ChatDotRound /></el-icon>
+                {{ displayStat(p.commentCount) }}
+              </span>
+              <span class="feed-card__stat" title="收藏数">
+                <el-icon class="feed-card__stat-ico"><Collection /></el-icon>
+                {{ displayStat(p.favoriteCount) }}
+              </span>
+              <span class="feed-card__stat" title="点赞数">
+                <el-icon class="feed-card__stat-ico"><StarFilled /></el-icon>
+                {{ displayStat(p.likeCount) }}
+              </span>
             </div>
           </div>
           <div v-if="cardCoverUrl(p)" class="feed-card__thumb-wrap">
@@ -210,6 +232,27 @@ $line: #f0f0f0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.feed-card__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: $muted;
+}
+
+.feed-card__stat {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.feed-card__stat-ico {
+  font-size: 14px;
 }
 
 .feed-card__thumb-wrap {

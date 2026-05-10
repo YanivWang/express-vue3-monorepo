@@ -48,6 +48,12 @@ const router = createRouter({
       meta: { title: "我的文章", requiresAuth: true },
     },
     {
+      path: "/favorites",
+      name: "favorites",
+      component: () => import("@/views/FavoritesPostsView.vue"),
+      meta: { title: "我的收藏", requiresAuth: true },
+    },
+    {
       path: "/mine/editor",
       name: "editor-new",
       component: () => import("@/views/PostEditorView.vue"),

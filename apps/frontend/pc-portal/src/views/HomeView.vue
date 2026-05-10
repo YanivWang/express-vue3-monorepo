@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
-import { RouterLink, useRoute, useRouter } from "vue-router";
+import { RouterLink, useRoute, useRouter, type LocationQueryRaw } from "vue-router";
 
 import { fetchCategories } from "@/api/categories";
 import { fetchPostsList } from "@/api/posts";
@@ -67,6 +67,21 @@ function isLeafActive(id: number) {
   return leafCategoryId.value === id;
 }
 
+const feedSort = computed((): "latest" | "hot" => {
+  const s = route.query.sort;
+  const raw = typeof s === "string" ? s : Array.isArray(s) && s[0] != null ? String(s[0]) : "";
+  return raw === "hot" ? "hot" : "latest";
+});
+
+function mergedQuery(patch: Record<string, string | undefined>): LocationQueryRaw {
+  const next: LocationQueryRaw = { ...route.query };
+  for (const [k, val] of Object.entries(patch)) {
+    if (val === undefined) delete next[k];
+    else next[k] = val;
+  }
+  return next;
+}
+
 async function load() {
   loading.value = true;
   try {
@@ -75,6 +90,7 @@ async function load() {
       limit: 10,
       categoryId: leafCategoryId.value,
       parentId: leafCategoryId.value != null ? undefined : parentId.value,
+      sort: feedSort.value === "hot" ? "hot" : "latest",
     });
     posts.value = res.posts;
     pagination.value = res.pagination;
@@ -97,7 +113,14 @@ watch(
   },
 );
 
-watch([page, parentId, leafCategoryId], load, { immediate: true });
+watch(
+  () => route.query.sort,
+  () => {
+    page.value = 1;
+  },
+);
+
+watch([page, parentId, leafCategoryId, feedSort], load, { immediate: true });
 
 function goPost(id: number) {
   void router.push({
@@ -117,7 +140,7 @@ function goPost(id: number) {
           v-if="resolvedParentId != null"
           class="secondary-link"
           :class="{ 'secondary-link--active': isAllSecondaryActive }"
-          :to="{ path: '/', query: { parentId: String(resolvedParentId) } }"
+          :to="{ path: '/', query: mergedQuery({ parentId: String(resolvedParentId) }) }"
         >
           首页
         </RouterLink>
@@ -126,7 +149,7 @@ function goPost(id: number) {
           :key="c.id"
           class="secondary-link"
           :class="{ 'secondary-link--active': isLeafActive(c.id) }"
-          :to="{ path: '/', query: { categoryId: String(c.id) } }"
+          :to="{ path: '/', query: mergedQuery({ categoryId: String(c.id) }) }"
         >
           {{ c.name }}
         </RouterLink>
@@ -134,6 +157,22 @@ function goPost(id: number) {
     </aside>
 
     <div class="feed-wrap">
+      <div class="home-sort" role="tablist" aria-label="列表排序">
+        <RouterLink
+          class="home-sort__link"
+          :class="{ 'home-sort__link--active': feedSort === 'latest' }"
+          :to="{ path: '/', query: mergedQuery({ sort: undefined }) }"
+        >
+          最新
+        </RouterLink>
+        <RouterLink
+          class="home-sort__link"
+          :class="{ 'home-sort__link--active': feedSort === 'hot' }"
+          :to="{ path: '/', query: mergedQuery({ sort: 'hot' }) }"
+        >
+          热门
+        </RouterLink>
+      </div>
       <PostFeedBoard
         :posts="posts"
         :loading="loading"
@@ -231,5 +270,37 @@ $line: #f0f0f0;
 .feed-wrap {
   flex: 1 1 0;
   min-width: 0;
+}
+
+.home-sort {
+  display: flex;
+  gap: 10px;
+  padding: 12px 0 16px;
+}
+
+.home-sort__link {
+  padding: 6px 16px;
+  font-size: 14px;
+  color: #666;
+  text-decoration: none;
+  background: #fff;
+  border: 1px solid rgb(0 0 0 / 8%);
+  border-radius: 20px;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+
+  &:hover {
+    color: $brand;
+    border-color: rgb(234 111 90 / 35%);
+  }
+}
+
+.home-sort__link--active {
+  font-weight: 600;
+  color: $brand;
+  border-color: rgb(234 111 90 / 45%);
+  box-shadow: 0 2px 6px rgb(234 111 90 / 12%);
 }
 </style>

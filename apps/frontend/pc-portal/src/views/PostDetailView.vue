@@ -6,7 +6,13 @@ import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import * as commentsApi from "@/api/comments";
-import { deletePost, fetchPostById, fetchPostsList } from "@/api/posts";
+import {
+  deletePost,
+  fetchPostById,
+  fetchPostsList,
+  setPostFavoriteHttp,
+  votePost,
+} from "@/api/posts";
 import type { CommentReplyItem, CommentThreadItem, PostItem } from "@/api/types";
 import { useAuthStore } from "@/stores/auth";
 
@@ -21,6 +27,7 @@ const comments = ref<CommentThreadItem[]>([]);
 const commentPage = ref(1);
 const commentPagination = ref<{ total: number; limit: number; hasNext: boolean } | null>(null);
 const loading = ref(false);
+const interactionLoading = ref(false);
 const commentsLoading = ref(false);
 const commentSort = ref<"desc" | "asc">("desc");
 
@@ -150,6 +157,7 @@ async function onDeleteComment(cid: number) {
   }
   await commentsApi.deleteComment(postId.value, cid);
   ElMessage.success("已删除");
+  await loadPost();
   await loadComments();
 }
 
@@ -167,6 +175,7 @@ async function submitComment() {
   newComment.value = "";
   replyTo.value = null;
   commentPage.value = 1;
+  await loadPost();
   await loadComments();
 }
 
@@ -212,6 +221,44 @@ function goRecommended(id: number) {
     query: { ...route.query },
   });
 }
+
+function requireLoginForInteraction() {
+  if (!isLoggedIn.value) {
+    ElMessage.warning("请先登录后再操作");
+    void router.push({ name: "login", query: { redirect: route.fullPath } });
+    return false;
+  }
+  return true;
+}
+
+async function toggleVote(kind: "like" | "dislike") {
+  if (!requireLoginForInteraction()) return;
+  if (!post.value) return;
+  interactionLoading.value = true;
+  try {
+    const cur = post.value.myVote ?? null;
+    const next: "like" | "dislike" | "none" =
+      kind === "like" ? (cur === "like" ? "none" : "like") : cur === "dislike" ? "none" : "dislike";
+    const { post: p } = await votePost(postId.value, next);
+    post.value = p;
+  } finally {
+    interactionLoading.value = false;
+  }
+}
+
+async function toggleFavoriteDetail() {
+  if (!requireLoginForInteraction()) return;
+  if (!post.value) return;
+  interactionLoading.value = true;
+  try {
+    const next = !(post.value.myFavorited ?? false);
+    const { post: p } = await setPostFavoriteHttp(postId.value, next);
+    post.value = p;
+    ElMessage.success(next ? "已加入收藏" : "已取消收藏");
+  } finally {
+    interactionLoading.value = false;
+  }
+}
 </script>
 
 <template>
@@ -248,6 +295,57 @@ function goRecommended(id: number) {
               <span>字数 {{ wordCount.toLocaleString() }}</span>
               <span class="dot">·</span>
               <span>{{ post.category?.name }}</span>
+            </div>
+            <div class="engage-row">
+              <span class="engage-metric">阅读 {{ (post.viewCount ?? 0).toLocaleString() }}</span>
+              <span class="engage-dot" aria-hidden="true">·</span>
+              <span class="engage-metric"
+                >评论 {{ (post.commentCount ?? 0).toLocaleString() }}</span
+              >
+              <span class="engage-dot" aria-hidden="true">·</span>
+              <span class="engage-metric"
+                >收藏 {{ (post.favoriteCount ?? 0).toLocaleString() }}</span
+              >
+              <span class="engage-dot" aria-hidden="true">·</span>
+              <span class="engage-metric">赞 {{ (post.likeCount ?? 0).toLocaleString() }}</span>
+              <template v-if="(post.dislikeCount ?? 0) > 0">
+                <span class="engage-dot" aria-hidden="true">·</span>
+                <span class="engage-metric"
+                  >踩 {{ (post.dislikeCount ?? 0).toLocaleString() }}</span
+                >
+              </template>
+            </div>
+            <div class="engage-actions">
+              <el-button
+                size="small"
+                round
+                :type="post.myVote === 'like' ? 'primary' : 'default'"
+                plain
+                :loading="interactionLoading"
+                @click.stop="toggleVote('like')"
+              >
+                {{ post.myVote === "like" ? "已赞" : "点赞" }}
+              </el-button>
+              <el-button
+                size="small"
+                round
+                :type="post.myVote === 'dislike' ? 'danger' : 'default'"
+                plain
+                :loading="interactionLoading"
+                @click.stop="toggleVote('dislike')"
+              >
+                {{ post.myVote === "dislike" ? "已踩" : "踩" }}
+              </el-button>
+              <el-button
+                size="small"
+                round
+                :type="post.myFavorited ? 'warning' : 'default'"
+                plain
+                :loading="interactionLoading"
+                @click.stop="toggleFavoriteDetail"
+              >
+                {{ post.myFavorited ? "已收藏" : "收藏" }}
+              </el-button>
             </div>
           </div>
         </div>
@@ -527,6 +625,33 @@ $bg-soft: #fafafa;
   font-size: 13px;
   line-height: 1.5;
   color: $muted;
+}
+
+.engage-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: $muted;
+}
+
+.engage-metric {
+  color: #5c5c5c;
+}
+
+.engage-dot {
+  margin: 0 4px;
+  opacity: 0.65;
+}
+
+.engage-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 .dot {
