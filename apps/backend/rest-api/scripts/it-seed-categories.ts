@@ -1,6 +1,6 @@
 /**
  * 空库时在 Categories 写入 `it-category-seed.json` 中的「IT技术」两级类目。
- * 不经过 HTTP；与业务进程解耦，`synthetic-it:seed` / `synthetic-it:clear` 链会自动执行。
+ * 不经过 HTTP；与业务进程解耦，`db:init-post` / `synthetic-it:clear` 链会自动执行。
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";

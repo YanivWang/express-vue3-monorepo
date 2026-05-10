@@ -1,15 +1,15 @@
 /**
  * 不向第三方站点抓取：按「IT技术」种子下的叶子分类注入合成技术短文与评论。
- * **执行**：在 `apps/backend/rest-api` 下 `pnpm synthetic-it:seed`，或在 monorepo 根 `pnpm --filter @vue3-express-monorepo/rest-api synthetic-it:seed`。环境变量示例见 `synthetic-it.env.example`。
- * 流程：先 `dedupe-mysql-redundant-indexes` 清理重复 BTREE 索引，再 `it-seed-categories`（空库写 IT 类目）、`synthetic-it-clear-posts`，最后本脚本经 HTTP 写入帖子与评论（`externalSource` + `externalKey` 发帖幂等；评论完成后写 manifest）。
+ * **执行**：在 monorepo 根 `pnpm db:init-post`，或在 `apps/backend/rest-api` 下 `pnpm db:init-post`，或根目录 `pnpm --filter @vue3-express-monorepo/rest-api db:init-post`。环境变量见 `synthetic-it.env`。
+ * 流程：先 `dedupe-mysql-redundant-indexes` 清理重复 BTREE 索引，再 `it-seed-categories`（空库写 IT 类目）、`synthetic-it-clear-posts`（清空点赞/踩·收藏后删全部帖子、评论 CASCADE、仅清空 `uploads/posts/` 下文件），最后本脚本经 HTTP 写入帖子与评论（`externalSource` + `externalKey` 发帖幂等；评论完成后写 manifest）。
  *
  * **认证**：可设 `REST_API_IMPORT_TOKEN`，或不设则由脚本 **`POST …/login`** 取 JWT（管理员账号）。
- * **一键种子**：同上 `synthetic-it:seed`。环境变量示例见 `synthetic-it.env.example`。
+ * **一键种子**：同上 **`pnpm db:init-post`**。环境变量见 `synthetic-it.env`。
  *
  * 帖子约束（脚本侧）：标题 trim 后 10～20 字符；正文 HTML trim 后 300～10000 字符（含标签）；至少 1 张本站 `/uploads/` 配图（正文内插入 `<img>`，`images` 数组与之对齐）。**每个叶子分类**在 synthetic-it-data.ts / synthetic-it-data-static.ts 中须配置 **16～60** 篇（synthetic-it-run 启动时校验）。
  *
  * 环境变量：
- * - REST_API_BASE：API 根路径（默认 http://127.0.0.1:3000/api）。Compose 网关走宿主时通常为 `http://127.0.0.1:2026/api`。
+ * - REST_API_BASE：API 根路径（默认 http://127.0.0.1:2026/api，对齐 Compose 宿主网关 GATEWAY_HOST_PORT）。本机直连 `pnpm rest-api:dev`（PORT=3000）时可设为 `http://127.0.0.1:3000/api`。
  * - REST_API_IMPORT_TOKEN：管理员 Bearer JWT（可选；不设则调用登录接口）
  * - REST_API_IMPORT_USERNAME / REST_API_IMPORT_PASSWORD：专为种子登录（可选）；未设置时回退 `ENSURE_SUPER_ADMIN_*`，再默认 root / `123456`（与 ensure-super-admin 一致，仅建议在本地开发使用）
  * - SYNTHETIC_RATE_MS（默认 120）
@@ -23,7 +23,7 @@
  * - SYNTHETIC_FETCH_IMAGES：可选。设为 0 / false 时**关闭**自动配图；设为 1 / true 时**强制开启**（须同时配置 SYNTHETIC_PEXELS_API_KEY）。**未设置时：只要配置了 SYNTHETIC_PEXELS_API_KEY 即默认拉取 Pexels 并上传**。
  * - SYNTHETIC_PEXELS_API_KEY：Pexels API Key（https://www.pexels.com/api/）。配置后即默认启用配图流水线。启用时会：对每个分类先预热一张通用封面；单帖检索失败时带重试与兜底检索词，并尽量复用上一张已成功写入 uploads 的 URL，减少落入仅占位路径 `/uploads/synthetic/...`（磁盘通常无文件 → 404）。
  *
- * 环境与 monorepo：根目录 `.env.development`（及 `.local`）先合并；再合并 `scripts/synthetic-it.env`（及 `.local`）中的种子相关键并**优先生效**。完整键名见 `synthetic-it.env.example`。
+ * 环境与 monorepo：根目录 `.env.development`（及 `.local`）先合并；再合并 `scripts/synthetic-it.env`（及 `.local`）中的种子相关键并**优先生效**。完整键名见同目录 `synthetic-it.env`。
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
@@ -80,7 +80,7 @@ function resolveLeafCategoryId(categories: unknown[], leafName: string): number 
   const it = roots.find((r) => r.name === "IT技术");
   if (!it?.children?.length) {
     throw new Error(
-      "分类树中未找到「IT技术」或其子节点。请先在同一库执行 `pnpm it:seed-categories`，或跑一次 `pnpm synthetic-it:clear` / `pnpm synthetic-it:seed`（会链式写入类目）；并确保 REST 可读到的库已含该分类。",
+      "分类树中未找到「IT技术」或其子节点。请先在同一库执行 `pnpm it:seed-categories`，或跑一次 `pnpm synthetic-it:clear` / `pnpm db:init-post`（会链式写入类目）；并确保 REST 可读到的库已含该分类。",
     );
   }
   const leaf = it.children.find((c) => c.name === leafName);
@@ -324,7 +324,7 @@ async function injectBundlePosts(
 }
 
 async function main() {
-  const apiBase = (process.env.REST_API_BASE?.trim() || "http://127.0.0.1:3000/api").replace(
+  const apiBase = (process.env.REST_API_BASE?.trim() || "http://127.0.0.1:2026/api").replace(
     /\/$/,
     "",
   );

@@ -20,8 +20,6 @@
     "pc-admin:dev": "pnpm --filter @vue3-express-monorepo/pc-admin dev",
     "test": "pnpm --filter @vue3-express-monorepo/rest-api test",
     "test:all": "pnpm run test && playwright test",
-    "db:reset": "pnpm --filter @vue3-express-monorepo/rest-api db:reset",
-    "ensure-super-admin": "pnpm --filter @vue3-express-monorepo/rest-api ensure-super-admin",
     "typecheck": "pnpm -r --parallel run --if-present typecheck",
     "typecheck:solution": "tsc -b --pretty",
     "typecheck:packages": "pnpm -r --parallel --filter './packages/**' run --if-present typecheck",
@@ -43,7 +41,10 @@
     "docker:dev": "bash scripts/docker-dev.sh",
     "docker:dev:down": "cross-env APP_ENV=development docker compose --env-file .env.development -f docker/docker-compose.base.yaml -f docker/docker-compose.dev.yaml down",
     "docker:test": "cross-env APP_ENV=test docker compose --env-file .env.test -f docker/docker-compose.base.yaml -f docker/docker-compose.test.yaml up -d --build",
-    "docker:prod": "cross-env APP_ENV=production docker compose --env-file .env.production -f docker/docker-compose.base.yaml -f docker/docker-compose.yaml up -d --build"
+    "docker:prod": "cross-env APP_ENV=production docker compose --env-file .env.production -f docker/docker-compose.base.yaml -f docker/docker-compose.yaml up -d --build",
+    "db:reset": "pnpm --filter @vue3-express-monorepo/rest-api db:reset",
+    "db:dedupe-indexes": "pnpm --filter @vue3-express-monorepo/rest-api db:dedupe-indexes",
+    "db:init-post": "pnpm --filter @vue3-express-monorepo/rest-api db:init-post"
   },
   "lint-staged": {
     "apps/backend/**/*.{ts,mts,cts}": "eslint --fix",

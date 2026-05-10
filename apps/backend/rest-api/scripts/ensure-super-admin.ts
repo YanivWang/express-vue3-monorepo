@@ -10,8 +10,12 @@ import { fileURLToPath } from "node:url";
 
 import bcrypt from "bcrypt";
 
+import { mergeDotenvFromMonorepoRoot } from "./synthetic-it-merge-monorepo-dotenv.js";
+
 const apiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 process.chdir(apiRoot);
+
+mergeDotenvFromMonorepoRoot();
 
 const username = (process.env.ENSURE_SUPER_ADMIN_USERNAME ?? "root").trim();
 const password = process.env.ENSURE_SUPER_ADMIN_PASSWORD ?? "123456";

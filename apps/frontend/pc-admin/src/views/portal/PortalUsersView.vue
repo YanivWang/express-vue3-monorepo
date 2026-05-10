@@ -4,21 +4,61 @@ import { onMounted, reactive, ref } from "vue";
 
 import { deletePortalUser, fetchPortalUsers, patchPortalUser } from "@/api/portalUsers";
 import type { CurrentUserProfile, Pagination } from "@/api/types";
+import { uploadProfileImages } from "@/api/uploads";
 import { useAuthStore } from "@/stores/auth";
 import { hasAnyPermission } from "@/utils/permissions";
 
 const auth = useAuthStore();
 const loading = ref(false);
 const rows = ref<CurrentUserProfile[]>([]);
-const pagination = reactive<Pagination>({ page: 1, limit: 10, total: 0, totalPages: 0, hasNext: false });
+const pagination = reactive<Pagination>({
+  page: 1,
+  limit: 10,
+  total: 0,
+  totalPages: 0,
+  hasNext: false,
+});
 const q = ref("");
 
-const dlg = reactive({ open: false, row: null as CurrentUserProfile | null, username: "", avatar: "" });
+const dlg = reactive({
+  open: false,
+  row: null as CurrentUserProfile | null,
+  username: "",
+  avatar: "",
+});
+
+const avatarFileRef = ref<HTMLInputElement | null>(null);
+const avatarUploading = ref(false);
+
+function triggerAvatarFilePick() {
+  avatarFileRef.value?.click();
+}
+
+async function onAvatarFile(ev: Event) {
+  const input = ev.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";
+  if (!file) return;
+  avatarUploading.value = true;
+  try {
+    const { urls } = await uploadProfileImages([file]);
+    if (urls[0]) {
+      dlg.avatar = urls[0];
+      ElMessage.success("头像已上传");
+    }
+  } finally {
+    avatarUploading.value = false;
+  }
+}
 
 async function load() {
   loading.value = true;
   try {
-    const res = await fetchPortalUsers({ page: pagination.page, limit: pagination.limit, q: q.value.trim() });
+    const res = await fetchPortalUsers({
+      page: pagination.page,
+      limit: pagination.limit,
+      q: q.value.trim(),
+    });
     rows.value = res.users;
     Object.assign(pagination, res.pagination);
   } finally {
@@ -99,7 +139,21 @@ onMounted(load);
     <el-dialog v-model="dlg.open" title="编辑注册用户">
       <el-form label-width="80px">
         <el-form-item label="用户名"><el-input v-model="dlg.username" /></el-form-item>
-        <el-form-item label="头像"><el-input v-model="dlg.avatar" /></el-form-item>
+        <el-form-item label="头像">
+          <input
+            ref="avatarFileRef"
+            type="file"
+            accept="image/jpeg,image/png,image/gif,image/webp"
+            style="display: none"
+            @change="onAvatarFile"
+          />
+          <div style="display: flex; gap: 8px; align-items: center; width: 100%">
+            <el-input v-model="dlg.avatar" placeholder="/uploads/profiles/…（可粘贴或右侧上传）" />
+            <el-button :loading="avatarUploading" @click="triggerAvatarFilePick"
+              >上传头像</el-button
+            >
+          </div>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dlg.open = false">取消</el-button>

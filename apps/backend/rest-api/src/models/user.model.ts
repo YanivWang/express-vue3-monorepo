@@ -19,7 +19,7 @@ export function defineUserModel(sequelize: Sequelize) {
       avatar: {
         type: DataTypes.STRING,
         allowNull: true,
-        comment: "头像",
+        comment: "头像 URL（本站经 POST /api/uploads/profiles 为 /uploads/profiles/…）",
       },
       /** 兼容旧逻辑：0 前台用户 1 管理员；新逻辑以 roleId + RBAC 为准（DB 列名仍为 role） */
       legacyRole: {

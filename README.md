@@ -12,6 +12,7 @@
 - [环境要求](#环境要求)
 - [快速开始](#快速开始)
 - [常用脚本](#常用脚本)
+- [类目种子与合成帖子（推荐）](#类目种子与合成帖子推荐)
 - [类型检查：`typecheck` 与 `typecheck:solution`](#类型检查typecheck-与-typechecksolution)
 - [代码质量与提交约定](#代码质量与提交约定)
 - [API 契约与 Swagger](#api-契约与-swagger)
@@ -105,7 +106,7 @@ cp .env.example .env.development
 | `pnpm dev`                                                           | 对所有 workspace 子包并行执行 `dev`（若存在）                                                                            |
 | `pnpm rest-api:dev` / `pnpm rest-api:dev:debug`                      | 宿主运行后端（debug 暴露 Inspector **9229**）                                                                            |
 | `pnpm pc-portal:dev` / `pnpm pc-admin:dev`                           | 宿主运行对应前端                                                                                                         |
-| `pnpm db:reset`                                                      | 重置后端所用数据库（实现见 `apps/backend/rest-api`）                                                                     |
+| `pnpm --filter @vue3-express-monorepo/rest-api db:reset`             | 重置后端所用数据库（或在 `apps/backend/rest-api` 下执行 `pnpm db:reset`）                                                |
 | `pnpm test`                                                          | 后端测试脚本                                                                                                             |
 | `pnpm test:all`                                                      | `pnpm test` + `playwright test`                                                                                          |
 | `pnpm typecheck`                                                     | 各包并行执行各自的 `typecheck`（**全仓类型正确性的权威入口**）                                                           |
@@ -119,8 +120,32 @@ cp .env.example .env.development
 | `pnpm docker:dev` / `pnpm docker:dev:down` / `pnpm docker:dev:debug` | Docker 开发栈                                                                                                            |
 | `pnpm docker:install` / `pnpm docker:pnpm`                           | 在运行中的 **rest-api** 容器内执行安装或其它 `pnpm` 命令                                                                 |
 | `pnpm docker:test` / `pnpm docker:prod`                              | 测试 / 生产编排（需 `.env.test` / `.env.production`）                                                                    |
+| `pnpm db:init-post`                                                  | **一次性：IT 类目种子 + 合成帖子**（等价于 `--filter …/rest-api db:init-post`，详见下方）                                |
 
 `prepare` 会安装 **Husky** Git 钩子；若克隆后未执行过 `pnpm install` 则无钩子。
+
+### 类目种子与合成帖子（推荐）
+
+在项目根目录执行：
+
+```bash
+pnpm db:init-post
+```
+
+或在 `apps/backend/rest-api` 下：
+
+```bash
+cd apps/backend/rest-api && pnpm db:init-post
+```
+
+这条链路会依次做：
+
+1. **dedupe-mysql-redundant-indexes** — 索引去重
+2. **it-seed-categories** — 写入「IT技术」类目（数据来自 `apps/backend/rest-api/scripts/it-category-seed.json`；**空库才写类目**）
+3. **synthetic-it-clear-posts** — **删光所有点赞/踩、收藏与帖子**；**评论（含回复）**随帖子 `CASCADE`；**仅删除磁盘上 `uploads/posts/` 下文件**（保留 `uploads/profiles/` 等）；若 `User.avatar` 以 `/uploads/posts/` 开头会置空
+4. **synthetic-it-run** — 通过 **HTTP** 调用你的 REST API 写入帖子与评论
+
+**前提**：需要先起好后端（或使用 Docker 网关可达的 API），且 `.env.development` 中数据库等配置与平时开发一致。环境变量与可选静态 / LLM / 配图说明见 `apps/backend/rest-api/scripts/synthetic-it.env` 与 `synthetic-it-run.ts` 头部注释。
 
 ---
 

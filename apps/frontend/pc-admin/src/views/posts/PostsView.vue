@@ -6,7 +6,12 @@ import { useRoute, useRouter } from "vue-router";
 
 import { fetchCategories } from "@/api/categories";
 import { fetchPortalUsers } from "@/api/portalUsers";
-import { fetchAdminPost, fetchAdminPostsList, deletePost as httpDeletePost, updatePost as httpPutPost } from "@/api/posts";
+import {
+  fetchAdminPost,
+  fetchAdminPostsList,
+  deletePost as httpDeletePost,
+  updatePost as httpPutPost,
+} from "@/api/posts";
 import type { CategoryTreeNode, PostItem } from "@/api/types";
 import { useAuthStore } from "@/stores/auth";
 import { hasAnyPermission } from "@/utils/permissions";
@@ -47,7 +52,13 @@ const dlg = reactive({
   visible: false,
   row: null as PostItem | null,
   saving: false,
-  form: { title: "", content: "", categoryId: undefined as unknown as number, published: true, imagesText: "" },
+  form: {
+    title: "",
+    content: "",
+    categoryId: undefined as unknown as number,
+    published: true,
+    imagesText: "",
+  },
 });
 
 const remoteAuthors = ref<{ id: number; username: string }[]>([]);
@@ -95,7 +106,7 @@ async function openEdit(row: PostItem & { author?: unknown; category?: unknown }
   dlg.form.content = post.content;
   dlg.form.categoryId = post.categoryId;
   dlg.form.published = post.published;
-  dlg.form.imagesText = Array.isArray(post.images) ? (post.images).join("\n") : "";
+  dlg.form.imagesText = Array.isArray(post.images) ? post.images.join("\n") : "";
   dlg.visible = true;
 }
 
@@ -169,7 +180,13 @@ function onPublishedQuick(row: PostItem, published: boolean) {
         </el-select>
       </el-form-item>
       <el-form-item label="叶子分类">
-        <el-select v-model="filters.categoryId" clearable filterable placeholder="选择" style="width: 220px">
+        <el-select
+          v-model="filters.categoryId"
+          clearable
+          filterable
+          placeholder="选择"
+          style="width: 220px"
+        >
           <el-option v-for="c in leafOptions" :key="c.id" :label="c.label" :value="c.id" />
         </el-select>
       </el-form-item>
@@ -205,19 +222,36 @@ function onPublishedQuick(row: PostItem, published: boolean) {
           <el-switch
             :disabled="!(canWrite || row.authorId === auth.userId)"
             :model-value="row.published"
-            @change="(v:boolean)=>onPublishedQuick(row, v)"
+            @change="(v: boolean) => onPublishedQuick(row, v)"
           />
         </template>
       </el-table-column>
       <el-table-column label="操作" width="280" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" :icon="Edit" :disabled="!canEditRow(row)" @click="openEdit(row)">
+          <el-button
+            link
+            type="primary"
+            :icon="Edit"
+            :disabled="!canEditRow(row)"
+            @click="openEdit(row)"
+          >
             编辑
           </el-button>
-          <el-button v-if="hasAnyPermission(perm, ['admin.comments.read'])" link type="primary" @click="gotoComments(row.id)">
+          <el-button
+            v-if="hasAnyPermission(perm, ['admin.comments.read'])"
+            link
+            type="primary"
+            @click="gotoComments(row.id)"
+          >
             管理评论
           </el-button>
-          <el-button link type="danger" :icon="Delete" :disabled="!canDeleteRow(row)" @click="rm(row)">
+          <el-button
+            link
+            type="danger"
+            :icon="Delete"
+            :disabled="!canDeleteRow(row)"
+            @click="rm(row)"
+          >
             删除
           </el-button>
         </template>
@@ -237,7 +271,9 @@ function onPublishedQuick(row: PostItem, published: boolean) {
     <el-dialog v-model="dlg.visible" title="编辑帖子" width="760px">
       <el-form label-width="90px">
         <el-form-item label="标题"><el-input v-model="dlg.form.title" /></el-form-item>
-        <el-form-item label="正文"><el-input v-model="dlg.form.content" type="textarea" :rows="8" /></el-form-item>
+        <el-form-item label="正文"
+          ><el-input v-model="dlg.form.content" type="textarea" :rows="8"
+        /></el-form-item>
         <el-form-item label="叶子分类">
           <el-select v-model="dlg.form.categoryId" filterable style="width: 100%">
             <el-option v-for="c in leafOptions" :key="c.id" :label="c.label" :value="c.id" />
@@ -245,7 +281,11 @@ function onPublishedQuick(row: PostItem, published: boolean) {
         </el-form-item>
         <el-form-item label="发布"><el-switch v-model="dlg.form.published" /></el-form-item>
         <el-form-item label="图片 URL">
-          <el-input v-model="dlg.form.imagesText" type="textarea" placeholder="一行一个本站 /uploads/... 路径" />
+          <el-input
+            v-model="dlg.form.imagesText"
+            type="textarea"
+            placeholder="一行一个本站 /uploads/posts/… 路径（新上传默认为此前缀）"
+          />
         </el-form-item>
       </el-form>
       <template #footer>

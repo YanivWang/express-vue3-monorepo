@@ -1,7 +1,7 @@
 /**
  * 删除并重建 DB_NAME 指向的 MySQL 库（utf8mb4），不启动 HTTP。
  * 下次 `pnpm dev` / `pnpm start`（Sequelize sync + RBAC bootstrap）仅建表与权限；
- * 示例类目需执行 `pnpm it:seed-categories`（或由 `pnpm synthetic-it:seed` / `synthetic-it:clear` 链触发）。
+ * 示例类目需执行 `pnpm it:seed-categories`（或由 `pnpm db:init-post` / `synthetic-it:clear` 链触发）。
  */
 import path from "node:path";
 import { fileURLToPath } from "node:url";

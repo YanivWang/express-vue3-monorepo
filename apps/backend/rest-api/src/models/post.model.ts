@@ -37,7 +37,7 @@ export function definePostModel(
         type: DataTypes.JSON,
         allowNull: false,
         defaultValue: [],
-        comment: "正文配图 URL 列表（本站 /uploads/... 路径）",
+        comment: "正文配图 URL 列表（本站 /uploads/posts/… 等与上传策略一致的路径）",
       },
       externalSource: {
         type: DataTypes.STRING(64),
