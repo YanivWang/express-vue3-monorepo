@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, onErrorCaptured } from "vue";
 import { Empty, Button } from "vant";
+import { ref, onErrorCaptured } from "vue";
 
 interface Props {
   /** 降级标题 */

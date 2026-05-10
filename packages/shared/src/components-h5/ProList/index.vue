@@ -1,6 +1,6 @@
 <script setup lang="ts" generic="T extends Record<string, unknown>">
-import { computed, ref, watch, type Ref } from "vue";
 import { List, PullRefresh, Empty } from "vant";
+import { computed, ref, shallowRef, watch } from "vue";
 
 export interface ProListPageParams {
   pageNum: number;
@@ -49,7 +49,7 @@ defineSlots<{
   empty(): void;
 }>();
 
-const list = ref<T[]>([]) as Ref<T[]>;
+const list = shallowRef<T[]>([]);
 const pageNum = ref(1);
 const loading = ref(false);
 const requestPending = ref(false);
@@ -129,12 +129,12 @@ watch(
   () => props.query,
   () => {
     reset();
-    if (props.immediate) load();
+    if (props.immediate) void load();
   },
   { deep: true },
 );
 
-if (props.immediate) load();
+if (props.immediate) void load();
 </script>
 
 <template>

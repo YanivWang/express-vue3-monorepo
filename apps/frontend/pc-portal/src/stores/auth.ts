@@ -1,9 +1,11 @@
-import type { LoginParams, RegisterParams } from "@express-vue3-monorepo/shared/types";
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
+
 import * as authApi from "@/api/auth";
 import { tokenStorage } from "@/api/http";
 import { parseJwtPayload } from "@/utils/jwt";
+
+import type { LoginParams, RegisterParams } from "@express-vue3-monorepo/shared/types";
 
 export const useAuthStore = defineStore("auth", () => {
   const token = ref<string | null>(tokenStorage.getToken() ?? null);

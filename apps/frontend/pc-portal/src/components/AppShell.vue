@@ -6,6 +6,7 @@ import { RouterLink, useRoute, useRouter } from "vue-router";
 import { fetchCategories } from "@/api/categories";
 import type { CategoryTreeNode } from "@/api/types";
 import { useAuthStore } from "@/stores/auth";
+import { findParentIdOfLeaf } from "@/utils/categoryTree";
 
 const categories = ref<CategoryTreeNode[]>([]);
 const route = useRoute();
@@ -20,6 +21,18 @@ function syncTabFromRoute() {
     activeChannel.value = "";
     return;
   }
+  const cat = route.query.categoryId;
+  if (cat != null && cat !== "") {
+    const rawCat = Array.isArray(cat) ? cat[0] : cat;
+    const leafNum = Number(rawCat);
+    if (Number.isFinite(leafNum) && categories.value.length > 0) {
+      const rootId = findParentIdOfLeaf(categories.value, leafNum);
+      if (rootId != null) {
+        activeChannel.value = `p-${rootId}`;
+        return;
+      }
+    }
+  }
   const p = route.query.parentId;
   if (p == null || p === "") activeChannel.value = "all";
   else {
@@ -29,7 +42,7 @@ function syncTabFromRoute() {
 }
 
 watch(
-  () => [route.path, route.query.parentId],
+  () => [route.path, route.query.parentId, route.query.categoryId, categories.value],
   () => syncTabFromRoute(),
   { immediate: true },
 );
@@ -45,34 +58,34 @@ onMounted(async () => {
 
 function onChannelSelect(key: string) {
   if (key === "all") {
-    router.push({ path: "/", query: {} });
+    void router.push({ path: "/", query: {} });
     return;
   }
   if (key.startsWith("p-")) {
     const id = key.slice(2);
-    router.push({ path: "/", query: { parentId: id } });
+    void router.push({ path: "/", query: { parentId: id } });
   }
 }
 
 function goMine() {
-  router.push({ name: "mine" });
+  void router.push({ name: "mine" });
 }
 
 function goEditor() {
-  router.push({ name: "editor-new" });
+  void router.push({ name: "editor-new" });
 }
 
 function goLogin() {
-  router.push({ name: "login", query: { redirect: route.fullPath } });
+  void router.push({ name: "login", query: { redirect: route.fullPath } });
 }
 
 function goRegister() {
-  router.push({ name: "register" });
+  void router.push({ name: "register" });
 }
 
 function onLogout() {
   auth.logout();
-  router.push({ name: "home" });
+  void router.push({ name: "home" });
 }
 </script>
 

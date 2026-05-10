@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { fetchCategories } from "@/api/categories";
-import { createPost, fetchPostForEditor, updatePost } from "@/api/posts";
-import { uploadImages } from "@/api/uploads";
-import type { CategoryTreeNode, PostItem } from "@/api/types";
 import { ElMessage } from "element-plus";
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
+
+import { fetchCategories } from "@/api/categories";
+import { createPost, fetchPostForEditor, updatePost } from "@/api/posts";
+import type { CategoryTreeNode, PostItem } from "@/api/types";
+import { uploadImages } from "@/api/uploads";
 
 const route = useRoute();
 const router = useRouter();

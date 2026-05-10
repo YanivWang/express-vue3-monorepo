@@ -1,6 +1,6 @@
 import { H5Host } from "../host";
-import type { BridgeAbility, BridgeStrategy } from "../types";
 import { BridgeError } from "../types";
+
 import {
   createClipboardBridge,
   createDefaultNavigation,
@@ -10,6 +10,8 @@ import {
   createUnimplementedPayment,
   notImplemented,
 } from "./base";
+
+import type { BridgeAbility, BridgeStrategy } from "../types";
 
 /**
  * 浏览器策略：

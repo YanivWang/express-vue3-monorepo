@@ -1,6 +1,7 @@
-import { defineConfig, loadEnv } from "vite";
-import vue from "@vitejs/plugin-vue";
 import { fileURLToPath, URL } from "node:url";
+
+import vue from "@vitejs/plugin-vue";
+import { defineConfig, loadEnv } from "vite";
 
 const restApiOrigin =
   process.env.VITE_DEV_PROXY_TARGET?.replace(/\/$/, "") ?? "http://127.0.0.1:3000";

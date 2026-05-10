@@ -1,13 +1,14 @@
-import type { App, Component } from "vue";
-import PageContainer from "./PageContainer/index.vue";
-import ProList from "./ProList/index.vue";
-import SkeletonH5 from "./SkeletonH5/index.vue";
-import SvgIconH5 from "./SvgIconH5/index.vue";
-import SafeArea from "./SafeArea/index.vue";
-import NavBar from "./NavBar/index.vue";
 import ErrorBoundaryH5 from "./ErrorBoundaryH5/index.vue";
 import FilterDrawer from "./FilterDrawer/index.vue";
+import NavBar from "./NavBar/index.vue";
+import PageContainer from "./PageContainer/index.vue";
+import ProList from "./ProList/index.vue";
+import SafeArea from "./SafeArea/index.vue";
+import SkeletonH5 from "./SkeletonH5/index.vue";
+import SvgIconH5 from "./SvgIconH5/index.vue";
 import TabBarLayout from "./TabBarLayout/index.vue";
+
+import type { App, Component } from "vue";
 
 export {
   PageContainer,

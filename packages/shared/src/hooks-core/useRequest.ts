@@ -96,7 +96,7 @@ export function useRequest<T, P extends unknown[] = unknown[]>(
       return new Promise((resolve) => {
         if (debounceTimer) clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
-          execute(...args).then(resolve);
+          void execute(...args).then(resolve);
         }, debounceMs);
       });
     }
@@ -106,7 +106,7 @@ export function useRequest<T, P extends unknown[] = unknown[]>(
   onUnmounted(cancel);
 
   if (immediate) {
-    run(...([] as unknown as P));
+    void run(...([] as unknown as P));
   }
 
   return { data, loading, error, run, cancel, reset };

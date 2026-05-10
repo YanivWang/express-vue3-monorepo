@@ -1,5 +1,6 @@
-import { useAuthStore } from "@/stores/auth";
 import { createRouter, createWebHistory } from "vue-router";
+
+import { useAuthStore } from "@/stores/auth";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -9,6 +10,12 @@ const router = createRouter({
       name: "home",
       component: () => import("@/views/HomeView.vue"),
       meta: { title: "首页" },
+    },
+    {
+      path: "/demo/category-feed",
+      name: "category-feed-demo",
+      component: () => import("@/views/category-feed/CategoryFeedDemoView.vue"),
+      meta: { title: "分类内容流（演示）", blankLayout: true },
     },
     {
       path: "/posts/:id",

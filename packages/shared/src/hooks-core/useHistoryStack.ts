@@ -1,4 +1,5 @@
 import { ref, computed } from "vue";
+
 import type { Ref, ComputedRef } from "vue";
 
 /**
@@ -63,7 +64,7 @@ export function useHistoryStack(options: UseHistoryStackOptions = {}): HistorySt
   function push(item: Omit<HistoryStackItem, "ts">): void {
     const existIdx = stack.value.findIndex((s) => s.name === item.name);
     if (existIdx !== -1) {
-      const exist = stack.value.splice(existIdx, 1)[0]!;
+      const exist = stack.value.splice(existIdx, 1)[0];
       stack.value.push({ ...exist, fullPath: item.fullPath, ts: Date.now() });
     } else {
       stack.value.push({ ...item, ts: Date.now() });

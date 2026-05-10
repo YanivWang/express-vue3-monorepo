@@ -1,7 +1,9 @@
 import { H5Host } from "../host";
-import type { BridgeAbility, BridgeStrategy } from "../types";
 import { BridgeError } from "../types";
+
 import { createClipboardBridge, createLocalStorageBridge, createMemoryEvent } from "./base";
+
+import type { BridgeAbility, BridgeStrategy } from "../types";
 
 /**
  * 原生 App（iOS WKWebView / Android WebView）策略。

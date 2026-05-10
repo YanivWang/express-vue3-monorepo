@@ -1,6 +1,6 @@
 import { H5Host } from "../host";
-import type { BridgeAbility, BridgeStrategy } from "../types";
 import { BridgeError } from "../types";
+
 import {
   createClipboardBridge,
   createDefaultNavigation,
@@ -10,6 +10,8 @@ import {
   createUnimplementedDevice,
   notImplemented,
 } from "./base";
+
+import type { BridgeAbility, BridgeStrategy } from "../types";
 
 /**
  * 支付宝小程序 WebView 策略（ap.js / my 对象）。

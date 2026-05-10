@@ -4,6 +4,7 @@ import {
   type RouteLocationNormalized,
   type NavigationGuard,
 } from "vue-router";
+
 import { useHistoryStack, type HistoryStackApi } from "@express-vue3-monorepo/shared/hooks-core";
 
 export type HistoryNavAction = "push" | "replace" | "pop";

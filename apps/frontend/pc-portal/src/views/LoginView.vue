@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { useAuthStore } from "@/stores/auth";
 import { ElMessage } from "element-plus";
 import { reactive, ref } from "vue";
 import { RouterLink, useRoute, useRouter } from "vue-router";
+
+import { useAuthStore } from "@/stores/auth";
 
 const auth = useAuthStore();
 const router = useRouter();
@@ -16,7 +17,7 @@ async function submit() {
     await auth.login({ username: form.username.trim(), password: form.password });
     ElMessage.success("登录成功");
     const r = route.query.redirect;
-    router.push(typeof r === "string" ? r : "/");
+    await router.push(typeof r === "string" ? r : "/");
   } finally {
     loading.value = false;
   }

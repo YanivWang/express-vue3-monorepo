@@ -1,4 +1,5 @@
 import { http } from "./http";
+
 import type { CategoriesListResult } from "./types";
 
 export function fetchCategories() {

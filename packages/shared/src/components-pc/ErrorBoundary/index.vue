@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, onErrorCaptured } from "vue";
 import { ElResult, ElButton } from "element-plus";
+import { ref, onErrorCaptured } from "vue";
 
 interface Props {
   /** 降级 UI 中展示的标题，默认"页面出现错误" */

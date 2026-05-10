@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { useAuthStore } from "@/stores/auth";
 import { ElMessage } from "element-plus";
 import { reactive, ref } from "vue";
 import { RouterLink, useRouter } from "vue-router";
+
+import { useAuthStore } from "@/stores/auth";
 
 const auth = useAuthStore();
 const router = useRouter();

@@ -1,5 +1,15 @@
 import axios, { AxiosHeaders } from "axios";
-import type { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from "axios";
+
+import { HttpCode } from "./types";
+import {
+  createNormalizedError,
+  getRequestKey,
+  getRestApiMessage,
+  isNestedSuccessPayload,
+  isRecord,
+  stripRestApiEnvelope,
+  retryDelay,
+} from "./utils";
 
 import type {
   RequestConfig,
@@ -12,16 +22,7 @@ import type {
   RefreshTokenResult,
   NormalizedError,
 } from "./types";
-import { HttpCode } from "./types";
-import {
-  createNormalizedError,
-  getRequestKey,
-  getRestApiMessage,
-  isNestedSuccessPayload,
-  isRecord,
-  stripRestApiEnvelope,
-  retryDelay,
-} from "./utils";
+import type { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from "axios";
 
 /**
  * UI 无关的 HTTP 核心。
@@ -160,16 +161,13 @@ export class HttpRequest {
       };
     }
 
-    if (
-      !isNestedSuccessPayload<RefreshTokenResult>(data) ||
-      (data as ResponseData<RefreshTokenResult>).code !== this.successCode
-    ) {
+    if (!isNestedSuccessPayload<RefreshTokenResult>(data) || data.code !== this.successCode) {
       const msg = isNestedSuccessPayload<RefreshTokenResult>(data)
-        ? (data as ResponseData<RefreshTokenResult>).message
+        ? data.message
         : "Token 刷新失败";
       throw createNormalizedError(msg, { type: "auth" });
     }
-    return (data as ResponseData<RefreshTokenResult>).data;
+    return data.data;
   }
 
   private setupInterceptors(): void {
@@ -195,12 +193,18 @@ export class HttpRequest {
         }
 
         if (config.method?.toUpperCase() === "GET") {
-          config.params = { _t: Date.now(), ...config.params };
+          const prev: unknown = config.params;
+          config.params = {
+            _t: Date.now(),
+            ...(typeof prev === "object" && prev !== null && !Array.isArray(prev)
+              ? (prev as Record<string, unknown>)
+              : {}),
+          };
         }
 
         return config;
       },
-      (error: unknown) => Promise.reject(error),
+      (error: unknown) => Promise.reject(error instanceof Error ? error : new Error(String(error))),
     );
 
     this.instance.interceptors.response.use(
@@ -297,8 +301,10 @@ export class HttpRequest {
         }
 
         const { status } = response;
+        const unauthorizedStatus: number = HttpCode.UNAUTHORIZED;
+        const serverErrorStatus: number = HttpCode.SERVER_ERROR;
 
-        if (status === HttpCode.UNAUTHORIZED) {
+        if (status === unauthorizedStatus) {
           const unauthorizedMsg = (): string => {
             if (isRecord(response.data) && typeof response.data.msg === "string") {
               return response.data.msg;
@@ -358,7 +364,7 @@ export class HttpRequest {
 
         const retryCount = customConfig.retryCount ?? 0;
         const currentTimes = customConfig._retryTimes ?? 0;
-        if (retryCount > 0 && currentTimes < retryCount && status >= HttpCode.SERVER_ERROR) {
+        if (retryCount > 0 && currentTimes < retryCount && status >= serverErrorStatus) {
           customConfig._retryTimes = currentTimes + 1;
           await retryDelay(customConfig._retryTimes, customConfig.retryDelay ?? 1000);
           return this.instance.request(customConfig as InternalAxiosRequestConfig);

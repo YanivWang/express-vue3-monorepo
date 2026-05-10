@@ -4,8 +4,9 @@
  * 上报地址、调试开关、release / environment 由调用方通过 `configureClientErrorSdk` 或 `WebMonitor.init` 传入；
  * 本模块不读取打包工具或仓库约定的环境变量。
  */
-import type { App, ComponentPublicInstance } from "vue";
 import { getCurrentPagePath, postJsonReport } from "./monitoringHttpTransport";
+
+import type { App, ComponentPublicInstance } from "vue";
 
 const STACK_MAX = 16 * 1024;
 
@@ -186,7 +187,7 @@ export function setupClientErrorReporting(
       }
 
       const ee = event as ErrorEvent;
-      const err = ee.error;
+      const err: unknown = ee.error;
       const message = err instanceof Error ? err.message : ee.message || "";
       const stack = err instanceof Error ? err.stack : undefined;
       reportClientError({

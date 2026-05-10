@@ -1,7 +1,8 @@
-import { watch } from "vue";
 import { Locale as VantLocale } from "vant";
-import zhCN from "vant/es/locale/lang/zh-CN";
 import enUS from "vant/es/locale/lang/en-US";
+import zhCN from "vant/es/locale/lang/zh-CN";
+import { watch } from "vue";
+
 import {
   createUseTheme,
   type ThemeStorage,

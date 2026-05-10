@@ -1,8 +1,9 @@
 import { createI18n, type I18nOptions, type I18n, type Composer } from "vue-i18n";
-import type { App } from "vue";
 
-import { defaultMessages, type BaseLocale, type BaseMessages } from "./messages";
 import { defaultNumberFormats, defaultDatetimeFormats } from "./formats";
+import { defaultMessages, type BaseLocale, type BaseMessages } from "./messages";
+
+import type { App } from "vue";
 
 export interface CreateI18nOptions {
   /** 初始语言（默认 'zh-CN'） */
@@ -67,11 +68,11 @@ export function createI18nInstance(options: CreateI18nOptions = {}): I18n {
     numberFormats: {
       ...(defaultNumberFormats as unknown as I18nOptions["numberFormats"]),
       ...(numberFormats || {}),
-    } as I18nOptions["numberFormats"],
+    },
     datetimeFormats: {
       ...(defaultDatetimeFormats as unknown as I18nOptions["datetimeFormats"]),
       ...(datetimeFormats || {}),
-    } as I18nOptions["datetimeFormats"],
+    },
     missing,
     silentTranslationWarn,
     silentFallbackWarn,

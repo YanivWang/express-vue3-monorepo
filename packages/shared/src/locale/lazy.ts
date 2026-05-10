@@ -1,6 +1,7 @@
 import { createI18n, type Composer, type I18n, type I18nOptions } from "vue-i18n";
 
 import { defaultDatetimeFormats, defaultNumberFormats } from "./formats";
+
 import type { BaseLocale } from "./messages";
 
 const sharedLocaleLoaded = new WeakMap<I18n, Set<BaseLocale>>();
@@ -17,9 +18,9 @@ function sharedLoadedSet(i18n: I18n): Set<BaseLocale> {
 async function fetchSharedLocaleMessages(locale: BaseLocale): Promise<Record<string, unknown>> {
   switch (locale) {
     case "zh-CN":
-      return (await import("./messages/zh-CN")).default as unknown as Record<string, unknown>;
+      return (await import("./messages/zh-CN")).default;
     case "en-US":
-      return (await import("./messages/en-US")).default as unknown as Record<string, unknown>;
+      return (await import("./messages/en-US")).default;
     default: {
       const _exhaustive: never = locale;
       return _exhaustive;
@@ -53,9 +54,9 @@ export function createI18nLazyShell(options: CreateI18nLazyShellOptions): I18n {
     legacy: false,
     locale,
     fallbackLocale,
-    messages: {} as I18nOptions["messages"],
-    numberFormats: defaultNumberFormats as unknown as I18nOptions["numberFormats"],
-    datetimeFormats: defaultDatetimeFormats as unknown as I18nOptions["datetimeFormats"],
+    messages: {},
+    numberFormats: defaultNumberFormats,
+    datetimeFormats: defaultDatetimeFormats,
     missing,
     silentTranslationWarn,
     silentFallbackWarn,

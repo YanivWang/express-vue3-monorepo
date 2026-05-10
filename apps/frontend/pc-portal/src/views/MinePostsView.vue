@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { fetchMyPostsList } from "@/api/posts";
-import type { Pagination, PostItem } from "@/api/types";
 import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+
+import { fetchMyPostsList } from "@/api/posts";
+import type { Pagination, PostItem } from "@/api/types";
 
 const route = useRoute();
 const router = useRouter();

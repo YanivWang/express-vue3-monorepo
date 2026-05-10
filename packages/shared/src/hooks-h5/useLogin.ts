@@ -1,4 +1,5 @@
 import { ref } from "vue";
+
 import type { Bridge } from "@express-vue3-monorepo/js-bridge";
 import { H5Host } from "@express-vue3-monorepo/shared/enums";
 
@@ -74,7 +75,7 @@ export function useLogin<TFormResult = unknown, TCodeResult = unknown>(
     loading.value = true;
     try {
       const { credential } = await options.bridge.auth.login();
-      const result = await options.api.exchangeCode(credential, options.bridge.host as H5Host);
+      const result = await options.api.exchangeCode(credential, options.bridge.host);
       await options.onSuccess?.(result);
       return result;
     } catch (e) {

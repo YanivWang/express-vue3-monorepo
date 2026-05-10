@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import * as commentsApi from "@/api/comments";
-import { deletePost, fetchPostById } from "@/api/posts";
-import type { CommentReplyItem, CommentThreadItem, PostItem } from "@/api/types";
-import { useAuthStore } from "@/stores/auth";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { storeToRefs } from "pinia";
 import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+
+import * as commentsApi from "@/api/comments";
+import { deletePost, fetchPostById } from "@/api/posts";
+import type { CommentReplyItem, CommentThreadItem, PostItem } from "@/api/types";
+import { useAuthStore } from "@/stores/auth";
 
 const route = useRoute();
 const router = useRouter();
@@ -120,7 +121,7 @@ async function onDeletePost() {
   }
   await deletePost(post.value.id);
   ElMessage.success("已删除");
-  router.push({ name: "home" });
+  await router.push({ name: "home" });
 }
 
 const canEditPost = computed(() => {

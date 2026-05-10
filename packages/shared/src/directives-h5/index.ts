@@ -1,8 +1,9 @@
-import type { App } from "vue";
+import { vLazy } from "./lazy";
+import { vLongpress } from "./longpress";
 import { createPermissionDirective } from "./permission";
 import { createRoleDirective } from "./role";
-import { vLongpress } from "./longpress";
-import { vLazy } from "./lazy";
+
+import type { App } from "vue";
 
 export * from "./permission";
 export * from "./role";

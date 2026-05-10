@@ -8,7 +8,7 @@ export function parseJwtPayload(token: string): { id: number; username: string }
     const json = atob(b64 + pad);
     const p = JSON.parse(json) as { id?: unknown; username?: unknown };
     const id = Number(p.id);
-    const username = String(p.username ?? "");
+    const username = typeof p.username === "string" ? p.username : "";
     if (!Number.isFinite(id) || !username) return null;
     return { id, username };
   } catch {

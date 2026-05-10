@@ -1,5 +1,6 @@
-import type { Directive, DirectiveBinding } from "vue";
 import { resolveKeys } from "./utils";
+
+import type { Directive, DirectiveBinding } from "vue";
 
 /**
  * 创建 v-permission 指令

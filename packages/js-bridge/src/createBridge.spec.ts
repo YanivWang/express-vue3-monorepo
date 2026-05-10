@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
+
 import { H5Host } from "./host";
 import { BridgeError } from "./types";
+
 import { createBridge, useBridge, __resetBridge } from "./index";
 
 beforeEach(() => {

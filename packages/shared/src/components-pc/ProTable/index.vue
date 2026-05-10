@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { ref } from "vue";
 import {
   ElCard,
   ElTable,
@@ -10,8 +9,10 @@ import {
   ElEmpty,
   vLoading,
 } from "element-plus";
-import type { PaginationResult } from "@express-vue3-monorepo/shared/types";
+import { ref } from "vue";
+
 import { useTable } from "@express-vue3-monorepo/shared/hooks-core";
+import type { PaginationResult } from "@express-vue3-monorepo/shared/types";
 
 type AnyRow = Record<string, unknown>;
 

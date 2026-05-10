@@ -1,9 +1,10 @@
-import type { App } from "vue";
 import ErrorBoundary from "./ErrorBoundary/index.vue";
 import PageContainer from "./PageContainer/index.vue";
 import ProTable from "./ProTable/index.vue";
 import Skeleton from "./Skeleton/index.vue";
 import SvgIcon from "./SvgIcon/index.vue";
+
+import type { App } from "vue";
 
 export { ErrorBoundary, PageContainer, ProTable, Skeleton, SvgIcon };
 export type { TableColumn } from "./ProTable/index.vue";

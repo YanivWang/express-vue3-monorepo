@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useRoute, useRouter, type RouteLocationRaw } from "vue-router";
 import { NavBar } from "vant";
+import { useRoute, useRouter, type RouteLocationRaw } from "vue-router";
 
 const router = useRouter();
 const route = useRoute();

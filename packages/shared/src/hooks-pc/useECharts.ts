@@ -1,5 +1,6 @@
-import { ref, onMounted, onUnmounted, watch, nextTick, type Ref, type ComputedRef } from "vue";
 import * as echarts from "echarts/core";
+import { ref, onMounted, onUnmounted, watch, nextTick, type Ref, type ComputedRef } from "vue";
+
 import type { EChartsOption } from "echarts";
 
 export interface UseEChartsOptions {
@@ -16,7 +17,7 @@ function unwrapDark(
   source: Ref<boolean> | ComputedRef<boolean> | (() => boolean) | undefined,
 ): boolean {
   if (!source) return false;
-  if (typeof source === "function") return (source as () => boolean)();
+  if (typeof source === "function") return source();
   return (source as Ref<boolean>).value;
 }
 

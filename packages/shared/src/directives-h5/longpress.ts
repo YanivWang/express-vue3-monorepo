@@ -26,7 +26,7 @@ const store = new WeakMap<HTMLElement, Store>();
 
 function getPoint(e: TouchEvent | MouseEvent): { x: number; y: number } {
   if ("touches" in e && e.touches.length > 0) {
-    const t = e.touches[0]!;
+    const t = e.touches[0];
     return { x: t.clientX, y: t.clientY };
   }
   const me = e as MouseEvent;

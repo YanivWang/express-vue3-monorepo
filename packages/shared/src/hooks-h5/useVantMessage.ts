@@ -7,6 +7,7 @@ import {
   showNotify,
   closeToast,
 } from "vant";
+
 import type { ToastOptions, DialogOptions, NotifyOptions } from "vant";
 
 export interface UseVantMessageReturn {

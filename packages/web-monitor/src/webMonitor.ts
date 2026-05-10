@@ -2,16 +2,16 @@
  * 类 Sentry.init 心智的统一观测入口：一次 `init` 注册 Web Vitals + 前端错误（Vue / 全局）。
  * 不依赖 @sentry/*；上报地址、release、environment、调试开关等均由集成方在调用处传入，本包不读取环境变量或构建注入项。
  */
-import type { App } from "vue";
-import type { ClientErrorPayload } from "./clientErrorMonitoring";
 import {
   configureClientErrorSdk,
   reportClientError,
   setupClientErrorReporting,
 } from "./clientErrorMonitoring";
-import type { SetupClientErrorReportingOptions } from "./clientErrorMonitoring";
-import type { WebVitalPayload } from "./webVitalsMonitoring";
 import { collectWebVitals, configureWebVitalsSdk } from "./webVitalsMonitoring";
+
+import type { ClientErrorPayload, SetupClientErrorReportingOptions } from "./clientErrorMonitoring";
+import type { WebVitalPayload } from "./webVitalsMonitoring";
+import type { App } from "vue";
 
 export type WebMonitorIntegrations = {
   /** 默认 `true` */

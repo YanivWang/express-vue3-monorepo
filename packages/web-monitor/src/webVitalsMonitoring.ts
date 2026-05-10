@@ -4,8 +4,10 @@
  * HTTP 投递见同目录 `monitoringHttpTransport`。本模块不读取打包工具或仓库约定的环境变量。
  */
 import { onCLS, onFCP, onINP, onLCP, onTTFB } from "web-vitals";
-import type { Metric } from "web-vitals";
+
 import { getCurrentPagePath, postJsonReport } from "./monitoringHttpTransport";
+
+import type { Metric } from "web-vitals";
 
 export type WebVitalPayload = {
   name: Metric["name"];

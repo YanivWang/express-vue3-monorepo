@@ -1,3 +1,5 @@
+import { BridgeError } from "../types";
+
 import type { H5Host } from "../host";
 import type {
   BridgeAbility,
@@ -11,7 +13,6 @@ import type {
   BridgeStrategy,
   BridgeUI,
 } from "../types";
-import { BridgeError } from "../types";
 
 /**
  * 生成一个"统一抛 BridgeError"的 method。

@@ -1,5 +1,6 @@
 import { http } from "./http";
 import { toPostsListParams } from "./query";
+
 import type { ListPostsQuery, PostItem, PostOneResult, PostsListResult } from "./types";
 
 export function fetchPostsList(q: ListPostsQuery) {

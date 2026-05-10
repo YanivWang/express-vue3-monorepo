@@ -50,8 +50,11 @@ export function parseQuery(search?: string): Record<string, string> {
 export function stringifyQuery(params: Record<string, unknown>): string {
   const qs = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null) {
+    if (value === undefined || value === null) return;
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
       qs.append(key, String(value));
+    } else {
+      qs.append(key, JSON.stringify(value));
     }
   });
   return qs.toString();

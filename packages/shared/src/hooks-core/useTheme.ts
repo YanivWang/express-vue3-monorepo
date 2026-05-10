@@ -1,5 +1,5 @@
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
-import type { Ref } from "vue";
+
 import {
   applyBrand,
   applyThemeMode,
@@ -10,6 +10,8 @@ import {
   type BrandPalette,
   type ThemeModeId,
 } from "@express-vue3-monorepo/shared/styles/tokens";
+
+import type { Ref } from "vue";
 
 export interface ThemeStorage {
   /** 读取 key 的字符串值（未命中返回 null/undefined） */
@@ -100,7 +102,7 @@ export function createUseTheme(ctx: UseThemeContext) {
 
   function cycleBrand(): void {
     const idx = brandPalettes.findIndex((p) => p.id === brand.value);
-    const next = brandPalettes[(idx + 1) % brandPalettes.length]!;
+    const next = brandPalettes[(idx + 1) % brandPalettes.length];
     setBrand(next.id);
   }
 

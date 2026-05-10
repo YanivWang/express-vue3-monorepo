@@ -12,7 +12,7 @@ export interface PermissionContext {
 }
 
 function unwrap<T>(source: Ref<T> | ComputedRef<T> | (() => T)): T {
-  if (typeof source === "function") return (source as () => T)();
+  if (typeof source === "function") return source();
   return (source as Ref<T>).value;
 }
 

@@ -1,5 +1,6 @@
-import type { Directive, DirectiveBinding } from "vue";
 import { resolveKeys } from "./utils";
+
+import type { Directive, DirectiveBinding } from "vue";
 
 /**
  * H5 v-permission：无权限直接从 DOM 移除（v-if 语义）

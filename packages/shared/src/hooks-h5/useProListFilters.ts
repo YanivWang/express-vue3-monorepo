@@ -1,5 +1,12 @@
 import { ref, type Ref } from "vue";
 
+function formatIdDraft(raw: unknown): string {
+  if (raw === undefined || raw === null) return "";
+  if (typeof raw === "number" && Number.isFinite(raw)) return String(raw);
+  if (typeof raw === "string") return raw;
+  return "";
+}
+
 /**
  * 与 `ProList` 的 `query` 联动：关键词 + ID 区间筛选（配合底部 `FilterDrawer`）
  */
@@ -32,8 +39,8 @@ export function useProListFilters(): {
   }
 
   function syncDraftFromQuery() {
-    draftMinId.value = query.value.minId != null ? String(query.value.minId) : "";
-    draftMaxId.value = query.value.maxId != null ? String(query.value.maxId) : "";
+    draftMinId.value = formatIdDraft(query.value.minId);
+    draftMaxId.value = formatIdDraft(query.value.maxId);
   }
 
   function commitRange(minId?: number, maxId?: number) {

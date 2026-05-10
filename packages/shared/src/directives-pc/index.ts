@@ -1,7 +1,8 @@
-import type { App } from "vue";
+import { createCopyDirective, type CopyDirectiveOptions } from "./copy";
 import { createPermissionDirective } from "./permission";
 import { createRoleDirective } from "./role";
-import { createCopyDirective, type CopyDirectiveOptions } from "./copy";
+
+import type { App } from "vue";
 
 export * from "./permission";
 export * from "./role";

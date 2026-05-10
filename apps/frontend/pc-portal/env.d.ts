@@ -8,3 +8,11 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+import "vue-router";
+
+declare module "vue-router" {
+  interface RouteMeta {
+    blankLayout?: boolean;
+  }
+}

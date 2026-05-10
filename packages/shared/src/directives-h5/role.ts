@@ -1,5 +1,6 @@
-import type { Directive, DirectiveBinding } from "vue";
 import { resolveKeys } from "./utils";
+
+import type { Directive, DirectiveBinding } from "vue";
 
 /**
  * H5 v-role：未命中角色时移除节点
