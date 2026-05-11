@@ -59,43 +59,43 @@
 
 ### 首页 · 文章列表（最新）
 
-![pc-portal 首页最新文章列表](docs/screenshots/home-feed-latest.png)
+![pc-portal 首页最新文章列表](docs/pc-portal-screenshots/home-feed-latest.png)
 
 _全局导航、搜索与「最新 / 热门」切换下的文章卡片流：标题、摘要、作者、日期、分类标签、评论/收藏/点赞概览与配图。_
 
 ### 首页 · 左侧分类导航
 
-![pc-portal 首页与分类侧栏](docs/screenshots/home-with-categories.png)
+![pc-portal 首页与分类侧栏](docs/pc-portal-screenshots/home-with-categories.png)
 
 _「分类」侧栏快速切换 IT 子类目，列表区仍以最新/热门 Tab 展示文章卡片。_
 
 ### 文章详情
 
-![pc-portal 文章详情页](docs/screenshots/article-detail.png)
+![pc-portal 文章详情页](docs/pc-portal-screenshots/article-detail.png)
 
 _正文排版（含标题层级与列表）、元信息（作者、时间、字数、分类）、阅读/评论/收藏/点赞统计，以及赞踩/收藏操作；右侧为推荐阅读。_
 
 ### 评论与推荐阅读
 
-![pc-portal 评论与推荐阅读](docs/screenshots/article-comments.png)
+![pc-portal 评论与推荐阅读](docs/pc-portal-screenshots/article-comments.png)
 
 _评论发表、字数限制、时间正/倒序；支持回复与删除；同页继续展示推荐阅读侧栏。_
 
 ### 写文章（编辑器）
 
-![pc-portal 写文章](docs/screenshots/article-editor.png)
+![pc-portal 写文章](docs/pc-portal-screenshots/article-editor.png)
 
 _标题与正文编辑、分类选择与多图上传预览；支持草稿/立即发布切换与保存。_
 
 ### 我的文章
 
-![pc-portal 我的文章](docs/screenshots/my-articles.png)
+![pc-portal 我的文章](docs/pc-portal-screenshots/my-articles.png)
 
 _已发布文章列表，展示状态、时间与分类，可从列表进入编辑。_
 
 ### 我的收藏
 
-![pc-portal 我的收藏](docs/screenshots/my-favorites.png)
+![pc-portal 我的收藏](docs/pc-portal-screenshots/my-favorites.png)
 
 _收藏文章以卡片形式展示摘要、作者、日期、分类与互动数据，便于回顾。_
 
@@ -240,7 +240,7 @@ express-vue3-monorepo/
 │   ├── openapi.yaml
 │   ├── admin-bootstrap.md
 │   ├── admin-permissions.md
-│   └── screenshots/         # README 界面预览用图（pc-portal）
+│   └── pc-portal-screenshots/ # README 界面预览用图（pc-portal）
 └── .github/
     └── CODEOWNERS
 ```
@@ -353,13 +353,13 @@ pnpm docker:prod
 
 ## 文档与契约文件
 
-| 资源               | 路径                                                     |
-| ------------------ | -------------------------------------------------------- |
-| 界面截图（README） | [`docs/screenshots/`](docs/screenshots/)                 |
-| OpenAPI            | [`docs/openapi.yaml`](docs/openapi.yaml)                 |
-| 首个超级管理员     | [`docs/admin-bootstrap.md`](docs/admin-bootstrap.md)     |
-| 权限码与路由对照   | [`docs/admin-permissions.md`](docs/admin-permissions.md) |
-| CODEOWNERS         | [`.github/CODEOWNERS`](.github/CODEOWNERS)               |
-| 本文档             | [`README.md`](README.md)                                 |
+| 资源               | 路径                                                         |
+| ------------------ | ------------------------------------------------------------ |
+| 界面截图（README） | [`docs/pc-portal-screenshots/`](docs/pc-portal-screenshots/) |
+| OpenAPI            | [`docs/openapi.yaml`](docs/openapi.yaml)                     |
+| 首个超级管理员     | [`docs/admin-bootstrap.md`](docs/admin-bootstrap.md)         |
+| 权限码与路由对照   | [`docs/admin-permissions.md`](docs/admin-permissions.md)     |
+| CODEOWNERS         | [`.github/CODEOWNERS`](.github/CODEOWNERS)                   |
+| 本文档             | [`README.md`](README.md)                                     |
 
 建议在 [`docs/openapi.yaml`](docs/openapi.yaml) 的 `info.description` 中维护与实现一致的变更说明。
