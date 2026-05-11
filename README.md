@@ -1,19 +1,32 @@
 # express-vue3-monorepo
 
-基于 **pnpm workspace** 的全栈单体仓库：**Express REST API**（`apps/backend/rest-api`）+ **Vue 3 / Vite** 前台与管理端（`apps/frontend/pc-portal`、`pc-admin`），共享逻辑置于 **`packages/*`**。根目录提供脚本编排、Docker Compose、统一代码风格与提交约定。
+🚀 **企业级 Express + Vue 3 Monorepo 全栈模板**
+
+基于 **pnpm workspace** 的单体仓库：**Express REST API**（`apps/backend/rest-api`）、**Vue 3 / Vite** 前台与管理端（`apps/frontend/pc-portal`、`pc-admin`），共享逻辑置于 **`packages/*`**；根目录编排脚本、Docker Compose、统一代码规范与提交约定。
+
+[![Vue 3](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)](https://vuejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Express](https://img.shields.io/badge/Express-000000?logo=express&logoColor=white)](https://expressjs.com/)
+[![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
+[![pnpm workspace](https://img.shields.io/badge/pnpm-workspace-F69220?logo=pnpm&logoColor=white)](https://pnpm.io/workspaces)
+[![Node.js ≥20](https://img.shields.io/badge/Node.js-%E2%89%A520-green?logo=node.js&logoColor=white)](https://nodejs.org/)
+
+[**OpenAPI 契约**](docs/openapi.yaml) · [**首个管理员说明**](docs/admin-bootstrap.md) · [**权限路由对照**](docs/admin-permissions.md)
 
 ---
 
 ## 目录
 
+- [核心亮点](#核心亮点)
 - [技术栈](#技术栈)
-- [仓库结构](#仓库结构)
-- [Workspace 包命名](#workspace-包命名)
+- [适用场景](#适用场景)
 - [环境要求](#环境要求)
 - [快速开始](#快速开始)
-- [首个超级管理员（bootstrap）](#首个超级管理员bootstrap)
-- [常用脚本](#常用脚本)
+  - [首个超级管理员（bootstrap）](#首个超级管理员bootstrap)
+- [常用命令](#常用命令)
 - [类目种子与合成帖子（推荐）](#类目种子与合成帖子推荐)
+- [核心目录结构](#核心目录结构)
+- [Workspace 包命名](#workspace-包命名)
 - [类型检查：`typecheck` 与 `typecheck:solution`](#类型检查typecheck-与-typechecksolution)
 - [代码质量与提交约定](#代码质量与提交约定)
 - [API 契约与 Swagger](#api-契约与-swagger)
@@ -25,118 +38,111 @@
 
 ---
 
+## 核心亮点
+
+| 维度              | 说明                                                                                                          |
+| ----------------- | ------------------------------------------------------------------------------------------------------------- |
+| **Monorepo 全栈** | pnpm workspace 管理后端 REST、PC 门户、管理端与 `packages`，依赖与脚本同仓对齐                                |
+| **pnpm catalog**  | 在 workspace 层面集中约束版本，`pnpm-lock.yaml` 为准，降低多包漂移                                            |
+| **共享层**        | `shared`、`request-core`、`js-bridge`、`web-monitor` 等与前后端对齐的 TypeScript 包                           |
+| **契约与文档**    | OpenAPI 3.0（[`docs/openapi.yaml`](docs/openapi.yaml)）+ 运行时 Swagger UI（`/api-docs`）                     |
+| **Docker 网关**   | Compose 一体拉起 MySQL、rest-api、pc-portal 与 Nginx；浏览器单端口访问（默认网关 **2026**）                   |
+| **工程规范**      | ESLint 9 flat、typescript-eslint、Prettier、Stylelint、Husky、lint-staged、Commitlint（Conventional Commits） |
+| **质量门禁**      | `pnpm typecheck`（权威）、`pnpm verify`（类型 + Lint + 样式 + 格式 + 测试含 E2E）                             |
+| **数据与链路**    | Sequelize + MySQL；可选 `pnpm db:init-post` 完成类目种子与合成帖子链路（详见下文）                            |
+
+---
+
 ## 技术栈
 
-| 层级   | 技术                                                                                                                  |
-| ------ | --------------------------------------------------------------------------------------------------------------------- |
-| 后端   | Node.js、Express（ESM）、TypeScript、Sequelize、MySQL、JWT、Zod                                                       |
-| 前端   | Vue 3、Vite、TypeScript、Pinia、Vue Router（pc-portal 另含 Element Plus 等与 shared 对齐的栈）                        |
-| 共享包 | TypeScript 库：`shared`、`request-core`、`js-bridge`、`web-monitor`                                                   |
-| 工程化 | pnpm workspace、`pnpm` catalog、ESLint 9 flat、typescript-eslint、Prettier、Stylelint、Husky、lint-staged、Commitlint |
-| 契约   | OpenAPI 3.0（[`docs/openapi.yaml`](docs/openapi.yaml)），运行时 Swagger UI                                            |
+| 类别       | 技术                                                                                                         |
+| ---------- | ------------------------------------------------------------------------------------------------------------ |
+| 后端       | Node.js、Express（ESM）、TypeScript、Sequelize、MySQL、JWT、Zod                                              |
+| 前端       | Vue 3、Vite、TypeScript、Pinia、Vue Router（pc-portal 等与 shared 对齐的栈，含 Element Plus 等）             |
+| 共享包     | `@express-vue3-monorepo/*`：`shared`、`request-core`、`js-bridge`、`web-monitor`                             |
+| 工程化     | pnpm workspace、pnpm catalog、ESLint、typescript-eslint、Prettier、Stylelint、Husky、lint-staged、Commitlint |
+| 契约与观测 | OpenAPI 3.0、Swagger UI；前端可接入 `web-monitor`                                                            |
+| 测试       | 后端测试 + Playwright（pc-portal）                                                                           |
 
 ---
 
-## 仓库结构
+## 适用场景
 
-| 路径                                                 | 说明                                                                               |
-| ---------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| [`apps/backend/rest-api`](apps/backend/rest-api)     | Express REST API（Sequelize / MySQL）                                              |
-| [`apps/frontend/pc-portal`](apps/frontend/pc-portal) | 门户站点（Vite + Vue 3）                                                           |
-| [`apps/frontend/pc-admin`](apps/frontend/pc-admin)   | 管理端（Vite + Vue 3；**默认 Docker 网关栈不包含**，本地单独 `pnpm pc-admin:dev`） |
-| [`packages/shared`](packages/shared)                 | PC/H5 共享组件、hooks、请求 preset、类型与样式等                                   |
-| [`packages/request-core`](packages/request-core)     | HTTP 客户端核心（与后端响应约定对齐）                                              |
-| [`packages/js-bridge`](packages/js-bridge)           | H5 宿主 / JSBridge 抽象                                                            |
-| [`packages/web-monitor`](packages/web-monitor)       | 前端监控封装入口                                                                   |
-| [`docker/`](docker/)                                 | Compose 覆盖层、`Dockerfile*`、网关 Nginx                                          |
-| [`e2e/`](e2e/)                                       | Playwright 用例（当前主要覆盖 pc-portal）                                          |
-| [`docs/openapi.yaml`](docs/openapi.yaml)             | OpenAPI 契约（提交仓库，与实现同步维护）                                           |
-| [`.github/CODEOWNERS`](.github/CODEOWNERS)           | 代码所有者（需替换占位 `@REPLACE_WITH_GITHUB_OWNER`）                              |
-
----
-
-## Workspace 包命名
-
-在仓库根目录使用 `pnpm --filter <name>` 时，可采用 **`package.json` 中的 `name`**：
-
-| 目录                      | `package.json` name                   |
-| ------------------------- | ------------------------------------- |
-| `apps/backend/rest-api`   | `@express-vue3-monorepo/rest-api`     |
-| `apps/frontend/pc-portal` | `@express-vue3-monorepo/pc-portal`    |
-| `apps/frontend/pc-admin`  | `@express-vue3-monorepo/pc-admin`     |
-| `packages/shared`         | `@express-vue3-monorepo/shared`       |
-| `packages/request-core`   | `@express-vue3-monorepo/request-core` |
-| `packages/js-bridge`      | `@express-vue3-monorepo/js-bridge`    |
-| `packages/web-monitor`    | `@express-vue3-monorepo/web-monitor`  |
-
-示例：
-
-```bash
-pnpm --filter @express-vue3-monorepo/rest-api run build
-pnpm --filter @express-vue3-monorepo/pc-portal run dev
-```
+- 需要用 **单一仓库** 同时维护 **REST API** 与 **Vue 3 多端前台/后台**，并希望共享请求、类型与工程配置的团队或个人。
+- 希望 **Compose 一键** 对齐本地/网关开发体验，或与 CI 共用同一套 `pnpm` / `docker:*` 脚本的场景。
 
 ---
 
 ## 环境要求
 
-- **Node.js**：`>=20.19.5`（仓库根 `.nvmrc` 可为 **22**，与 Dockerfile 对齐时推荐使用）
-- **pnpm**：`>=10.17.0`（与 [`package.json`](package.json) 中 `packageManager` 字段一致）
-- **Docker / Docker Compose**：使用 `pnpm docker:*` 拉起栈时需要
+| 依赖             | 版本 / 说明                                                                                          |
+| ---------------- | ---------------------------------------------------------------------------------------------------- |
+| Node.js          | ≥ `20.19.5`（根目录 `.nvmrc` 可为 **22**，与 Dockerfile 对齐时推荐）                                 |
+| pnpm             | ≥ `10.17.0`（与根 [`package.json`](package.json) 中 `packageManager` 一致；**请勿混用** npm / yarn） |
+| Docker / Compose | 使用 `pnpm docker:*` 拉起栈时需要                                                                    |
 
 ---
 
 ## 快速开始
 
 ```bash
+# 进入仓库根目录
+cd express-vue3-monorepo
+
+# 安装依赖
 pnpm install
+
+# 推荐：数据库 + rest-api + pc-portal + 网关（单端口浏览器访问）
+pnpm docker:dev
+
+# 或在宿主调试（需本机可达 MySQL，参见下文 Docker 小节）
+pnpm rest-api:dev
+pnpm pc-portal:dev
+pnpm pc-admin:dev
 ```
 
-在仓库根目录创建 **`.env.development`**（以及按需使用 **`.env.development.local`**；加载顺序与优先级见 `apps/backend/rest-api/src/env.ts`：`APP_ENV` 与 `NODE_ENV` 合并后须一致，且只能是 `development` | `test` | `production`）。至少配置：
+在仓库根创建 **`.env.development`**（及按需 **`.env.development.local`**）。加载顺序与 `APP_ENV` / `NODE_ENV` 约束见 `apps/backend/rest-api/src/env.ts`。至少配置：
 
-| 变量                                                   | 说明                                                                                                     |
-| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
-| `JWT_SECRET`                                           | 必填，长度 ≥ 32，勿使用弱口令                                                                            |
-| `DB_HOST`、`DB_USER`、`DB_PWD`、`DB_NAME`              | 必填；`DB_PORT` 缺省为 3306                                                                              |
-| `ADMIN_BOOTSTRAP_USERNAME`、`ADMIN_BOOTSTRAP_PASSWORD` | 首个后台 `super_admin` 及 `ensure-super-admin` / synthetic-it 默认登录依赖，须非空；**代码内无默认账号** |
+| 变量                                                   | 说明                                                            |
+| ------------------------------------------------------ | --------------------------------------------------------------- |
+| `JWT_SECRET`                                           | 必填，长度 ≥ 32                                                 |
+| `DB_HOST`、`DB_USER`、`DB_PWD`、`DB_NAME`              | 必填；`DB_PORT` 缺省 3306                                       |
+| `ADMIN_BOOTSTRAP_USERNAME`、`ADMIN_BOOTSTRAP_PASSWORD` | 首个 `super_admin` 及合成链路默认登录依赖；**代码内无默认账号** |
 
-**推荐**：数据库、rest-api、pc-portal 与网关均在 Docker 内运行——见 **`pnpm docker:dev`**。
-
-若仅在**宿主**调试后端进程，可在仓库根执行 **`pnpm rest-api:dev`**（需能连上 MySQL：例如先 **`pnpm docker:dev`** 保持 MySQL 容器运行，在 `docker/docker-compose.dev.yaml` 为 mysql **取消注释 `3306:3306`**，并在 `.env.development` 中设置 **`DB_HOST=127.0.0.1`**）。
+若仅在 **宿主** 调试后端进程，可先 **`pnpm docker:dev`** 保持 MySQL，在 [`docker/docker-compose.dev.yaml`](docker/docker-compose.dev.yaml) 为 mysql **取消注释 `3306:3306`**，`.env.development` 设 **`DB_HOST=127.0.0.1`**，再执行 **`pnpm rest-api:dev`**。
 
 ### 首个超级管理员（bootstrap）
 
-库中尚无任何 `super_admin` 时，API 启动流程中的 `bootstrapRbacIfNeeded()` 会使用根目录配置的两项 **`ADMIN_BOOTSTRAP_*`** 创建首个超级管理员（密码 bcrypt 存储）。亦可不重启、在 `apps/backend/rest-api` 下执行 **`pnpm ensure-super-admin`**（或根目录 `pnpm --filter @express-vue3-monorepo/rest-api ensure-super-admin`）幂等补账号或重设密码。合成帖子链路等详见 **[`docs/admin-bootstrap.md`](docs/admin-bootstrap.md)**。
+库中尚无 `super_admin` 时，启动流程中的 `bootstrapRbacIfNeeded()` 会用根目录 **`ADMIN_BOOTSTRAP_*`** 创建首个超级管理员（bcrypt）。也可在 `apps/backend/rest-api` 执行 **`pnpm ensure-super-admin`**（或根目录 `pnpm --filter @express-vue3-monorepo/rest-api ensure-super-admin`）幂等补账号。**详情：** [`docs/admin-bootstrap.md`](docs/admin-bootstrap.md)。
 
 ---
 
-## 常用脚本
+## 常用命令
 
-| 脚本                                                                 | 作用                                                                                                                     |
-| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `pnpm dev`                                                           | 对所有 workspace 子包并行执行 `dev`（若存在）                                                                            |
-| `pnpm rest-api:dev` / `pnpm rest-api:dev:debug`                      | 宿主运行后端（debug 暴露 Inspector **9229**）                                                                            |
-| `pnpm pc-portal:dev` / `pnpm pc-admin:dev`                           | 宿主运行对应前端                                                                                                         |
-| `pnpm --filter @express-vue3-monorepo/rest-api db:reset`             | 重置后端所用数据库（或在 `apps/backend/rest-api` 下执行 `pnpm db:reset`）                                                |
-| `pnpm --filter @express-vue3-monorepo/rest-api ensure-super-admin`   | 按根目录 `.env.*` 的 `ADMIN_BOOTSTRAP_*` 幂等创建或更新超级管理员（或在 rest-api 包目录执行 `pnpm ensure-super-admin`）  |
-| `pnpm test`                                                          | 后端测试脚本                                                                                                             |
-| `pnpm test:all`                                                      | `pnpm test` + `playwright test`                                                                                          |
-| `pnpm typecheck`                                                     | 各包并行执行各自的 `typecheck`（**全仓类型正确性的权威入口**）                                                           |
-| `pnpm typecheck:solution`                                            | 根目录 `tsc -b`，仅构建 [`tsconfig.json`](tsconfig.json) 中引用的**纯 TS workspace 包**的 declaration 构图（见下文说明） |
-| `pnpm typecheck:packages`                                            | 仅对 `./packages/**` 并行 typecheck                                                                                      |
-| `pnpm lint` / `pnpm lint:fix`                                        | ESLint（根 [`eslint.config.mjs`](eslint.config.mjs)，按路径区分后端 / 前端 / 包）                                        |
-| `pnpm lint:style` / `pnpm lint:style:fix`                            | Stylelint（`apps/frontend`、`packages` 下 css/scss/vue）                                                                 |
-| `pnpm format` / `pnpm format:check`                                  | Prettier                                                                                                                 |
-| `pnpm verify`                                                        | `typecheck` + `lint` + `lint:style` + `format:check` + `test:all`                                                        |
-| `pnpm e2e` / `pnpm e2e:ui` / `pnpm e2e:local`                        | Playwright（详见下文）                                                                                                   |
-| `pnpm docker:dev` / `pnpm docker:dev:down` / `pnpm docker:dev:debug` | Docker 开发栈                                                                                                            |
-| `pnpm docker:install` / `pnpm docker:pnpm`                           | 在运行中的 **rest-api** 容器内执行安装或其它 `pnpm` 命令                                                                 |
-| `pnpm docker:test` / `pnpm docker:prod`                              | 测试 / 生产编排（需 `.env.test` / `.env.production`）                                                                    |
-| `pnpm db:init-post`                                                  | **一次性：IT 类目种子 + 合成帖子**（等价于 `--filter …/rest-api db:init-post`，详见下方）                                |
+| 功能                                     | 命令                                                                        |
+| ---------------------------------------- | --------------------------------------------------------------------------- |
+| 并行对所有含 `dev` 的包执行 dev          | `pnpm dev`                                                                  |
+| 宿主运行后端（debug 端口 **9229**）      | `pnpm rest-api:dev` / `pnpm rest-api:dev:debug`                             |
+| 宿主运行前端                             | `pnpm pc-portal:dev` / `pnpm pc-admin:dev`                                  |
+| 重置后端数据库                           | `pnpm --filter @express-vue3-monorepo/rest-api db:reset`                    |
+| 幂等创建/更新超级管理员                  | `pnpm --filter @express-vue3-monorepo/rest-api ensure-super-admin`          |
+| 测试 / 含 Playwright                     | `pnpm test` / `pnpm test:all`                                               |
+| 类型检查（全仓权威入口）                 | `pnpm typecheck`                                                            |
+| 纯 TS workspace 包的 `tsc -b` 构图       | `pnpm typecheck:solution`                                                   |
+| 仅 packages 并行 typecheck               | `pnpm typecheck:packages`                                                   |
+| Lint / 样式 / 格式                       | `pnpm lint` · `pnpm lint:style` · `pnpm format`（及对应 `:fix` / `:check`） |
+| 提交前全套校验                           | `pnpm verify`                                                               |
+| E2E                                      | `pnpm e2e` · `pnpm e2e:ui` · `pnpm e2e:local`                               |
+| Docker 开发栈                            | `pnpm docker:dev` / `pnpm docker:dev:down` / `pnpm docker:dev:debug`        |
+| 容器内 pnpm                              | `pnpm docker:install` / `pnpm docker:pnpm`                                  |
+| Docker 测试 / 生产                       | `pnpm docker:test` / `pnpm docker:prod`                                     |
+| **IT 类目种子 + 合成帖子（一次性链路）** | `pnpm db:init-post`                                                         |
 
-`prepare` 会安装 **Husky** Git 钩子；若克隆后未执行过 `pnpm install` 则无钩子。
+`prepare` 会安装 Husky；未执行过 `pnpm install` 则无 Git 钩子。
 
-### 类目种子与合成帖子（推荐）
+---
+
+## 类目种子与合成帖子（推荐）
 
 在项目根目录执行：
 
@@ -155,30 +161,80 @@ cd apps/backend/rest-api && pnpm db:init-post
 1. **dedupe-mysql-redundant-indexes** — 索引去重
 2. **it-seed-categories** — 写入「IT技术」类目（数据来自 `apps/backend/rest-api/scripts/it-category-seed.json`；**空库才写类目**）
 3. **synthetic-it-clear-posts** — **删光所有点赞/踩、收藏与帖子**；**评论（含回复）**随帖子 `CASCADE`；**仅删除磁盘上 `uploads/posts/` 下文件**（保留 `uploads/profiles/` 等）；若 `User.avatar` 以 `/uploads/posts/` 开头会置空
-4. **synthetic-it-run** — 通过 **HTTP** 调用你的 REST API 写入帖子与评论
+4. **synthetic-it-run** — 通过 **HTTP** 调用 REST API 写入帖子与评论
 
-**前提**：需要先起好后端（或使用 Docker 网关可达的 API），且根目录 **`.env.*`** 中数据库等配置与平时开发一致（脚本会先合并 monorepo 根 dotenv，再合并 `apps/backend/rest-api/scripts/synthetic-it.env` 中的 **种子专用键**：`REST_API_*`、`SYNTHETIC_*`、`DEDUPE_INDEXES*`，后者可覆盖根目录同名变量；**`ADMIN_BOOTSTRAP_*` 仅来自根目录 `.env.*`**，不会从 `synthetic-it.env` 注入）。
+**前提**：需要先起好后端（或使用 Docker 网关可达的 API），且根目录 **`.env.*`** 与平时开发一致。脚本会先合并 monorepo 根 dotenv，再合并 [`apps/backend/rest-api/scripts/synthetic-it.env`](apps/backend/rest-api/scripts/synthetic-it.env) 中的 **种子专用键**：`REST_API_*`、`SYNTHETIC_*`、`DEDUPE_INDEXES*`（后者可覆盖根目录同名变量）；**`ADMIN_BOOTSTRAP_*` 仅来自根目录 `.env.*`**，不会从 `synthetic-it.env` 注入。
 
-**管理员认证（优先级从高到低）**：环境变量 **`REST_API_IMPORT_TOKEN`**（Bearer JWT）；或成对的 **`REST_API_IMPORT_USERNAME`** / **`REST_API_IMPORT_PASSWORD`**；若均未设置，则使用根目录 **`ADMIN_BOOTSTRAP_*`** 调用 `POST /login`。完整说明见 `synthetic-it-resolve-import-token.ts` 与 **`apps/backend/rest-api/scripts/synthetic-it.env`**、`synthetic-it-run.ts` 头部注释。
+**管理员认证（优先级从高到低）**：环境变量 **`REST_API_IMPORT_TOKEN`**（Bearer JWT）；或成对的 **`REST_API_IMPORT_USERNAME`** / **`REST_API_IMPORT_PASSWORD`**；若均未设置，则使用根目录 **`ADMIN_BOOTSTRAP_*`** 调用 `POST /login`。完整说明见 `synthetic-it-resolve-import-token.ts` 与 **`synthetic-it.env`**、`synthetic-it-run.ts` 头部注释。
+
+---
+
+## 核心目录结构
+
+```
+express-vue3-monorepo/
+├── pnpm-workspace.yaml      # Workspace 范围（apps、packages）
+├── package.json             # 根脚本、engines、lint-staged 等
+├── apps/
+│   ├── backend/
+│   │   └── rest-api/        # Express + Sequelize（@express-vue3-monorepo/rest-api）
+│   └── frontend/
+│       ├── pc-portal/       # 门户（@express-vue3-monorepo/pc-portal）
+│       └── pc-admin/        # 管理端（@express-vue3-monorepo/pc-admin；默认网关栈可不含）
+├── packages/
+│   ├── shared/
+│   ├── request-core/
+│   ├── js-bridge/
+│   └── web-monitor/
+├── docker/                  # Compose、Dockerfile、网关 Nginx
+├── e2e/                     # Playwright（主要为 pc-portal）
+├── docs/
+│   ├── openapi.yaml
+│   ├── admin-bootstrap.md
+│   └── admin-permissions.md
+└── .github/
+    └── CODEOWNERS
+```
+
+---
+
+## Workspace 包命名
+
+`pnpm --filter <name>` 使用各包 **`package.json` 的 `name`**：
+
+| 目录                      | `package.json` name                   |
+| ------------------------- | ------------------------------------- |
+| `apps/backend/rest-api`   | `@express-vue3-monorepo/rest-api`     |
+| `apps/frontend/pc-portal` | `@express-vue3-monorepo/pc-portal`    |
+| `apps/frontend/pc-admin`  | `@express-vue3-monorepo/pc-admin`     |
+| `packages/shared`         | `@express-vue3-monorepo/shared`       |
+| `packages/request-core`   | `@express-vue3-monorepo/request-core` |
+| `packages/js-bridge`      | `@express-vue3-monorepo/js-bridge`    |
+| `packages/web-monitor`    | `@express-vue3-monorepo/web-monitor`  |
+
+```bash
+pnpm --filter @express-vue3-monorepo/rest-api run build
+pnpm --filter @express-vue3-monorepo/pc-portal run dev
+```
 
 ---
 
 ## 类型检查：`typecheck` 与 `typecheck:solution`
 
-- **`pnpm typecheck`**：每个应用/包使用自己的 `tsconfig`（后端 `tsc --noEmit`，含 Vue 的包使用 `vue-tsc`）。**日常开发与 CI 应以该命令为准**。
-- **`pnpm typecheck:solution`**：在根目录执行 **`tsc -b`**，当前 [`tsconfig.json`](tsconfig.json) 仅引用若干 **`packages/*/tsconfig.build.json`**（纯 TS、可生成声明产物的构图）。**不包含** Vue 应用、`packages/shared`（依赖 SFC 与 `vue-tsc`）、以及 **`apps/backend/rest-api`**（避免 declaration 与 Express 类型导出引发的便携性问题）。用于补充「workspace 纯 TS 库的 project references 构建」，**不能替代**全仓 `pnpm typecheck`。
+- **`pnpm typecheck`**：各包用自己的 `tsconfig`（后端 `tsc --noEmit`，Vue 包 `vue-tsc`）。**日常与 CI 以该命令为准**。
+- **`pnpm typecheck:solution`**：根目录 **`tsc -b`**，仅引用若干 **`packages/*/tsconfig.build.json`**。**不包含** Vue 应用、`packages/shared`、`apps/backend/rest-api`。用于纯 TS workspace 库的 project references，**不能替代**全仓 `pnpm typecheck`。
 
 ---
 
 ## 代码质量与提交约定
 
-- **ESLint**：单一 flat 配置，按路径分型（Node 后端 / Vue+TS 前端与 `packages`）；集成 `typescript-eslint`（含类型感知规则与合理覆盖）、`eslint-plugin-vue`、`eslint-plugin-import` + TypeScript resolver、`eslint-config-prettier`。
-- **Prettier**：根目录 [`prettier.config.mjs`](prettier.config.mjs)（含 `endOfLine: "lf"`）。
-- **Stylelint**：根目录 [`.stylelintrc.json`](.stylelintrc.json)，扫描前端与包内样式。
-- **Commitlint**：[`commitlint.config.cjs`](commitlint.config.cjs)，基于 Conventional Commits；**scope** 建议使用枚举之一：`rest-api`、`pc-portal`、`pc-admin`、`shared`、`request-core`、`js-bridge`、`web-monitor`、`repo`、`deps`、`docker`、`frontend`、`backend`。
-- **lint-staged**：在 [`package.json`](package.json) 中配置，pre-commit 通过 Husky 调用。
+- **ESLint**：单一 flat 配置（[`eslint.config.mjs`](eslint.config.mjs)），按路径区分 Node / Vue / packages；typescript-eslint、`eslint-plugin-vue`、`eslint-plugin-import`、Prettier 集成。
+- **Prettier**：[`prettier.config.mjs`](prettier.config.mjs)（含 `endOfLine: "lf"`）。
+- **Stylelint**：[`.stylelintrc.json`](.stylelintrc.json)。
+- **Commitlint**：[`commitlint.config.cjs`](commitlint.config.cjs)；**scope** 建议：`rest-api`、`pc-portal`、`pc-admin`、`shared`、`request-core`、`js-bridge`、`web-monitor`、`repo`、`deps`、`docker`、`frontend`、`backend`。
+- **lint-staged**：见根 [`package.json`](package.json)，由 Husky 在 pre-commit 调用。
 
-提交示例：
+示例：
 
 ```text
 feat(rest-api): 增加评论分页参数校验
@@ -190,36 +246,29 @@ chore(repo): 更新 README 与 OpenAPI
 
 ## API 契约与 Swagger
 
-- **契约文件**：[`docs/openapi.yaml`](docs/openapi.yaml)（OpenAPI 3.0.3），应与 `apps/backend/rest-api/src/routes`、`schema`、`services` 等行为保持一致。
-- **运行时**：
-  - 契约原文：`GET /openapi.yaml`
-  - Swagger UI：`GET /api-docs`（Helmet 对该路径关闭 CSP，避免 UI 脚本被拦截）
-- **修改流程建议**：改接口实现 → 同步更新 `docs/openapi.yaml`（路径、参数、响应体、`description` 中与代码文件的交叉引用请指向 **`*.ts`** 源文件）→ 本地打开 `/api-docs` 或对 YAML 执行导入校验（如 Apifox / spectral）。
+- **契约**：[`docs/openapi.yaml`](docs/openapi.yaml)（OpenAPI 3.0.3），应与 routes / schema / services 同步。
+- **运行时**：`GET /openapi.yaml`；Swagger UI：`GET /api-docs`（Helmet 对该路径放宽 CSP）。
+- **建议流程**：改实现 → 更新 YAML（交叉引用指向 **`*.ts`**）→ 本地打开 `/api-docs` 或用 Apifox / spectral 校验。
 
-网关（Docker Nginx）通常将 `/openapi.yaml`、`/api-docs` 反代至 rest-api，与浏览器访问站点的端口一致（默认见下文）。
+网关 Nginx 通常将 `/openapi.yaml`、`/api-docs` 反代到 rest-api，与站点端口一致。
 
 ---
 
 ## Docker 开发 / 测试 / 生产
 
-Compose 拉起 **MySQL 8.4（默认仅容器内）+ rest-api + pc-portal + Nginx**：后端通过 **`DB_HOST=mysql`** 在同一 Docker 网络内连库。**浏览器只访问一个端口**，默认 **`http://127.0.0.1:2026`**（环境变量 **`GATEWAY_HOST_PORT`**），由 `docker/nginx/gateway.dev.docker.conf` 分流——`/api`、`/uploads`、`/openapi.yaml`、`/api-docs`、`/health` 等到 **rest-api**，其余到容器内 **Vite（5173）**。网格内 rest-api 监听 **3000**；Inspector **9229** 映射在 **rest-api** 上。pc-portal 容器内配置 **`VITE_DEV_PROXY_TARGET`**、**`VITE_DEV_HMR_CLIENT_PORT`**（默认与 **`GATEWAY_HOST_PORT`** 一致）以保证经网关访问时的 API 与 HMR。
+Compose：**MySQL 8.4**（默认仅容器内）+ **rest-api** + **pc-portal** + **Nginx**；后端 **`DB_HOST=mysql`**。浏览器访问 **`http://127.0.0.1:2026`**（**`GATEWAY_HOST_PORT`**），由 [`docker/nginx/gateway.dev.docker.conf`](docker/nginx/gateway.dev.docker.conf) 分流：`/api`、`/uploads`、`/openapi.yaml`、`/api-docs`、`/health` → rest-api，其余 → 容器内 Vite（5173）。rest-api 容器内 **3000**；Inspector **9229** 映射在 rest-api。pc-portal 使用 **`VITE_DEV_PROXY_TARGET`**、**`VITE_DEV_HMR_CLIENT_PORT`**（默认与 **`GATEWAY_HOST_PORT`** 一致）。
 
-开发日志（仓库根 **`logs/`**，已在 `.gitignore`）：`logs/rest-api-dev.log`、`logs/pc-portal-dev.log`、`logs/mysql/error.log`（见 `docker/mysql-dev.cnf`）。
-
-若需在宿主连接 MySQL 或宿主跑 `pnpm rest-api:dev`：按需取消 `docker/docker-compose.dev.yaml` 里 **`mysql`** 的 **`ports`** 注释。
+开发日志（根 **`logs/`**，已 gitignore）：`logs/rest-api-dev.log`、`logs/pc-portal-dev.log`、`logs/mysql/error.log`（见 `docker/mysql-dev.cnf`）。宿主连 MySQL 或宿主跑 `pnpm rest-api:dev` 时，可在 [`docker/docker-compose.dev.yaml`](docker/docker-compose.dev.yaml) 取消 **mysql** 的 **ports** 注释。
 
 ```bash
-# 若尚未创建：在仓库根准备 .env.development（见上文「快速开始」）
 pnpm docker:dev
 ```
 
-带调试：`pnpm docker:dev:debug`。VS Code / Cursor 可使用 `.vscode/launch.json` 中的「Attach to Docker rest-api (9229)」附加调试。
-
-停止开发栈：`pnpm docker:dev:down`。
+调试：`pnpm docker:dev:debug`；可使用 `.vscode/launch.json` 中「Attach to Docker rest-api (9229)」。停止：`pnpm docker:dev:down`。
 
 ### Docker 测试 / 生产
 
-需要 **`.env.test`** / **`.env.production`**。结构与开发一致：**仅网关暴露宿端口**（默认 **2026**），`gateway.prod.docker.conf` + **pc-portal** 生产镜像（容器内 nginx **只托管 SPA**）。
+需 **`.env.test`** / **`.env.production`**。结构与开发类似：网关暴露宿端口，**Gateway + pc-portal 生产镜像**（容器内 nginx 托管 SPA）。
 
 ```bash
 pnpm docker:test
@@ -230,32 +279,26 @@ pnpm docker:prod
 
 ## 端到端测试（Playwright）
 
-覆盖 **pc-portal**：首页频道与列表/空态、顶栏进入登录/注册、未登录访问 **`/mine`** 跳转登录并带 `redirect`（见 `e2e/pc-portal.spec.ts`、`playwright.config.ts`）。
+覆盖 **pc-portal**：首页频道与列表/空态、登录/注册、未登录访问 **`/mine`** 跳转与 `redirect`（`e2e/pc-portal.spec.ts`、`playwright.config.ts`）。
 
-- **默认（推荐）**：假定 Compose 已拉起网关（ **`pnpm docker:dev`** 或 **`pnpm docker:test`** 等），Playwright **不**内置启动 Node/Vite；**`baseURL`** 为 **`http://127.0.0.1:${PLAYWRIGHT_GATEWAY_PORT ?? GATEWAY_HOST_PORT ?? 2026}`**。数据库仅在 MySQL 容器内，由容器内 **rest-api** 连接。
-- **宿主本机模式**：`pnpm e2e:local`（等价 **`PLAYWRIGHT_LOCAL_SERVERS=1`**），由 Playwright 拉起 **`pnpm rest-api:dev`** 与 **`pnpm pc-portal:dev`**；此时须让宿主进程能连上 MySQL（例如映射 **`3306:3306`** 且 **`DB_HOST=127.0.0.1`**）。
-- 任意覆盖：`PLAYWRIGHT_BASE_URL`；仅改网关端口映射时也可用 **`PLAYWRIGHT_GATEWAY_PORT`**（优先于 **`GATEWAY_HOST_PORT`**）。
+- **默认**：假定 Compose 已起（如 **`pnpm docker:dev`**）；**baseURL**：`http://127.0.0.1:${PLAYWRIGHT_GATEWAY_PORT ?? GATEWAY_HOST_PORT ?? 2026}`。
+- **本地服务**：`pnpm e2e:local`（`PLAYWRIGHT_LOCAL_SERVERS=1`，Playwright 拉起 `pnpm rest-api:dev` 与 `pnpm pc-portal:dev`），需宿主可连 MySQL（如 **`3306:3306`** + **`DB_HOST=127.0.0.1`**）。
+- 覆盖：**`PLAYWRIGHT_BASE_URL`**；端口：**`PLAYWRIGHT_GATEWAY_PORT`**（优先于 **`GATEWAY_HOST_PORT`**）。
 
-**`pnpm verify` / `pnpm test:all`** 包含 E2E，须先满足上述「默认」栈（网关可达）。**`pnpm e2e:docker`** 与 **`pnpm e2e`** 相同，仅为别名。
-
-首跑浏览器：`pnpm e2e:install`（安装 Chromium）。报告目录 **`playwright-report/`**（默认忽略于 Git）。
+**`pnpm verify` / `pnpm test:all`** 含 E2E，须网关可达。**`pnpm e2e:docker`** 与 **`pnpm e2e`** 等价。浏览器：`pnpm e2e:install`。报告：**`playwright-report/`**。
 
 ---
 
 ## CODEOWNERS
 
-默认评审人配置位于 [`.github/CODEOWNERS`](.github/CODEOWNERS)。
-
-**使用前请将文件中所有 `@REPLACE_WITH_GITHUB_OWNER` 替换为真实 GitHub 用户或 `@组织/团队`**，否则平台无法指派有效的代码所有者。
-
-可按模块拆分不同 owner（例如后端团队负责 `apps/backend/`，前端团队负责 `apps/frontend/`），在文件中增加或修改对应行即可。
+[`/.github/CODEOWNERS`](.github/CODEOWNERS)：请将 **`@REPLACE_WITH_GITHUB_OWNER`** 替换为真实用户或 **`@组织/团队`**，否则无法指派所有者。可按模块拆分行（例如 `apps/backend/` 与 `apps/frontend/`）。
 
 ---
 
 ## npm 镜像与安全
 
-- 根目录 [`.npmrc`](.npmrc) 可能配置了 **registry 镜像**（如国内镜像）。若 CI 或海外环境安装失败，可为流水线单独指定 registry 或使用 `.npmrc` 分层策略。
-- **切勿**将含密码、JWT 密钥的 `.env.*` 提交至 Git；钥匙项命名与必填校验见 `apps/backend/rest-api/src/env.ts`，首个后台账号见 [`docs/admin-bootstrap.md`](docs/admin-bootstrap.md)。若历史提交曾泄露真实密钥，须在目标环境**轮换**对应口令与密钥。
+- 根 [`.npmrc`](.npmrc) 若配置了镜像，CI 海外环境可按需指定 registry。
+- **勿提交**含密钥的 `.env.*`；必填项见 `apps/backend/rest-api/src/env.ts`。若历史泄露，须在目标环境**轮换**密钥。首个后台账号见 [`docs/admin-bootstrap.md`](docs/admin-bootstrap.md)。
 
 ---
 
@@ -266,7 +309,7 @@ pnpm docker:prod
 | OpenAPI          | [`docs/openapi.yaml`](docs/openapi.yaml)                 |
 | 首个超级管理员   | [`docs/admin-bootstrap.md`](docs/admin-bootstrap.md)     |
 | 权限码与路由对照 | [`docs/admin-permissions.md`](docs/admin-permissions.md) |
+| CODEOWNERS       | [`.github/CODEOWNERS`](.github/CODEOWNERS)               |
 | 本文档           | [`README.md`](README.md)                                 |
-| 代码所有者       | [`.github/CODEOWNERS`](.github/CODEOWNERS)               |
 
-欢迎在 [`docs/openapi.yaml`](docs/openapi.yaml) 顶部 `info.description` 中维护与实现一致的变更说明（限流、校验、鉴权等）。
+建议在 [`docs/openapi.yaml`](docs/openapi.yaml) 的 `info.description` 中维护与实现一致的变更说明。
