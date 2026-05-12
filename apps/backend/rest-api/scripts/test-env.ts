@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 const node = process.execPath;
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-/** CI/本地均无 .env.* 时能跑通校验所需最小变量（宿主环境仍为最高优先级）。 */
+/** CI/本地均无 .env.* 时能跑通校验所需最小变量（宿主环境仍为最高优先级）。须与 `src/env.ts` 的必填项（含 `requireEnv`）保持一致。 */
 function baseEnv(extra: Record<string, string>): NodeJS.ProcessEnv {
   return {
     ...process.env,
@@ -18,6 +18,7 @@ function baseEnv(extra: Record<string, string>): NodeJS.ProcessEnv {
     DB_NAME: "_test_dummy",
     DB_USER: "_test",
     DB_PWD: "_test",
+    REDIS_URL: "redis://127.0.0.1:6379",
     ...extra,
   };
 }

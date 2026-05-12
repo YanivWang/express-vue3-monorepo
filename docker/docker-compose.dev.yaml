@@ -29,6 +29,14 @@ services:
     ports:
       - "3306:3306"
 
+  redis:
+    # 开发环境下的Redis覆盖配置
+    container_name: express-vue3-monorepo-redis-dev
+    volumes:
+      - redis_dev_data:/data # 把redis服务器的/data目录下的数据保存到宿主机数据卷redis_dev_data
+    ports:
+      - "6379:6379" #宿主机6379 -> 容器6379
+
   gateway:
     image: nginx:alpine
     container_name: express-vue3-monorepo-gateway-dev
@@ -129,3 +137,4 @@ services:
 volumes:
   mysql_dev_data:
   app_node_modules:
+  redis_dev_data:

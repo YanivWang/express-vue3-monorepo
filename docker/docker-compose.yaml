@@ -12,6 +12,13 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
 
+  redis:
+    # 生产环境 Redis 服务
+    container_name: express-vue3-monorepo-redis # 指定生产环境 Redis 容器名
+    volumes:
+      # 数据卷配置
+      - redis_data:/data # 把 Redis 数据保存到 redis_data 卷，避免容器删除后数据丢失
+
   gateway:
     image: nginx:alpine
     container_name: express-vue3-monorepo-gateway
@@ -63,3 +70,5 @@ services:
 
 volumes:
   mysql_data:
+    # MySQL 生产环境数据卷
+    redis_data: # Redis 生产环境数据卷

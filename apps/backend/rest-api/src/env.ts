@@ -125,6 +125,8 @@ export const JWT_SECRET = (() => {
 export const PORT = requirePortLike("PORT", 3000);
 export const DB_PORT = requirePortLike("DB_PORT", 3306);
 
+export const REDIS_URL = requireEnv("REDIS_URL"); // 读取 Redis 连接地址；没有配置时启动直接失败，避免运行到一半才报错
+
 export const DB_HOST = requireEnv("DB_HOST");
 export const DB_USER = requireEnv("DB_USER");
 export const DB_PWD = (() => {

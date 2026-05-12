@@ -25,7 +25,27 @@ services:
       interval: 5s
       timeout: 5s
       retries: 12
-      start_period: 30s
+      start_period: 30s # 容器启动后先给 30 秒缓冲时间
+
+  redis:
+    # 新增: Redis 服务，后端会连接它
+    image: redis:7-alpine
+    restart: unless-stopped # 设置重启策略: 容器异常退出时自动重启，除非你手动停止
+    command: ["redis-server", "--appendonly", "yes"] # 启动 redis服务端的命令
+    healthcheck:
+      # 健康检查，确认Redis已经可以响应命令
+      test: ["CMD", "redis-cli", "ping"] # 在容器里执行 redis-cli ping
+      interval: 5s # 每 5 秒检查一次
+      timeout: 3s # 每次检查最多等待 3 秒
+      retries: 12 # 最多重试 12 次
+      start_period: 5s # Redis 启动较快，给 5 秒缓冲时间
+
+  # 注意：在 Docker Compose 里，redis://redis:6379 里的第二个 redis 是服务名。
+  # 容器之间不能用 127.0.0.1 互相访问，因为每个容器都有自己的 localhost。
+
+  # redis://   使用 Redis 协议
+  # redis      Docker Compose 服务名，也就是 Redis 主机名
+  # 6379       Redis 默认端口
 
   rest-api:
     build:
@@ -33,7 +53,15 @@ services:
       dockerfile: docker/Dockerfile
     restart: unless-stopped
     environment:
-      DB_HOST: mysql
+      DB_HOST: mysql # 后端在Docker网络里通过mysql这个服务名访问Mysql
+
+      # 因为后端是在 Docker 网络内部访问 Redis，不走宿主机端口映射。
+      REDIS_URL: redis://redis:6379 # 后端通过 redis 这个服务名访问 Redis
+
     depends_on:
       mysql:
-        condition: service_healthy
+        # 依赖 Mysql
+        condition: service_healthy # 等 MySQL 健康检查通过后再启动后端
+      redis:
+        # 依赖 Redis
+        condition: service_healthy # 等 Redis 健康检查通过后再启动后端

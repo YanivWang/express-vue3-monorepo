@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import { sequelize } from "../db.js";
+import { redis } from "../redis.js";
 
 const router = Router();
 
@@ -9,14 +10,39 @@ router.get("/health", (_req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
-/** 就绪探针：校验数据库连接；失败返回 503 */
+/** 就绪探针：校验 MySQL 与 Redis；失败返回 503 并标明各项检查结果 */
 router.get("/ready", async (_req, res) => {
+  const checks: { mysql: "ok" | "failed"; redis: "ok" | "failed" } = {
+    mysql: "failed",
+    redis: "failed",
+  };
+
   try {
     await sequelize.authenticate();
-    res.status(200).json({ status: "ready" });
+    checks.mysql = "ok";
   } catch {
-    res.status(503).json({ status: "not_ready", message: "database unavailable" });
+    checks.mysql = "failed";
   }
+
+  try {
+    await redis.ping();
+    checks.redis = "ok";
+  } catch {
+    checks.redis = "failed";
+  }
+
+  const ready = checks.mysql === "ok" && checks.redis === "ok";
+  if (ready) {
+    res.status(200).json({ status: "ready", checks });
+    return;
+  }
+
+  const failed = (["mysql", "redis"] as const).filter((k) => checks[k] === "failed");
+  res.status(503).json({
+    status: "not_ready",
+    checks,
+    message: `依赖不可用：${failed.join("、")}`,
+  });
 });
 
 export default router;
