@@ -97,12 +97,53 @@ export interface CurrentUserProfile {
   id: number;
   username: string;
   avatar: string | null;
+  /** 来自 UserProfiles；未设置则为 null */
+  nickname: string | null;
   role: number;
   roleId?: number;
   roleSlug?: string;
   /** RBAC 权限码列表；超级管理员为全部业务码 */
   permissions?: string[];
 }
+
+export interface UserProfileDetail {
+  id: number;
+  userId: number;
+  nickname: string | null;
+  avatar: string | null;
+  gender: string | null;
+  birthday: string | null;
+  bio: string | null;
+  address: string | null;
+  company: string | null;
+  jobTitle: string | null;
+  isMarried: boolean | null;
+  mom: string | null;
+  father: string | null;
+  university: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MyProfileResult {
+  profile: UserProfileDetail | null;
+}
+
+/** PATCH /api/me/profile body（均为可选；传 null 表示清空该项） */
+export type PatchUserProfilePayload = {
+  nickname?: string | null;
+  avatar?: string | null;
+  gender?: string | null;
+  birthday?: string | null;
+  bio?: string | null;
+  address?: string | null;
+  company?: string | null;
+  jobTitle?: string | null;
+  isMarried?: boolean | null;
+  mom?: string | null;
+  father?: string | null;
+  university?: string | null;
+};
 
 export interface CurrentUserResult {
   user: CurrentUserProfile;

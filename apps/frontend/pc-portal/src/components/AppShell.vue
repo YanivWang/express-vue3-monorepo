@@ -12,7 +12,7 @@ const categories = ref<CategoryTreeNode[]>([]);
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
-const { isLoggedIn, displayName } = storeToRefs(auth);
+const { isLoggedIn, displayName, profile } = storeToRefs(auth);
 
 const activeChannel = ref("all");
 
@@ -132,6 +132,15 @@ function goRegister() {
   void router.push({ name: "register" });
 }
 
+function goProfile() {
+  void router.push({ name: "profile" });
+}
+
+function avatarInitial(): string {
+  const n = displayName.value.trim();
+  return n ? n.slice(0, 1).toUpperCase() : "用";
+}
+
 function onLogout() {
   auth.logout();
   void router.push({ name: "home" });
@@ -208,9 +217,24 @@ function onLogout() {
             <button type="button" class="action-link" @click="goFavorites">我的收藏</button>
             <span class="actions__divider" aria-hidden="true" />
             <div class="actions__user">
+              <button
+                type="button"
+                class="actions__avatar"
+                aria-label="个人资料"
+                @click="goProfile"
+              >
+                <img
+                  v-if="profile?.avatar"
+                  :src="profile.avatar"
+                  alt=""
+                  class="actions__avatar-img"
+                />
+                <span v-else class="actions__avatar-placeholder">{{ avatarInitial() }}</span>
+              </button>
               <span class="hello" :title="displayName || undefined">
                 你好，<span class="hello__name">{{ displayName || "用户" }}</span>
               </span>
+              <button type="button" class="action-link" @click="goProfile">个人资料</button>
               <button type="button" class="action-link action-link--subtle" @click="onLogout">
                 退出
               </button>
@@ -441,7 +465,48 @@ function onLogout() {
   flex-shrink: 0;
   gap: 10px;
   align-items: center;
-  max-width: min(220px, 28vw);
+  max-width: min(280px, 36vw);
+}
+
+.actions__avatar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  overflow: hidden;
+  cursor: pointer;
+  background: #f0f0f0;
+  border: 1px solid #e8e8e8;
+  border-radius: 50%;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+
+  &:hover {
+    border-color: #ea6f5a;
+    box-shadow: 0 0 0 1px rgb(234 111 90 / 0.25);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgb(234 111 90 / 0.45);
+    outline-offset: 1px;
+  }
+}
+
+.actions__avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.actions__avatar-placeholder {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  color: #888;
 }
 
 .action-link {

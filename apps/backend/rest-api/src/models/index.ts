@@ -6,6 +6,7 @@ import { definePostVoteModel } from "./post-vote.model.js";
 import { definePostModel } from "./post.model.js";
 import { defineRolePermissionModel } from "./role-permission.model.js";
 import { defineRoleModel } from "./role.model.js";
+import { defineUserProfileModel } from "./user-profile.model.js";
 import { defineUserModel } from "./user.model.js";
 
 import type { Sequelize } from "sequelize";
@@ -15,6 +16,7 @@ export function initModels(sequelize: Sequelize) {
   const Role = defineRoleModel(sequelize);
   const RolePermission = defineRolePermissionModel(sequelize);
   const User = defineUserModel(sequelize);
+  const UserProfile = defineUserProfileModel(sequelize, User);
   const Category = defineCategoryModel(sequelize);
   const Post = definePostModel(sequelize, User, Category);
   const PostVote = definePostVoteModel(sequelize, User, Post);
@@ -42,6 +44,7 @@ export function initModels(sequelize: Sequelize) {
     Role,
     RolePermission,
     User,
+    UserProfile,
     Category,
     Post,
     PostVote,

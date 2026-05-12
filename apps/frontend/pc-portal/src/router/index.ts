@@ -42,6 +42,18 @@ const router = createRouter({
       meta: { title: "注册", guestOnly: true },
     },
     {
+      path: "/mine/profile",
+      name: "profile",
+      component: () => import("@/views/ProfileDetailView.vue"),
+      meta: { title: "个人资料", requiresAuth: true },
+    },
+    {
+      path: "/mine/profile/edit",
+      name: "profile-edit",
+      component: () => import("@/views/ProfileEditView.vue"),
+      meta: { title: "编辑资料", requiresAuth: true },
+    },
+    {
       path: "/mine",
       name: "mine",
       component: () => import("@/views/MinePostsView.vue"),

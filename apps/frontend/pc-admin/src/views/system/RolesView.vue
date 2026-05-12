@@ -6,13 +6,21 @@ import type { PermissionDef, RoleAgg } from "@/api/roles";
 import { createRole, deleteRole, fetchPermissionDefs, fetchRoles, patchRole } from "@/api/roles";
 import { isDangerousPermission } from "@/utils/permissions";
 
+type RoleEditDialogState = {
+  open: boolean;
+  role: RoleAgg | null;
+  checks: Record<string, boolean>;
+  nameDraft: string;
+  isStaffDraft: boolean;
+};
+
 const defs = ref<PermissionDef[]>([]);
 const roles = ref<RoleAgg[]>([]);
 
 const createDlg = reactive({ open: false, name: "", slug: "", isStaff: true });
-const dlg = reactive({
+const dlg = reactive<RoleEditDialogState>({
   open: false,
-  role: null as RoleAgg | null,
+  role: null,
   checks: {},
   nameDraft: "",
   isStaffDraft: true,
@@ -83,7 +91,11 @@ onMounted(loadAll);
 
 <template>
   <div>
-    <el-button type="primary" style="margin-bottom: 12px" @click="((createDlg.open = true), undefined)">
+    <el-button
+      type="primary"
+      style="margin-bottom: 12px"
+      @click="((createDlg.open = true), undefined)"
+    >
       新建自定义角色
     </el-button>
     <el-table :data="roles" stripe>
@@ -102,7 +114,12 @@ onMounted(loadAll);
       <el-table-column label="操作" width="220">
         <template #default="{ row }">
           <el-button link type="primary" @click="openEdit(row as RoleAgg)">权限矩阵</el-button>
-          <el-button link type="danger" :disabled="row.isSystem || row.userCount > 0" @click="rm(row as RoleAgg)">
+          <el-button
+            link
+            type="danger"
+            :disabled="row.isSystem || row.userCount > 0"
+            @click="rm(row as RoleAgg)"
+          >
             删除
           </el-button>
         </template>
@@ -111,7 +128,11 @@ onMounted(loadAll);
 
     <el-dialog v-model="createDlg.open" title="新建角色" width="480px">
       <el-input v-model="createDlg.name" placeholder="名称" />
-      <el-input v-model="createDlg.slug" style="margin-top: 12px" placeholder="slug（如 comment_moderator）" />
+      <el-input
+        v-model="createDlg.slug"
+        style="margin-top: 12px"
+        placeholder="slug（如 comment_moderator）"
+      />
       <el-switch v-model="createDlg.isStaff" style="margin-top: 12px" active-text="可登录后台" />
       <template #footer>
         <el-button @click="createDlg.open = false">取消</el-button>
@@ -125,7 +146,7 @@ onMounted(loadAll);
         <el-form-item label="职员身份"><el-switch v-model="dlg.isStaffDraft" /></el-form-item>
       </el-form>
       <el-divider />
-      <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px">
+      <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px">
         <span style="flex: 1 0 100%; font-weight: 600">一般权限</span>
         <el-button size="small" @click="toggleGroup(safeDefs, true)">全选</el-button>
         <el-button size="small" @click="toggleGroup(safeDefs, false)">清空</el-button>
@@ -136,7 +157,7 @@ onMounted(loadAll);
         </el-checkbox>
       </div>
       <el-divider />
-      <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px">
+      <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px">
         <span style="flex: 1 0 100%; font-weight: 600; color: #dc2626">危险权限分组</span>
         <el-button size="small" @click="toggleGroup(dangerDefs, true)">全选</el-button>
         <el-button size="small" @click="toggleGroup(dangerDefs, false)">清空</el-button>

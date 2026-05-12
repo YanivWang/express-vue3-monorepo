@@ -19,7 +19,9 @@ export const useAuthStore = defineStore("auth", () => {
 
   const isLoggedIn = computed(() => !!token.value);
 
-  const displayName = computed(() => profile.value?.username ?? claims.value?.username ?? "");
+  const displayName = computed(
+    () => profile.value?.nickname ?? profile.value?.username ?? claims.value?.username ?? "",
+  );
 
   function setTokenFromLogin(next: string) {
     tokenStorage.setToken(next);

@@ -1,6 +1,6 @@
 import { Op } from "sequelize";
 
-import { Role, User } from "../db.js";
+import { Role, User, UserProfile } from "../db.js";
 import { createHttpError } from "../middlewares/error.middleware.js";
 import { ROLE_SLUG_USER } from "../rbac/permission-codes.js";
 import { escapeMysqlLikePattern } from "../utils/escapeMysqlLike.js";
@@ -84,6 +84,9 @@ export async function updatePortalUserById(
     throw createHttpError(400, "没有要更新的字段");
   }
   await row.update(next);
+  if (payload.avatar !== undefined) {
+    await UserProfile.update({ avatar: next.avatar as string | null }, { where: { userId: id } });
+  }
   return User.findByPk(id, {
     attributes: { exclude: ["password"] },
     include: [{ model: Role, as: "role", attributes: [...roleBrief] }],

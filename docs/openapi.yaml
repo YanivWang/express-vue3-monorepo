@@ -10,7 +10,7 @@ info:
     - 追踪：`requestId.middleware.ts` 写入响应头 **`X-Request-Id`**；客户端可传入同名请求头透传（最长 128 字符）。
     - 限流（`middlewares/rateLimit.middleware.ts`）：`/health`、`/ready` 与 **GET `/uploads/...` 静态** 在 `src/app.ts` 中先于全局限流挂载，故 **15 分钟窗口计数不作用于这些路径**；限流器内对 `/health`、`/ready` 的 `skip` 为兜底。其余进入全局限流的 API **15 分钟 / 最多 100 次**，超限 HTTP 429，`msg` 为「请求过于频繁，请稍后再试」。`POST /api/register`、`POST /api/login` 另挂载 **1 分钟 / 最多 60 次**。
     - 认证：`POST /api/register`、`POST /api/login` 无需登录。注册/登录请求体校验见 `src/schema/auth.schema.ts`（用户名 trim 后长度 2～100；密码 6～100）；用户更新接口见 `src/schema/user.schema.ts`（username/password 规则与注册不同）。
-    - 用户：`src/routes/user.routes.ts` 仅保留 **`GET /api/me`** 与别名 **`GET /api/users/me`**（需 Bearer），返回资料与 **`permissions`** RBAC 快照；注册用户/职员的运维请走 **`/api/admin/portal-users`**、**`/api/admin/staff`**。
+    - 用户：`src/routes/user.routes.ts`：**`GET /api/me`** 与别名 **`GET /api/users/me`**（需 Bearer）返回轻量资料、**`nickname`**（扩展表）与 **`permissions`** RBAC 快照；**`GET/PATCH /api/me/profile`** 为当前用户扩展资料（`UserProfiles` 全量 / 部分更新 upsert）。注册用户/职员的运维请走 **`/api/admin/portal-users`**、**`/api/admin/staff`**。
     - 分类：`GET /api/categories` 公开；**`POST /api/categories`** 创建二级叶子须在 **Bearer** 下且具备 **`admin.categories.write`**。返回两级树，节点含 `id`、`name`、`parentId`、`sortOrder`，根的 `children` 为二级叶子。文章创建时 `categoryId` 必须为二级叶子 id；`GET /api/posts` 可选 `parentId`（一级 id）或 `categoryId`（叶子 id），二者不得同传。一级分类与 PATCH/DELETE 见 **`/api/admin/categories/...`**。
     - 上传：**`POST /api/uploads`** 与 **`POST /api/uploads/profiles`** 均需 Bearer；`multipart/form-data` 字段名 **`files`**；单文件最大 5MB，类型 jpeg/png/gif/webp。
       - 帖子配图：`/api/uploads`，**最多 12 张**，落盘 **`uploads/posts/<年>/<月>/`**，URL **`/uploads/posts/…`**，用于文章 `images`。
@@ -680,8 +680,8 @@ components:
 
     CurrentUserPayload:
       type: object
-      description: "`user.controller.ts` → `getMe` 合并 RBAC 快照后的 `data.user`"
-      required: [id, username, avatar, role]
+      description: "`user.controller.ts` → `getMe` 合并 RBAC 快照后的 `data.user`（轻量；`nickname` 来自 `UserProfiles`，无资料行则为 null）"
+      required: [id, username, avatar, role, nickname]
       properties:
         id:
           type: integer
@@ -690,6 +690,10 @@ components:
         avatar:
           type: string
           nullable: true
+        nickname:
+          type: string
+          nullable: true
+          description: 来自 UserProfiles；无扩展行或未填则为 null
         role:
           type: integer
           description: 历史列（0/1）；新逻辑以 `roleId`、`roleSlug`、`permissions` 为准
@@ -716,6 +720,87 @@ components:
               example: 获取当前用户成功
             user:
               $ref: "#/components/schemas/CurrentUserPayload"
+
+    UserProfilePayload:
+      type: object
+      description: UserProfiles 表业务列（无密码）
+      required:
+        [
+          id,
+          userId,
+          nickname,
+          avatar,
+          gender,
+          birthday,
+          bio,
+          address,
+          company,
+          jobTitle,
+          isMarried,
+          mom,
+          father,
+          university,
+          createdAt,
+          updatedAt,
+        ]
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        nickname: { type: string, nullable: true }
+        avatar: { type: string, nullable: true }
+        gender: { type: string, nullable: true, description: male / female / unknown }
+        birthday: { type: string, nullable: true, description: YYYY-MM-DD }
+        bio: { type: string, nullable: true }
+        address: { type: string, nullable: true }
+        company: { type: string, nullable: true }
+        jobTitle: { type: string, nullable: true }
+        isMarried: { type: boolean, nullable: true }
+        mom: { type: string, nullable: true }
+        father: { type: string, nullable: true }
+        university: { type: string, nullable: true }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+
+    GetMyProfileSuccess:
+      allOf:
+        - $ref: "#/components/schemas/MsgBody"
+        - type: object
+          required: [profile]
+          properties:
+            code: { example: 200 }
+            msg: { example: 获取用户扩展资料成功 }
+            profile:
+              nullable: true
+              allOf:
+                - $ref: "#/components/schemas/UserProfilePayload"
+
+    PatchUserProfileBody:
+      type: object
+      description: 部分更新；至少一项；字段可为 null 表示清空（isMarried 等同理）
+      properties:
+        nickname: { type: string, nullable: true }
+        avatar: { type: string, nullable: true }
+        gender: { type: string, nullable: true }
+        birthday: { type: string, nullable: true }
+        bio: { type: string, nullable: true }
+        address: { type: string, nullable: true }
+        company: { type: string, nullable: true }
+        jobTitle: { type: string, nullable: true }
+        isMarried: { type: boolean, nullable: true }
+        mom: { type: string, nullable: true }
+        father: { type: string, nullable: true }
+        university: { type: string, nullable: true }
+
+    PatchMyProfileSuccess:
+      allOf:
+        - $ref: "#/components/schemas/MsgBody"
+        - type: object
+          required: [profile]
+          properties:
+            code: { example: 200 }
+            msg: { example: 更新用户资料成功 }
+            profile:
+              $ref: "#/components/schemas/UserProfilePayload"
 
     AdminPostsListSuccess:
       allOf:
@@ -971,7 +1056,7 @@ paths:
       tags: [当前用户]
       summary: 获取当前登录用户资料与 RBAC 权限快照
       description: |
-        需在请求头携带 Bearer JWT。成功时 `data.user` 含公开资料（`id`、`username`、`avatar`、`role` 为历史兼容列）及 **`roleId`**、**`roleSlug`**、**`permissions`**（当前角色被授予的权限码）。
+        需在请求头携带 Bearer JWT。成功时 `data.user` 含公开资料（`id`、`username`、`avatar`、`role` 为历史兼容列）、**`nickname`**（来自 UserProfiles，无则为 null）及 **`roleId`**、**`roleSlug`**、**`permissions`**（当前角色被授予的权限码）。
         菜单与按钮显隐应以后端返回的 `permissions` 为准；JWT 内 `roleId`/`roleSlug` 仅为载荷提示。
       security:
         - bearerAuth: []
@@ -1017,6 +1102,52 @@ paths:
                 $ref: "#/components/schemas/MsgBody"
         "500":
           description: 服务端异常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+
+  /api/me/profile:
+    get:
+      tags: [当前用户]
+      summary: 获取当前用户扩展资料（UserProfiles 全量）
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 成功；尚无资料行时 `profile` 为 null
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetMyProfileSuccess"
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+    patch:
+      tags: [当前用户]
+      summary: 部分更新当前用户扩展资料（upsert）
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchUserProfileBody"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatchMyProfileSuccess"
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "401":
           content:
             application/json:
               schema:

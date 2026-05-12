@@ -18,8 +18,18 @@ const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PWD, {
   dialect: "mysql",
 });
 
-const { User, Category, Post, PostVote, PostFavorite, Comment, Permission, Role, RolePermission } =
-  initModels(sequelize);
+const {
+  User,
+  UserProfile,
+  Category,
+  Post,
+  PostVote,
+  PostFavorite,
+  Comment,
+  Permission,
+  Role,
+  RolePermission,
+} = initModels(sequelize);
 
 async function backfillPostAggregatesFromRelations() {
   try {
@@ -73,6 +83,7 @@ export async function connectDatabase() {
 export {
   sequelize,
   User,
+  UserProfile,
   Category,
   Post,
   PostVote,
