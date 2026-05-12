@@ -30,7 +30,7 @@ export async function registerUser(payload: { username?: unknown; password?: unk
 
   const hashPwd = await bcrypt.hash(password, 10);
   const roleId = await getRoleIdBySlugOrThrow(ROLE_SLUG_USER);
-  await User.create({ username, password: hashPwd, roleId, legacyRole: 0 });
+  await User.create({ username, password: hashPwd, roleId });
 
   logger.info("register_user", { username });
 }

@@ -1,6 +1,6 @@
 import { Op } from "sequelize";
 
-import { Comment, Post, User } from "../db.js";
+import { Comment, Post, User, sequelize } from "../db.js";
 import { createHttpError } from "../middlewares/error.middleware.js";
 import { assertNoSensitiveText, sanitizePlainTextComment } from "../utils/content-safety.js";
 import { escapeMysqlLikePattern } from "../utils/escapeMysqlLike.js";
@@ -54,65 +54,6 @@ function commentRowToJson(
     author: toAuthorDto(row.get("author") as Model | undefined),
     replyToUser,
   };
-}
-
-/**
- * 历史数据：由 parentId 推导 rootId；单轮无进展时停止（可能成环或缺父行）。
- */
-export async function backfillCommentRootIds(): Promise<void> {
-  const maxPasses = 500;
-  for (let pass = 0; pass < maxPasses; pass++) {
-    const pending = await Comment.findAll({
-      where: { rootId: { [Op.is]: null } },
-      order: [["id", "ASC"]],
-      limit: 1000,
-    });
-    if (pending.length === 0) return;
-
-    let progressed = false;
-    for (const row of pending) {
-      const id = Number(row.get("id"));
-      const parentId = row.get("parentId") as number | null;
-
-      if (parentId == null) {
-        await row.update({ rootId: id });
-        progressed = true;
-        continue;
-      }
-
-      const parent = await Comment.findByPk(parentId, {
-        attributes: ["id", "parentId", "rootId"],
-      });
-      if (!parent) {
-        await row.update({ rootId: id });
-        progressed = true;
-        continue;
-      }
-
-      const pRoot = parent.get("rootId") as number | null;
-      if (pRoot != null) {
-        await row.update({ rootId: pRoot });
-        progressed = true;
-        continue;
-      }
-
-      const ppid = parent.get("parentId") as number | null;
-      if (ppid == null) {
-        const pid = Number(parent.get("id"));
-        await parent.update({ rootId: pid });
-        await row.update({ rootId: pid });
-        progressed = true;
-      }
-    }
-
-    if (!progressed) {
-      console.warn(
-        "[comment] backfillCommentRootIds: no progress in one pass; possible cycles or missing parents",
-      );
-      return;
-    }
-  }
-  console.warn("[comment] backfillCommentRootIds: stopped after maxPasses");
 }
 
 export async function findCommentsPageByPost(
@@ -237,28 +178,33 @@ export async function createComment(
     } else {
       const pRoot = parent.get("rootId") as number | null;
       if (pRoot == null) {
-        throw createHttpError(400, "父评论数据不完整，请联系管理员执行数据修复");
+        throw createHttpError(500, "父评论缺少 rootId，数据异常");
       }
       rootId = pRoot;
     }
   }
 
-  const comment = await Comment.create({
-    postId,
-    authorId,
-    parentId,
-    content,
-    rootId,
+  const newId = await sequelize.transaction(async (t) => {
+    const comment = await Comment.create(
+      {
+        postId,
+        authorId,
+        parentId,
+        content,
+        rootId,
+      },
+      { transaction: t },
+    );
+    const id = Number(comment.get("id"));
+    if (parentId == null) {
+      await comment.update({ rootId: id }, { transaction: t });
+    }
+    return id;
   });
-
-  if (parentId == null) {
-    const cid = Number(comment.get("id"));
-    await comment.update({ rootId: cid });
-  }
 
   await syncCommentCountForPost(postId);
 
-  const fresh = await Comment.findByPk(comment.get("id") as number, {
+  const fresh = await Comment.findByPk(newId, {
     include: [{ model: User, as: "author", attributes: authorAttributes }],
   });
   if (!fresh) {

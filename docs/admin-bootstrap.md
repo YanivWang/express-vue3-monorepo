@@ -9,10 +9,10 @@
 
 实现见 `apps/backend/rest-api/src/services/rbac-bootstrap.service.ts`，在 `connectDatabase()` 末尾调用。
 
-- 幂等写入权限、系统角色、`super_admin` 全量权限绑定、旧 `legacyRole` → `roleId` 回填。
+- 幂等写入权限、系统角色、`super_admin` 全量权限绑定。
 - 若库里**已存在**至少一名 `super_admin`：**不会**再自动创建账号。
 - 若**不存在**任何 `super_admin`：
-  - 且两项 **`ADMIN_BOOTSTRAP_*`** 均已配置：以该用户名创建用户（bcrypt 存密），或若用户已存在则更新其 `roleId` / `legacyRole` / `password`。
+  - 且两项 **`ADMIN_BOOTSTRAP_*`** 均已配置：以该用户名创建用户（bcrypt 存密），或若用户已存在则更新其 `roleId` / `password`。
   - 若缺一或为空：仅记录告警日志 `rbac_bootstrap_no_super_admin`，**不创建**用户。
 
 ## 手工执行 `pnpm ensure-super-admin`
@@ -35,7 +35,7 @@ pnpm ensure-super-admin
 2. **方式 B（生产）**：同样配置非空的 **`ADMIN_BOOTSTRAP_USERNAME`** / **`ADMIN_BOOTSTRAP_PASSWORD`** 后部署并启动，由 `bootstrapRbacIfNeeded()` 在首次无超级管理员时创建。
 3. **方式 C（不推荐）**：在熟悉迁移与种子语义的前提下，直接在 `Roles` / `Users` 表为某用户写入 `super_admin` 的 `roleId`。
 
-表结构同步：`sequelize.sync` 行为见 `apps/backend/rest-api/src/db.ts`（development 默认可 `alter`）；**仅删库**逻辑见 `apps/backend/rest-api/scripts/reset-db.ts`。
+表结构由 `sequelize.sync` 与模型对齐（见 `apps/backend/rest-api/src/db.ts`）；开发阶段模型变更后推荐 **`pnpm db:reset`** 再启动。仅删库脚本见 `apps/backend/rest-api/scripts/reset-db.ts`。
 
 ## synthetic-it / `pnpm db:init-post` 中的管理员认证
 

@@ -105,7 +105,6 @@ export async function createStaffUser(
       username,
       password: hashPwd,
       roleId,
-      legacyRole: roleSlug === ROLE_SLUG_SUPER_ADMIN ? 1 : 0,
     });
     return User.findByPk(created.get("id") as number, {
       attributes: { exclude: ["password"] },
@@ -168,7 +167,6 @@ export async function updateStaffUser(
     }
     await ensureNotDemotingLastSuperAdmin(targetId, nextSlug);
     next.roleId = newRole.get("id");
-    next.legacyRole = nextSlug === ROLE_SLUG_SUPER_ADMIN ? 1 : 0;
   }
 
   if (Object.keys(next).length === 0) {
@@ -202,7 +200,7 @@ export async function revokeStaffUser(operatorId: number, targetId: number) {
   await ensureNotDemotingLastSuperAdmin(targetId, ROLE_SLUG_USER);
 
   const userRid = await getRoleIdBySlugOrThrow(ROLE_SLUG_USER);
-  await row.update({ roleId: userRid, legacyRole: 0 });
+  await row.update({ roleId: userRid });
 }
 
 /** 供管理员账号页绑定角色下拉用；需路由层 `admin.staff.read` */

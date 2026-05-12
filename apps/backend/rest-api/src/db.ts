@@ -31,50 +31,19 @@ const {
   RolePermission,
 } = initModels(sequelize);
 
-async function backfillPostAggregatesFromRelations() {
-  try {
-    const p = `\`${Post.tableName}\``;
-    const c = `\`${Comment.tableName}\``;
-    const f = `\`${PostFavorite.tableName}\``;
-    const v = `\`${PostVote.tableName}\``;
-    await sequelize.query(`
-      UPDATE ${p} AS o
-      SET
-        commentCount = (SELECT COUNT(*) FROM ${c} cc WHERE cc.postId = o.id),
-        favoriteCount = (SELECT COUNT(*) FROM ${f} ff WHERE ff.postId = o.id),
-        likeCount = (SELECT COUNT(*) FROM ${v} vv WHERE vv.postId = o.id AND vv.value = 1),
-        dislikeCount = (SELECT COUNT(*) FROM ${v} vv WHERE vv.postId = o.id AND vv.value = -1)
-    `);
-  } catch (err) {
-    console.warn("[db] backfillPostAggregatesFromRelations skipped:", err);
-  }
-}
-
 /**
  * 启动时 `authenticate()` 校验连通性（账号、库名、网络等）；失败则抛错，避免拖到首条业务 SQL 才暴露。
  * development：默认 `sync({ alter: true })`；`DB_SYNC_ALTER=0` 时不 alter（仅建缺表）。
  * test / production：仅 `sync()`，不 alter。
+ * 本地/开发若改模型与库不一致，可 `pnpm db:reset` 后重启，由 sync + RBAC bootstrap 重建；不在此做历史数据回填。
  */
 export async function connectDatabase() {
   await sequelize.authenticate();
   if (APP_ENV === "development") {
     const alter = process.env.DB_SYNC_ALTER !== "0";
     await sequelize.sync(alter ? { alter: true } : {});
-    await backfillPostAggregatesFromRelations();
-    try {
-      const { backfillCommentRootIds } = await import("./services/comment.service.js");
-      await backfillCommentRootIds();
-    } catch (err) {
-      console.warn("[db] backfillCommentRootIds skipped:", err);
-    }
   } else {
     await sequelize.sync();
-    try {
-      const { backfillCommentRootIds } = await import("./services/comment.service.js");
-      await backfillCommentRootIds();
-    } catch (err) {
-      console.warn("[db] backfillCommentRootIds skipped:", err);
-    }
   }
   const { bootstrapRbacIfNeeded } = await import("./services/rbac-bootstrap.service.js");
   await bootstrapRbacIfNeeded();

@@ -10,12 +10,6 @@ import { getMeSchema } from "../schema/user.schema.js";
 const router = express.Router();
 
 router.get("/me", authMiddleware, validate(getMeSchema), asyncHandler(getMe, "获取当前用户失败"));
-router.get(
-  "/users/me",
-  authMiddleware,
-  validate(getMeSchema),
-  asyncHandler(getMe, "获取当前用户失败"),
-);
 
 router.get(
   "/me/profile",

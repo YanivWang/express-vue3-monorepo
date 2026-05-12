@@ -157,7 +157,7 @@ function canDeleteComment(c: CommentReplyItem) {
   if (uid == null || !post.value) return false;
   if (c.authorId === uid) return true;
   if (post.value.authorId === uid) return true;
-  if (profile.value?.role === 1) return true;
+  if (profile.value?.permissions?.includes("admin.comments.delete")) return true;
   return false;
 }
 

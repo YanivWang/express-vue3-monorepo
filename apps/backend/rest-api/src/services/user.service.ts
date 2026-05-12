@@ -17,7 +17,6 @@ export type PublicUserProfile = {
   id: number;
   username: string;
   avatar: string | null;
-  role: number;
   nickname: string | null;
 };
 
@@ -26,7 +25,6 @@ function toPublicProfile(user: Model): Omit<PublicUserProfile, "nickname"> {
     id: user.get("id") as number,
     username: user.get("username") as string,
     avatar: (user.get("avatar") as string | null | undefined) ?? null,
-    role: user.get("legacyRole") as number,
   };
 }
 

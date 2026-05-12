@@ -10,7 +10,7 @@ export interface RoleBrief {
   isSystem?: boolean;
 }
 
-export interface StaffRow extends Omit<CurrentUserProfile, "role"> {
+export interface StaffRow extends CurrentUserProfile {
   role?: RoleBrief;
 }
 

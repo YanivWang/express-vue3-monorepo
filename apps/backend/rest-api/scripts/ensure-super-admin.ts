@@ -47,12 +47,11 @@ const [row, created] = await User.findOrCreate({
     username,
     password: hashPwd,
     roleId: superId,
-    legacyRole: 1,
   },
 });
 
 if (!created) {
-  await row.update({ password: hashPwd, roleId: superId, legacyRole: 1 });
+  await row.update({ password: hashPwd, roleId: superId });
 }
 
 console.log(

@@ -1,5 +1,4 @@
 import bcrypt from "bcrypt";
-import { Op } from "sequelize";
 
 import { Permission, Role, User } from "../db.js";
 import {
@@ -17,7 +16,7 @@ function trimUnset(value: string | undefined): string | undefined {
 }
 
 /**
- * 幂等：写入权限、系统角色、超级管理员全量权限绑定、旧 users.role → roleId 回填；
+ * 幂等：写入权限、系统角色、超级管理员全量权限绑定。
  * 若无任何 super_admin 账号且满足启动条件，则创建首个后台账号（见附录「首个超级管理员」）。
  */
 export async function bootstrapRbacIfNeeded(): Promise<void> {
@@ -70,17 +69,6 @@ export async function bootstrapRbacIfNeeded(): Promise<void> {
   );
 
   const superId = superAdminRole.get("id") as number;
-  const userRid = userRole.get("id") as number;
-
-  await User.update(
-    { roleId: superId, legacyRole: 1 },
-    { where: { legacyRole: 1, roleId: { [Op.is]: null } } },
-  );
-  await User.update(
-    { roleId: userRid, legacyRole: 0 },
-    { where: { legacyRole: 0, roleId: { [Op.is]: null } } },
-  );
-  await User.update({ roleId: userRid }, { where: { roleId: { [Op.is]: null } } });
 
   const superAdminCount = await User.count({
     include: [
@@ -116,12 +104,11 @@ export async function bootstrapRbacIfNeeded(): Promise<void> {
       username,
       password: hashPwd,
       roleId: superId,
-      legacyRole: 1,
     },
   });
 
   if (!created) {
-    await row.update({ roleId: superId, legacyRole: 1, password: hashPwd });
+    await row.update({ roleId: superId, password: hashPwd });
   }
 
   logger.info("rbac_bootstrap_super_admin_created", { username });

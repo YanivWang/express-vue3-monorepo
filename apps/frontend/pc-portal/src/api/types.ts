@@ -99,7 +99,6 @@ export interface CurrentUserProfile {
   avatar: string | null;
   /** 来自 UserProfiles；未设置则为 null */
   nickname: string | null;
-  role: number;
   roleId?: number;
   roleSlug?: string;
   /** RBAC 权限码列表；超级管理员为全部业务码 */

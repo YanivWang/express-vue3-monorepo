@@ -21,17 +21,9 @@ export function defineUserModel(sequelize: Sequelize) {
         allowNull: true,
         comment: "头像 URL（本站经 POST /api/uploads/profiles 为 /uploads/profiles/…）",
       },
-      /** 兼容旧逻辑：0 前台用户 1 管理员；新逻辑以 roleId + RBAC 为准（DB 列名仍为 role） */
-      legacyRole: {
-        type: DataTypes.TINYINT,
-        allowNull: false,
-        defaultValue: 0,
-        field: "role",
-        comment: "0: user, 1: admin（兼容列，以 roleId 为准）",
-      },
       roleId: {
         type: DataTypes.INTEGER,
-        allowNull: true,
+        allowNull: false,
         comment: "RBAC 角色 id",
       },
     },

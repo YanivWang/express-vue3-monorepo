@@ -12,7 +12,6 @@ export interface CurrentUserProfile {
   avatar: string | null;
   /** GET /api/me 必有；部分管理端列表可能不返回 */
   nickname?: string | null;
-  role: number;
   roleId?: number;
   roleSlug?: string;
   permissions?: string[];
