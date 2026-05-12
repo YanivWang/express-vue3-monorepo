@@ -34,7 +34,7 @@ export async function resolveAdminImportToken(apiBase: string): Promise<string> 
   }
 
   console.warn(
-    `[synthetic-it] 未设置 REST_API_IMPORT_TOKEN：正以用户 «${username}» 调用 POST /login（请确保其为管理员；本地可在 apps/backend/rest-api 执行 pnpm ensure-super-admin）`,
+    `[synthetic-it] 未设置 REST_API_IMPORT_TOKEN：正以用户 «${username}» 调用 POST /login（请确保其为管理员；本地可在 apps/backend/rest-api 执行 pnpm exec tsx scripts/ensure-super-admin.ts）`,
   );
   return loginForAdminJwt(apiBase, username, password);
 }

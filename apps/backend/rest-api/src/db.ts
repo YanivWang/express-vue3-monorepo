@@ -35,7 +35,7 @@ const {
  * 启动时 `authenticate()` 校验连通性（账号、库名、网络等）；失败则抛错，避免拖到首条业务 SQL 才暴露。
  * development：默认 `sync({ alter: true })`；`DB_SYNC_ALTER=0` 时不 alter（仅建缺表）。
  * test / production：仅 `sync()`，不 alter。
- * 本地/开发若改模型与库不一致，可 `pnpm db:reset` 后重启，由 sync + RBAC bootstrap 重建；不在此做历史数据回填。
+ * 本地/开发若改模型与库不一致，可 `pnpm db:drop-create` 后重启，由 sync + RBAC bootstrap 重建；不在此做历史数据回填。
  */
 export async function connectDatabase() {
   await sequelize.authenticate();

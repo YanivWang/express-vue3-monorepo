@@ -4,7 +4,7 @@
  * 磁盘仅删除 **`uploads/posts/`**（与 `postUploadDiskSegment` 一致）下全部内容后重建空目录；**不删除** `uploads/profiles/` 等其它子目录。
  * 将 **`User.avatar` 中路径以 `/uploads/posts/` 开头的**置空（误用帖子图作头像时可避免指向已删文件）；**`/uploads/profiles/` 头像保留**。
  * 另清空合成流程的评论 manifest。
- * 由 `pnpm db:init-post` / `synthetic-it:clear` 在 `it-seed-categories.ts` 之后、`synthetic-it-run.ts` 之前链式执行。
+ * 由 `pnpm db:seed-post`（dedupe 之后、synthetic-it-run 之前）串联；若要**仅清帖**，在本包目录执行 **`pnpm exec tsx scripts/synthetic-it-clear-posts.ts`**，或在仓库根 **`pnpm --filter @express-vue3-monorepo/rest-api exec tsx scripts/synthetic-it-clear-posts.ts`**。**不负责**类目种子（请先 `pnpm db:seed-categories` 或由管理端维护类目）。
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
@@ -40,7 +40,7 @@ const nFavorites = await PostFavorite.destroy({ where: allRows });
 const nPosts = await Post.destroy({ where: allRows });
 
 console.log(
-  `[synthetic-it:clear] 点赞/踩 ${nVotes} 条 · 收藏 ${nFavorites} 条 · 帖子 ${nPosts} 篇（评论随帖子 CASCADE）`,
+  `[synthetic-it-clear-posts] 点赞/踩 ${nVotes} 条 · 收藏 ${nFavorites} 条 · 帖子 ${nPosts} 篇（评论随帖子 CASCADE）`,
 );
 
 ensureUploadsRoot();
@@ -55,14 +55,14 @@ const [nAvatarCleared] = await User.update(
 );
 
 console.log(
-  `[synthetic-it:clear] 已清空帖子图片目录 ${postsDiskDir}` +
+  `[synthetic-it-clear-posts] 已清空帖子图片目录 ${postsDiskDir}` +
     `${nAvatarCleared > 0 ? ` · 复位误用为该前缀的头像字段 ${nAvatarCleared} 条` : ""}`,
 );
 
 const manifestPath = path.resolve(apiRoot, MANIFEST_REL);
 await fs.mkdir(path.dirname(manifestPath), { recursive: true });
 await fs.writeFile(manifestPath, JSON.stringify({ postsWithComments: [] }, null, 2), "utf8");
-console.log(`[synthetic-it:clear] 已重置 manifest：${manifestPath}`);
+console.log(`[synthetic-it-clear-posts] 已重置 manifest：${manifestPath}`);
 
 await sequelize.close();
 process.exit(0);

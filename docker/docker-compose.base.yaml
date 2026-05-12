@@ -1,7 +1,7 @@
 # 共享定义：与 docker-compose.{yaml,dev,test}.yaml 组合使用（须后接环境文件，后者覆盖同名项）。
 # 对外 HTTP 由各环境覆盖层中的 gateway（docker/nginx/gateway*.docker.conf）统一暴露
 # `${GATEWAY_HOST_PORT:-2026}`，再按路径转发到 rest-api、pc-portal、pc-admin（/pc-admin/）。
-# 示例 dev：pnpm docker:dev 或：
+# 示例 dev：在仓库根执行 pnpm docker:dev；或等价地手动执行下行命令：
 # docker compose --env-file .env.development -f docker/docker-compose.base.yaml -f docker/docker-compose.dev.yaml up -d
 #
 # mysql 不在此声明 volumes / ports / container_name，避免多环境卷合并时挂载重复路径。

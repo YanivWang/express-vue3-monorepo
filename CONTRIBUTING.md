@@ -9,10 +9,10 @@
 ## 常用脚本
 
 - 后端：`pnpm rest-api:dev`、`pnpm rest-api:start`
-- 首个超级管理员（根目录已配置 `ADMIN_BOOTSTRAP_USERNAME` / `ADMIN_BOOTSTRAP_PASSWORD`）：`pnpm --filter @express-vue3-monorepo/rest-api ensure-super-admin`
+- 首个超级管理员（根目录已配置 `ADMIN_BOOTSTRAP_USERNAME` / `ADMIN_BOOTSTRAP_PASSWORD`）：`pnpm --filter @express-vue3-monorepo/rest-api exec tsx scripts/ensure-super-admin.ts`
 - 前端：`pnpm pc-portal:dev`（5173）、`pnpm pc-admin:dev`（5174）
 - 全仓库并行开发：`pnpm dev`
-- 类型检查 / 质量：`pnpm typecheck`、`pnpm lint`、`pnpm lint:style`、`pnpm format:check`
+- 类型检查 / 质量：`pnpm typecheck`、`pnpm lint`、`pnpm lint:style`、`pnpm format:check`；提交前全套校验：`pnpm verify`（含 `pnpm test:all`：单测 + Playwright E2E）
 
 ## 文档
 

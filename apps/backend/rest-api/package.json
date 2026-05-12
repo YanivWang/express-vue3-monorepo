@@ -14,12 +14,10 @@
     "lint": "eslint src scripts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "build": "tsc -p tsconfig.build.json",
-    "ensure-super-admin": "tsx scripts/ensure-super-admin.ts",
-    "it:seed-categories": "tsx scripts/it-seed-categories.ts",
-    "synthetic-it:clear": "tsx scripts/it-seed-categories.ts && tsx scripts/synthetic-it-clear-posts.ts",
-    "db:reset": "tsx scripts/reset-db.ts",
     "db:dedupe-indexes": "tsx scripts/dedupe-mysql-redundant-indexes.ts",
-    "db:init-post": "tsx scripts/dedupe-mysql-redundant-indexes.ts && tsx scripts/it-seed-categories.ts && tsx scripts/synthetic-it-clear-posts.ts && tsx scripts/synthetic-it-run.ts"
+    "db:drop-create": "tsx scripts/reset-db.ts",
+    "db:seed-categories": "tsx scripts/it-seed-categories.ts",
+    "db:seed-post": "tsx scripts/dedupe-mysql-redundant-indexes.ts && tsx scripts/synthetic-it-clear-posts.ts && tsx scripts/synthetic-it-run.ts"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

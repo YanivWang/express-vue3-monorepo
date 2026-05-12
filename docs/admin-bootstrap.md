@@ -15,29 +15,31 @@
   - 且两项 **`ADMIN_BOOTSTRAP_*`** 均已配置：以该用户名创建用户（bcrypt 存密），或若用户已存在则更新其 `roleId` / `password`。
   - 若缺一或为空：仅记录告警日志 `rbac_bootstrap_no_super_admin`，**不创建**用户。
 
-## 手工执行 `pnpm ensure-super-admin`
+## 手工执行 `ensure-super-admin.ts`
 
-脚本：`apps/backend/rest-api/scripts/ensure-super-admin.ts`（包脚本名 **`ensure-super-admin`**）。
+脚本：`apps/backend/rest-api/scripts/ensure-super-admin.ts`。
 
 ```bash
 # 在仓库根（须已配置根目录 ADMIN_BOOTSTRAP_*）
-pnpm --filter @express-vue3-monorepo/rest-api ensure-super-admin
+pnpm --filter @express-vue3-monorepo/rest-api exec tsx scripts/ensure-super-admin.ts
 
 # 或在 apps/backend/rest-api 下
-pnpm ensure-super-admin
+pnpm exec tsx scripts/ensure-super-admin.ts
 ```
 
 脚本会 `mergeDotenvFromMonorepoRoot()`、`connectDatabase()`（含上述 RBAC bootstrap），再**幂等**将 `ADMIN_BOOTSTRAP_USERNAME` 对应用户设为 `super_admin` 并写入环境中的明文密码（bcrypt）。适用：空库后想先不启动 HTTP、或需要**不重启进程**地重置管理员密码。
 
 ## 推荐操作路径
 
-1. **方式 A（推荐，开发）**：根目录配置好 **`ADMIN_BOOTSTRAP_*`** 后，在 `apps/backend/rest-api` 执行 **`pnpm db:reset`**（或根目录 `pnpm --filter @express-vue3-monorepo/rest-api db:reset`），再启动 **`pnpm --filter @express-vue3-monorepo/rest-api dev`**。空库且无 `super_admin` 时，首次启动会按环境变量创建首个超级管理员。
+1. **方式 A（推荐，开发）**：根目录配置好 **`ADMIN_BOOTSTRAP_*`** 后，在 `apps/backend/rest-api` 执行 **`pnpm db:drop-create`**（或根目录 `pnpm --filter @express-vue3-monorepo/rest-api db:drop-create`），再启动 **`pnpm --filter @express-vue3-monorepo/rest-api dev`**。空库且无 `super_admin` 时，首次启动会按环境变量创建首个超级管理员。
 2. **方式 B（生产）**：同样配置非空的 **`ADMIN_BOOTSTRAP_USERNAME`** / **`ADMIN_BOOTSTRAP_PASSWORD`** 后部署并启动，由 `bootstrapRbacIfNeeded()` 在首次无超级管理员时创建。
 3. **方式 C（不推荐）**：在熟悉迁移与种子语义的前提下，直接在 `Roles` / `Users` 表为某用户写入 `super_admin` 的 `roleId`。
 
-表结构由 `sequelize.sync` 与模型对齐（见 `apps/backend/rest-api/src/db.ts`）；开发阶段模型变更后推荐 **`pnpm db:reset`** 再启动。仅删库脚本见 `apps/backend/rest-api/scripts/reset-db.ts`。
+表结构由 `sequelize.sync` 与模型对齐（见 `apps/backend/rest-api/src/db.ts`）；开发阶段模型变更后推荐 **`pnpm db:drop-create`** 再启动。仅删库脚本见 `apps/backend/rest-api/scripts/reset-db.ts`。
 
-## synthetic-it / `pnpm db:init-post` 中的管理员认证
+## synthetic-it / `pnpm db:seed-post` 中的管理员认证
+
+**`pnpm db:seed-post` 不包含类目种子**；灌帖前须已通过 **`pnpm db:seed-categories`**（或管理端）写入 synthetic-it 所需的 IT 分类树，否则接口会因缺少类目而失败。
 
 合成帖子经 HTTP 调 API，凭证可为（**优先级从高到低**，见 `synthetic-it-resolve-import-token.ts`）：
 

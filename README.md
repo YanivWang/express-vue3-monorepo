@@ -26,6 +26,7 @@
   - [首个超级管理员（bootstrap）](#首个超级管理员bootstrap)
 - [常用命令](#常用命令)
 - [类目种子与合成帖子（推荐）](#类目种子与合成帖子推荐)
+  - [空库到完整合成数据（推荐顺序）](#空库到完整合成数据推荐顺序)
 - [核心目录结构](#核心目录结构)
 - [Workspace 包命名](#workspace-包命名)
 - [类型检查：`typecheck` 与 `typecheck:solution`](#类型检查typecheck-与-typechecksolution)
@@ -40,16 +41,16 @@
 
 ## 核心亮点
 
-| 维度              | 说明                                                                                                          |
-| ----------------- | ------------------------------------------------------------------------------------------------------------- |
-| **Monorepo 全栈** | pnpm workspace 管理后端 REST、PC 门户、管理端与 `packages`，依赖与脚本同仓对齐                                |
-| **pnpm catalog**  | 在 workspace 层面集中约束版本，`pnpm-lock.yaml` 为准，降低多包漂移                                            |
-| **共享层**        | `shared`、`request-core`、`js-bridge`、`web-monitor` 等与前后端对齐的 TypeScript 包                           |
-| **契约与文档**    | OpenAPI 3.0（[`docs/openapi.yaml`](docs/openapi.yaml)）+ 运行时 Swagger UI（`/api-docs`）                     |
-| **Docker 网关**   | Compose 一体拉起 MySQL、rest-api、pc-portal 与 Nginx；浏览器单端口访问（默认网关 **2026**）                   |
-| **工程规范**      | ESLint 9 flat、typescript-eslint、Prettier、Stylelint、Husky、lint-staged、Commitlint（Conventional Commits） |
-| **质量门禁**      | `pnpm typecheck`（权威）、`pnpm verify`（类型 + Lint + 样式 + 格式 + 测试）                                   |
-| **数据与链路**    | Sequelize + MySQL；可选 `pnpm db:init-post` 完成类目种子与合成帖子链路（详见下文）                            |
+| 维度              | 说明                                                                                                                                                                           |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Monorepo 全栈** | pnpm workspace 管理后端 REST、PC 门户、管理端与 `packages`，依赖与脚本同仓对齐                                                                                                 |
+| **pnpm catalog**  | 在 workspace 层面集中约束版本，`pnpm-lock.yaml` 为准，降低多包漂移                                                                                                             |
+| **共享层**        | `shared`、`request-core`、`js-bridge`、`web-monitor` 等与前后端对齐的 TypeScript 包                                                                                            |
+| **契约与文档**    | OpenAPI 3.0（[`docs/openapi.yaml`](docs/openapi.yaml)）+ 运行时 Swagger UI（`/api-docs`）                                                                                      |
+| **Docker 网关**   | Compose 一体拉起 MySQL、rest-api、pc-portal 与 Nginx；浏览器单端口访问（默认网关 **2026**）                                                                                    |
+| **工程规范**      | ESLint 9 flat、typescript-eslint、Prettier、Stylelint、Husky、lint-staged、Commitlint（Conventional Commits）                                                                  |
+| **质量门禁**      | `pnpm typecheck`（权威）、`pnpm verify`（类型 + Lint + 样式 + 格式 + 测试）                                                                                                    |
+| **数据与链路**    | Sequelize + MySQL；**类目**与 **合成灌帖** 已拆分为 `pnpm db:seed-categories` 与 `pnpm db:seed-post`，推荐顺序见 [空库到完整合成数据（推荐顺序）](#空库到完整合成数据推荐顺序) |
 
 ---
 
@@ -203,29 +204,30 @@ pnpm pc-admin:dev
 
 ### 首个超级管理员（bootstrap）
 
-库中尚无 `super_admin` 时，启动流程中的 `bootstrapRbacIfNeeded()` 会用根目录 **`ADMIN_BOOTSTRAP_*`** 创建首个超级管理员（bcrypt）。也可在 `apps/backend/rest-api` 执行 **`pnpm ensure-super-admin`**（或根目录 `pnpm --filter @express-vue3-monorepo/rest-api ensure-super-admin`）幂等补账号。**详情：** [`docs/admin-bootstrap.md`](docs/admin-bootstrap.md)。
+库中尚无 `super_admin` 时，启动流程中的 `bootstrapRbacIfNeeded()` 会用根目录 **`ADMIN_BOOTSTRAP_*`** 创建首个超级管理员（bcrypt）。也可幂等补账号：根目录 **`pnpm --filter @express-vue3-monorepo/rest-api exec tsx scripts/ensure-super-admin.ts`**，或在 `apps/backend/rest-api` 执行 **`pnpm exec tsx scripts/ensure-super-admin.ts`**。**详情：** [`docs/admin-bootstrap.md`](docs/admin-bootstrap.md)。
 
 ---
 
 ## 常用命令
 
-| 功能                                     | 命令                                                                        |
-| ---------------------------------------- | --------------------------------------------------------------------------- |
-| 并行对所有含 `dev` 的包执行 dev          | `pnpm dev`                                                                  |
-| 宿主运行后端（debug 端口 **9229**）      | `pnpm rest-api:dev` / `pnpm rest-api:dev:debug`                             |
-| 宿主运行前端                             | `pnpm pc-portal:dev` / `pnpm pc-admin:dev`                                  |
-| 重置后端数据库                           | `pnpm --filter @express-vue3-monorepo/rest-api db:reset`                    |
-| 幂等创建/更新超级管理员                  | `pnpm --filter @express-vue3-monorepo/rest-api ensure-super-admin`          |
-| 测试                                     | `pnpm test` / `pnpm test:all`                                               |
-| 类型检查（全仓权威入口）                 | `pnpm typecheck`                                                            |
-| 纯 TS workspace 包的 `tsc -b` 构图       | `pnpm typecheck:solution`                                                   |
-| 仅 packages 并行 typecheck               | `pnpm typecheck:packages`                                                   |
-| Lint / 样式 / 格式                       | `pnpm lint` · `pnpm lint:style` · `pnpm format`（及对应 `:fix` / `:check`） |
-| 提交前全套校验                           | `pnpm verify`                                                               |
-| Docker 开发栈                            | `pnpm docker:dev` / `pnpm docker:dev:down` / `pnpm docker:dev:debug`        |
-| 容器内 pnpm                              | `pnpm docker:install` / `pnpm docker:pnpm`                                  |
-| Docker 测试 / 生产                       | `pnpm docker:test` / `pnpm docker:prod`                                     |
-| **IT 类目种子 + 合成帖子（一次性链路）** | `pnpm db:init-post`                                                         |
+| 功能                                                       | 命令                                                                                       |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| 并行对所有含 `dev` 的包执行 dev                            | `pnpm dev`                                                                                 |
+| 宿主运行后端（debug 端口 **9229**）                        | `pnpm rest-api:dev` / `pnpm rest-api:dev:debug`                                            |
+| 宿主运行前端                                               | `pnpm pc-portal:dev` / `pnpm pc-admin:dev`                                                 |
+| 删库并重建 MySQL 库（`DROP DATABASE` + `CREATE`）          | `pnpm db:drop-create`（或 filter 同包 `db:drop-create`）                                   |
+| 写入 IT 示例类目（会 `connectDatabase`；仅空类目表时写入） | `pnpm db:seed-categories`                                                                  |
+| 幂等创建/更新超级管理员                                    | `pnpm --filter @express-vue3-monorepo/rest-api exec tsx scripts/ensure-super-admin.ts`     |
+| 测试                                                       | `pnpm test` / `pnpm test:all`                                                              |
+| 类型检查（全仓权威入口）                                   | `pnpm typecheck`                                                                           |
+| 纯 TS workspace 包的 `tsc -b` 构图                         | `pnpm typecheck:solution`                                                                  |
+| 仅 packages 并行 typecheck                                 | `pnpm typecheck:packages`                                                                  |
+| Lint / 样式 / 格式                                         | `pnpm lint` · `pnpm lint:style` · `pnpm format`（及对应 `:fix` / `:check`）                |
+| 提交前全套校验                                             | `pnpm verify`                                                                              |
+| Docker 开发栈                                              | `pnpm docker:dev` / `pnpm docker:dev:down` / `pnpm docker:dev:debug`                       |
+| 容器内 pnpm                                                | `pnpm docker:install` / `pnpm docker:pnpm`                                                 |
+| Docker 测试 / 生产                                         | `pnpm docker:test` / `pnpm docker:prod`                                                    |
+| **索引去重 + 清帖 + 合成灌帖（HTTP，不含类目）**           | `pnpm db:seed-post`（须 **API 已启动** 且已 **`pnpm db:seed-categories`** 或已有等价类目） |
 
 `prepare` 会安装 Husky；未执行过 `pnpm install` 则无 Git 钩子。
 
@@ -233,26 +235,42 @@ pnpm pc-admin:dev
 
 ## 类目种子与合成帖子（推荐）
 
-在项目根目录执行：
+**职责拆分**：**`pnpm db:seed-categories`** 只负责建表、RBAC bootstrap 与 IT 示例类目；**`pnpm db:seed-post`** 只负责索引去重、清帖与经 HTTP 灌入合成内容（**不再**种类目）。
+
+### 空库到完整合成数据（推荐顺序）
+
+从 **仅执行 `db:drop-create` 后的空 MySQL 库**（尚无表、无数据）到 **类目 + RBAC + 合成帖子与评论**，建议严格按以下顺序操作（**第 3 步不可省略**：`db:seed-post` 最后一步经 **HTTP** 调 API，进程必须已监听）。
+
+1. **`pnpm db:drop-create`** — 删除并重建 `DB_NAME` 指向的数据库（仅空库，不含表）。
+2. **`pnpm db:seed-categories`** — 脚本内会 `connectDatabase()`（**建表** + **`bootstrapRbacIfNeeded`**，含首个 `super_admin` 等）并写入 [`it-category-seed.json`](apps/backend/rest-api/scripts/it-category-seed.json) 中的「IT技术」类目（**仅当类目条数为 0 时写入**）。
+3. **先启动 API** — 例如 `pnpm rest-api:dev`，或 `pnpm docker:dev` 使网关/后端可达；宿主直连时请把 [`synthetic-it.env`](apps/backend/rest-api/scripts/synthetic-it.env) 中的 **`REST_API_BASE`** 与端口对齐（默认 `http://127.0.0.1:2026/api` 对应 Compose 网关）。
+4. **`pnpm db:seed-post`** — **仅**负责：索引去重 → 清帖（及 `uploads/posts/`、manifest）→ **HTTP** 灌入合成帖子与评论（**不会**再写入类目）。
+
+**职责拆分**：**`db:seed-categories`** = 表 + RBAC + IT 示例类目；**`db:seed-post`** = 帖侧清理与 HTTP 灌帖。若跳过第 2 步，须以其它方式保证库内已有 synthetic-it 期望的分类树，否则第 4 步会失败。根目录 **`ADMIN_BOOTSTRAP_*`** 须已配置，以便 bootstrap / 合成登录。
+
+---
+
+在项目根目录执行 **`pnpm db:seed-post`**（或在 `apps/backend/rest-api` 下执行同名脚本）时，须 **已启动 API** 且 **已完成 `pnpm db:seed-categories`**（或由管理端写入等价类目），否则 HTTP 灌帖会失败。
 
 ```bash
-pnpm db:init-post
+pnpm db:seed-post
 ```
 
 或在 `apps/backend/rest-api` 下：
 
 ```bash
-cd apps/backend/rest-api && pnpm db:init-post
+cd apps/backend/rest-api && pnpm db:seed-post
 ```
 
-这条链路会依次做：
+这条链路会依次做（**不含**类目种子）：
 
 1. **dedupe-mysql-redundant-indexes** — 索引去重
-2. **it-seed-categories** — 写入「IT技术」类目（数据来自 `apps/backend/rest-api/scripts/it-category-seed.json`；**空库才写类目**）
-3. **synthetic-it-clear-posts** — **删光所有点赞/踩、收藏与帖子**；**评论（含回复）**随帖子 `CASCADE`；**仅删除磁盘上 `uploads/posts/` 下文件**（保留 `uploads/profiles/` 等）；若 `User.avatar` 以 `/uploads/posts/` 开头会置空
-4. **synthetic-it-run** — 通过 **HTTP** 调用 REST API 写入帖子与评论
+2. **synthetic-it-clear-posts** — **删光所有点赞/踩、收藏与帖子**；**评论（含回复）**随帖子 `CASCADE`；**仅删除磁盘上 `uploads/posts/` 下文件**（保留 `uploads/profiles/` 等）；若 `User.avatar` 以 `/uploads/posts/` 开头会置空
+3. **synthetic-it-run** — 通过 **HTTP** 调用 REST API 写入帖子与评论
 
-**前提**：需要先起好后端（或使用 Docker 网关可达的 API），且根目录 **`.env.*`** 与平时开发一致。脚本会先合并 monorepo 根 dotenv，再合并 [`apps/backend/rest-api/scripts/synthetic-it.env`](apps/backend/rest-api/scripts/synthetic-it.env) 中的 **种子专用键**：`REST_API_*`、`SYNTHETIC_*`、`DEDUPE_INDEXES*`（后者可覆盖根目录同名变量）；**`ADMIN_BOOTSTRAP_*` 仅来自根目录 `.env.*`**，不会从 `synthetic-it.env` 注入。
+**仅清帖**（不 HTTP 灌帖）：`pnpm --filter @express-vue3-monorepo/rest-api exec tsx scripts/synthetic-it-clear-posts.ts`（**不**种类目）。
+
+**前提**：须 **已** 用 **`pnpm db:seed-categories`**（或管理端）写入 synthetic-it 期望的分类树；并先起好后端（或使用 Docker 网关可达的 API）。根目录 **`.env.*`** 与平时开发一致。脚本会先合并 monorepo 根 dotenv，再合并 [`apps/backend/rest-api/scripts/synthetic-it.env`](apps/backend/rest-api/scripts/synthetic-it.env) 中的 **种子专用键**：`REST_API_*`、`SYNTHETIC_*`、`DEDUPE_INDEXES*`（后者可覆盖根目录同名变量）；**`ADMIN_BOOTSTRAP_*` 仅来自根目录 `.env.*`**，不会从 `synthetic-it.env` 注入。
 
 **管理员认证（优先级从高到低）**：环境变量 **`REST_API_IMPORT_TOKEN`**（Bearer JWT）；或成对的 **`REST_API_IMPORT_USERNAME`** / **`REST_API_IMPORT_PASSWORD`**；若均未设置，则使用根目录 **`ADMIN_BOOTSTRAP_*`** 调用 `POST /login`。完整说明见 `synthetic-it-resolve-import-token.ts` 与 **`synthetic-it.env`**、`synthetic-it-run.ts` 头部注释。
 

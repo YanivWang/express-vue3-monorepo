@@ -1,10 +1,10 @@
 /**
  * 不向第三方站点抓取：按「IT技术」种子下的叶子分类注入合成技术短文与评论。
- * **执行**：在 monorepo 根 `pnpm db:init-post`，或在 `apps/backend/rest-api` 下 `pnpm db:init-post`，或根目录 `pnpm --filter @express-vue3-monorepo/rest-api db:init-post`。环境变量见 `synthetic-it.env`。
- * 流程：先 `dedupe-mysql-redundant-indexes` 清理重复 BTREE 索引，再 `it-seed-categories`（空库写 IT 类目）、`synthetic-it-clear-posts`（清空点赞/踩·收藏后删全部帖子、评论 CASCADE、仅清空 `uploads/posts/` 下文件），最后本脚本经 HTTP 写入帖子与评论（`externalSource` + `externalKey` 发帖幂等；评论完成后写 manifest）。
+ * **执行**：在 monorepo 根 `pnpm db:seed-post`，或在 `apps/backend/rest-api` 下 `pnpm db:seed-post`，或根目录 `pnpm --filter @express-vue3-monorepo/rest-api db:seed-post`。环境变量见 `synthetic-it.env`。
+ * 上游链路（由 package 脚本串联）：`dedupe-mysql-redundant-indexes` → `synthetic-it-clear-posts` → **本脚本**；**IT 示例类目须已由 `pnpm db:seed-categories`（或等价数据）写入**。
  *
  * **认证**：可设 `REST_API_IMPORT_TOKEN`，或不设则由脚本 **`POST …/login`** 取 JWT（管理员账号）。
- * **一键种子**：同上 **`pnpm db:init-post`**。环境变量见 `synthetic-it.env`。
+ * **一键灌帖**：同上 **`pnpm db:seed-post`**（**前提**：库内已有与 synthetic-it 一致的 IT 类目，通常先 **`pnpm db:seed-categories`**）。
  *
  * 帖子约束（脚本侧）：标题 trim 后 10～20 字符；正文 HTML trim 后 300～10000 字符（含标签）；至少 1 张本站 `/uploads/` 配图（正文内插入 `<img>`，`images` 数组与之对齐）。**每个叶子分类**在 synthetic-it-data.ts / synthetic-it-data-static.ts 中须配置 **16～60** 篇（synthetic-it-run 启动时校验）。
  *
@@ -81,7 +81,7 @@ function resolveLeafCategoryId(categories: unknown[], leafName: string): number 
   const it = roots.find((r) => r.name === "IT技术");
   if (!it?.children?.length) {
     throw new Error(
-      "分类树中未找到「IT技术」或其子节点。请先在同一库执行 `pnpm it:seed-categories`，或跑一次 `pnpm synthetic-it:clear` / `pnpm db:init-post`（会链式写入类目）；并确保 REST 可读到的库已含该分类。",
+      "分类树中未找到「IT技术」或其子节点。请先执行 `pnpm db:seed-categories`（或确保库内已有与 synthetic-it 数据一致的类目），并确保 REST 可读到的库已含该分类。",
     );
   }
   const leaf = it.children.find((c) => c.name === leafName);
@@ -409,7 +409,7 @@ async function main() {
   }
 
   const commentDone = await loadCommentManifest();
-  /** 跨分类、整场 `db:init-post` 会话内尽量不重复选用同一 Pexels 资源 id */
+  /** 跨分类、整场 `db:seed-post` 会话内尽量不重复选用同一 Pexels 资源 id */
   const usedPexelsPhotoIds = new Set<number>();
 
   const tree = await apiSuccessJson("GET", apiBase, token, "/categories");
