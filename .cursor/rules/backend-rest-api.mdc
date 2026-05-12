@@ -1,0 +1,44 @@
+---
+description: Express rest-api 分层、Zod 校验、异步包装、错误与日志、ESM 导入
+globs: apps/backend/rest-api/**/*.ts, apps/backend/rest-api/**/*.mts, apps/backend/rest-api/**/*.cts
+alwaysApply: false
+---
+
+# Backend：`apps/backend/rest-api`（`@express-vue3-monorepo/rest-api`）
+
+## 技术栈（以本包 `package.json` 为准）
+
+- **Express**（本包锁定为 **`4.22.1`**）、**TypeScript**（`"type": "module"`）、**Zod**（**`^4.x`**，见 dependencies）、**Sequelize**、**MySQL（mysql2）**。
+- 开发入口：`nodemon --exec tsx src/server.ts`（见本包 `scripts.dev`）。
+
+## 分层与目录
+
+- 典型链路：**routes**（挂载中间件与 handler）→ **controllers** → **services**。
+- **Zod 组合 schema**：放在 **`src/schema/`**（如 `*.schema.ts`）。
+- **Sequelize 模型**：放在 **`src/models/`**。
+
+## 请求校验与类型
+
+- 使用 **`validate(schema)`**（`src/middlewares/validate.middleware.ts`）：对单次请求的 **`body` / `query` / `params`** 一起交给 Zod `safeParse`；成功则写入 **`req.validated`**，失败则 `next(createHttpError(400, …))`。
+- **适用范围**：凡需要结构化、可类型推断的入参都应挂 `validate`，**不限于 POST/PUT**；例如 **`GET` 列表**也可对 `query` + `params` 校验（见 `src/routes/comment.routes.ts` 中 `listCommentsSchema`）。
+- **业务代码**：强类型数据读 **`req.validated`**，**不要**把 `req.body` 当作已校验数据（`body` 在 `src/types/express.d.ts` 中为 `unknown`）。
+- **Schema 形状**：Zod 类型应覆盖组合结构 `{ body?, query?, params? }`，与 `validate` 传入 `safeParse` 的对象一致。
+
+## 路由与异步
+
+- 控制器异步逻辑须用 **`asyncHandler(fn, "失败时的默认提示")`**（`src/middlewares/asyncHandler.ts`）包装，确保 Promise 拒绝进入统一错误中间件。
+- 认证相关限流可参考 **`authRateLimitMiddleware`**（定义在 `src/middlewares/rateLimit.middleware.ts`，使用示例见 **`src/routes/auth.routes.ts`**）。
+
+## 导入路径（ESM + TypeScript）
+
+- 本包内 `import` 其它源码模块时使用 **`.js` 扩展名**（编译后为 ESM，与当前代码库一致）。
+
+## 错误与日志
+
+- HTTP 语义化错误优先 **`createHttpError` / `createInternalServerError`**（`src/middlewares/error.middleware.ts`），配合全局 **`errorMiddleware`**，避免各路由手写不一致的 JSON 结构。
+- 日志使用 **`src/utils/logger.ts`**（winston）；避免用 `console.log` 代替可观测日志（临时脚本调试除外）。
+
+## 测试
+
+- 本包 **`pnpm test`**：`test:unit`（**Vitest**，默认 `vitest run`）+ **`test:env`**（`tsx scripts/test-env.ts`）。
+- 在仓库根目录可用：`pnpm --filter @express-vue3-monorepo/rest-api test`。

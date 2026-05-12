@@ -1,0 +1,32 @@
+---
+description: 纯 TS workspace 库 request-core、js-bridge、web-monitor 的边界与 typecheck 构图
+globs: packages/request-core/**/*.ts, packages/js-bridge/**/*.ts, packages/web-monitor/**/*.ts
+alwaysApply: false
+---
+
+# Workspace 库：`packages/request-core`、`packages/js-bridge`、`packages/web-monitor`
+
+`packages/*` 当前为四个目录：**`shared`** 与本文所述三库。四者均以 **TypeScript** 为类型检查主线；其中 **`shared`** 还包含 **`.vue` / 样式** 等，类型检查走 **`vue-tsc`** 等**包内**脚本，**不参与**仓库根目录 `tsconfig.json` 的 **`references`**。**本文档仅约束**被根 `tsc -b` 引用、且由 **`pnpm typecheck:solution`** 构图的三库。
+
+## 各包定位（摘自各包 `package.json` 的 `description`）
+
+- **request-core**：UI-free HTTP client core（axios + 注入式 hooks）；默认响应形态对齐 apps/backend/rest-api `{ code, msg, ...payload }`。
+- **js-bridge**：多宿主 H5 Bridge（浏览器 / 小程序 / App WebView）。
+- **web-monitor**：Web Vitals 与客户端错误上报（Vue App 接入）。
+
+**request-core 补充说明**：实践中主要由 **`@express-vue3-monorepo/shared`** 与部分应用直接依赖（以各 `package.json` 为准）；**对其导出 API 的变更需谨慎**，避免连带破坏上下游。
+
+## TypeScript 与根 `tsc -b`
+
+- 仓库根目录 **`tsconfig.json`** 的 **`references`** **仅引用** 上述三包的 **`tsconfig.build.json`**（见根 `tsconfig.json` 内注释）。**不包含** `rest-api`、`shared`、前端应用。
+- **`pnpm typecheck:solution`**：在根目录执行 **`tsc -b --pretty`**，用于这三类库的构图检查。
+- 修改任一包后，至少应保证 **`pnpm typecheck:solution`** 与本包 `pnpm typecheck` 通过；全仓还可执行根目录 **`pnpm typecheck`**（各包并行跑自有脚本）。
+
+## 包级测试
+
+- **js-bridge**：包内 **`pnpm test`** 使用 **Vitest**（配置见 `vitest.config.ts`）；根目录 **`pnpm verify`** 不默认执行该脚本，修改桥接逻辑时建议在包目录自行跑测。
+
+## 依赖与导出
+
+- 避免将**仅某一前端 app 使用**的重依赖放进这些基础库；若无法避免，评估放进具体 app 或 `shared` 的 **peerDependencies** 是否更合适。
+- **稳定性**：通过 `package.json` 的 **`exports`**（及必要时 `src/index`）暴露入口，避免应用 `import` 包内任意深路径文件。

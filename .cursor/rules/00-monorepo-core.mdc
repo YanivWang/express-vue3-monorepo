@@ -1,0 +1,48 @@
+---
+alwaysApply: true
+---
+
+# express-vue3-monorepo 工作区（始终生效）
+
+本仓库为 **pnpm workspace**，工作区根目录由 `pnpm-workspace.yaml` 声明：`apps/backend/*`、`apps/frontend/*`、`packages/*`。
+
+## 应用与包（与各自 `package.json` 的 `name` 一致）
+
+- `apps/backend/rest-api` → `@express-vue3-monorepo/rest-api`
+- `apps/frontend/pc-portal` → `@express-vue3-monorepo/pc-portal`
+- `apps/frontend/pc-admin` → `@express-vue3-monorepo/pc-admin`
+- `packages/shared` → `@express-vue3-monorepo/shared`
+- `packages/request-core` → `@express-vue3-monorepo/request-core`
+- `packages/js-bridge` → `@express-vue3-monorepo/js-bridge`
+- `packages/web-monitor` → `@express-vue3-monorepo/web-monitor`
+
+## 环境与包管理
+
+- **Node**：`>=20.19.5`；**pnpm**：`>=10.17.0`（根目录 `package.json` 的 `engines`，并与 `packageManager` 字段一致）。
+- **仅允许 pnpm 安装依赖**：根脚本为 `"preinstall": "npx only-allow pnpm"`（见根 `package.json`），请勿使用 npm / yarn 安装。
+- **依赖版本**：公共版本集中在 `pnpm-workspace.yaml` 的 `catalog:`；子包通过 `catalog:` 引用。新增跨包依赖时优先评估是否进 catalog。
+
+## 常用命令（在仓库根目录执行）
+
+- **并行启动各包 `dev`（若存在）**：`pnpm dev`（内部为 `pnpm -r --parallel run --if-present dev`）。
+- **单应用开发**：`pnpm rest-api:dev`、`pnpm pc-portal:dev`、`pnpm pc-admin:dev`（等价于对对应包执行 `pnpm --filter <包名> dev`）。
+- **类型检查**：`pnpm typecheck`（各 workspace 包并行执行各自的 `typecheck` 脚本）；纯 TS 库的 solution 构图：`pnpm typecheck:solution`（根 `tsconfig.json` 的 `references` + `tsc -b`）。
+- **质量门禁**：`pnpm verify` → 依次为 `typecheck` → `lint`（全仓 ESLint）→ `lint:style`（Stylelint）→ `format:check`（Prettier）→ `test:all`。
+- **测试**：根目录 `pnpm test` 仅跑 `@express-vue3-monorepo/rest-api` 的 `test`；`pnpm test:all` = 上述 **+** `playwright test`（E2E）。改后端或契约时留意 E2E 是否受影响。
+
+## TypeScript 构图说明（避免误判）
+
+- 根目录 `tsconfig.json` 的 **`references` 仅包含** `packages/request-core`、`packages/js-bridge`、`packages/web-monitor` 的 `tsconfig.build.json`（见文件内注释）。**`rest-api`、`shared`、前端 app 不参与**根 `tsc -b`，各自用包内脚本（如 `tsc --noEmit`、`vue-tsc`）检查。
+
+## 修改范围与产物
+
+- **不要**手工修改 **`dist/`、`coverage/`** 等构建或报告产物。
+- **不要**把 **`node_modules/`**、上传目录、日志目录当作业务源码编辑目标。
+
+## Docker 与脚本
+
+- 本地容器开发可参考 `scripts/docker-dev.sh` 及根 `package.json` 中以 `docker:` 为前缀的脚本。
+
+## 协作约定
+
+- 变更遵循本仓库既有分层与命名；不确定时先看同目录邻源文件再类比（路由、校验、错误处理、导入风格等）。
