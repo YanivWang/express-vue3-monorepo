@@ -6,6 +6,7 @@ import { redis } from "../redis.js";
 const router = Router();
 
 /** 存活探针：不访问数据库 */
+// 判断应用是否存活
 router.get("/health", (_req, res) => {
   res.status(200).json({ status: "ok" });
 });
@@ -18,14 +19,14 @@ router.get("/ready", async (_req, res) => {
   };
 
   try {
-    await sequelize.authenticate();
+    await sequelize.authenticate(); //检查mysql是否连接成功
     checks.mysql = "ok";
   } catch {
     checks.mysql = "failed";
   }
 
   try {
-    await redis.ping();
+    await redis.ping(); //检查redis是否连接成功
     checks.redis = "ok";
   } catch {
     checks.redis = "failed";

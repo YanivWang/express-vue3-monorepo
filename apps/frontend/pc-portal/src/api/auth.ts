@@ -10,3 +10,15 @@ export function login(body: LoginParams) {
 export function register(body: RegisterParams) {
   return http.post<Record<string, never> | undefined>("/api/register", body, { withToken: false });
 }
+
+export function logout() {
+  return http.post<Record<string, never> | undefined>(
+    "/api/logout",
+    {},
+    {
+      skipAuthRefresh: true,
+      skipUnauthorizedDialog: true,
+      showError: false,
+    },
+  );
+}

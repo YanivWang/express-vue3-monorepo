@@ -3,3 +3,15 @@ import { http } from "./http";
 export function login(payload: { username: string; password: string }) {
   return http.post<{ token: string }>("/api/login", payload);
 }
+
+export function logout() {
+  return http.post<Record<string, never> | undefined>(
+    "/api/logout",
+    {},
+    {
+      skipAuthRefresh: true,
+      skipUnauthorizedDialog: true,
+      showError: false,
+    },
+  );
+}

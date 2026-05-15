@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
-import * as authApi from "@/api/auth";
+import { login as apiLogin, logout as apiLogout, register as apiRegister } from "@/api/auth";
 import { tokenStorage } from "@/api/http";
 import type { CurrentUserProfile } from "@/api/types";
 import * as userApi from "@/api/user";
@@ -49,17 +49,27 @@ export const useAuthStore = defineStore("auth", () => {
   }
 
   async function login(payload: LoginParams) {
-    const { token: next } = await authApi.login(payload);
+    const { token: next } = await apiLogin(payload);
     setTokenFromLogin(next);
     await fetchProfile();
   }
 
   async function register(payload: RegisterParams) {
-    await authApi.register(payload);
+    await apiRegister(payload);
   }
 
-  function logout() {
-    clearSession();
+  async function logout() {
+    if (token.value) {
+      try {
+        await apiLogout();
+      } catch {
+        /* 尽力通知服务端拉黑 JWT；失败仍清本地会话 */
+      } finally {
+        clearSession();
+      }
+    } else {
+      clearSession();
+    }
   }
 
   return {

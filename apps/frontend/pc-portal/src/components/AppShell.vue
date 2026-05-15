@@ -141,8 +141,8 @@ function avatarInitial(): string {
   return n ? n.slice(0, 1).toUpperCase() : "用";
 }
 
-function onLogout() {
-  auth.logout();
+async function onLogout() {
+  await auth.logout();
   void router.push({ name: "home" });
 }
 </script>

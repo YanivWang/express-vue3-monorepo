@@ -23,8 +23,8 @@ const showSystemMenu = computed(
     hasAnyPermission(perms.value, ["admin.staff.read"]),
 );
 
-function signOut() {
-  auth.logout();
+async function signOut() {
+  await auth.logout();
   router.push("/login");
 }
 </script>

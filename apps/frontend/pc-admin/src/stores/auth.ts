@@ -6,16 +6,12 @@ import { tokenStorage } from "@/api/http";
 import type { CurrentUserProfile } from "@/api/types";
 import * as userApi from "@/api/user";
 
-
 /** 并发导航共享同一次「恢复会话」请求，避免重复 /me */
 let sessionBootstrapInFlight: Promise<void> | null = null;
 
 function isAuthError(e: unknown): boolean {
   return (
-    typeof e === "object" &&
-    e !== null &&
-    "type" in e &&
-    (e as { type?: string }).type === "auth"
+    typeof e === "object" && e !== null && "type" in e && (e as { type?: string }).type === "auth"
   );
 }
 
@@ -83,8 +79,18 @@ export const useAuthStore = defineStore("auth", () => {
     await fetchProfile();
   }
 
-  function logout() {
-    clearSession();
+  async function logout() {
+    if (token.value) {
+      try {
+        await authApi.logout();
+      } catch {
+        /* 尽力通知服务端拉黑 JWT；失败仍清本地会话 */
+      } finally {
+        clearSession();
+      }
+    } else {
+      clearSession();
+    }
   }
 
   return {

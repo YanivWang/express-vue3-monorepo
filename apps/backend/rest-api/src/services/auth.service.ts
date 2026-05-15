@@ -2,6 +2,8 @@
 // 1. 注册用户
 // 2. 登录用户
 
+import { randomUUID } from "node:crypto";
+
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
@@ -58,6 +60,8 @@ export async function loginUser(payload: { username?: unknown; password?: unknow
   const roleSlug = role ? String(role.get("slug")) : "";
   const roleId = user.get("roleId") as number | null | undefined;
 
+  const jti = randomUUID();
+
   return jwt.sign(
     {
       id: user.get("id") as number,
@@ -68,6 +72,7 @@ export async function loginUser(payload: { username?: unknown; password?: unknow
     JWT_SECRET,
     {
       expiresIn: "7d",
+      jwtid: jti, // 给每一份新签发的登录token一个全局唯一的id
     },
   );
 }

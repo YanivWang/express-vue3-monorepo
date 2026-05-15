@@ -15,9 +15,12 @@ import type {
 import type { Request, Response } from "express";
 
 export async function getComments(req: Request, res: Response) {
+  //获得通过zod校验，清洗后的请求参数
   const { params, query } = getValidated<ValidatedListCommentsSchema>(req);
-  const { postId } = params;
-  const { page, limit } = query;
+  const { postId } = params; // 路径参数
+  const { page, limit } = query; // 查询参数
+
+  // req.user, 登录后的用户，通过 auth.middleware 中间件(通过请求token，解析出用户信息)存放在 req.user 中
   const viewerUserId = req.user?.id ?? null;
   const { comments, threadTotal, commentTotal, totalPages } = await findCommentsPageByPost(
     postId,
