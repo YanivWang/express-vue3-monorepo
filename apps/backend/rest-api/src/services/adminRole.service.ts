@@ -7,6 +7,8 @@ import {
 } from "../rbac/permission-codes.js";
 import { trimmedStringFromUnknown } from "../utils/trimmedStringFromUnknown.js";
 
+import { clearRbacSnapshotCacheForRole } from "./rbac.service.js";
+
 import type { Model } from "sequelize";
 
 /** 枚举全部权限 definition（前端矩阵） */
@@ -127,6 +129,8 @@ export async function updateRoleById(
     await (row as unknown as { setPermissions: (p: Model[]) => Promise<void> }).setPermissions(
       perms,
     );
+    //一个角色的权限变了，所有绑定这个角色的用户缓存都旧了。
+    await clearRbacSnapshotCacheForRole(roleId);
   }
 
   return Role.findByPk(roleId, {

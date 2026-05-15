@@ -12,6 +12,7 @@ import {
   ensureNotDemotingLastSuperAdmin,
   getRoleIdBySlugOrThrow,
   loadRbacSnapshot,
+  clearRbacSnapshotCache,
 } from "./rbac.service.js";
 
 import type { Model } from "sequelize";
@@ -174,6 +175,9 @@ export async function updateStaffUser(
   }
 
   await row.update(next);
+  if (payload.roleId !== undefined) {
+    await clearRbacSnapshotCache(targetId);
+  }
   return User.findByPk(targetId, {
     attributes: { exclude: ["password"] },
     include: [{ model: Role, as: "role", attributes: [...roleBrief] }],
@@ -201,6 +205,7 @@ export async function revokeStaffUser(operatorId: number, targetId: number) {
 
   const userRid = await getRoleIdBySlugOrThrow(ROLE_SLUG_USER);
   await row.update({ roleId: userRid });
+  await clearRbacSnapshotCache(targetId);
 }
 
 /** 供管理员账号页绑定角色下拉用；需路由层 `admin.staff.read` */
