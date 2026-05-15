@@ -84,16 +84,18 @@ setupSwagger(app);
 
 // 业务路由 ======================================
 // 往往是「路由里最靠后的那个处理函数」（例如 controller）在响应，而不是入口文件末尾的空壳 app.use
-//"/api"：业务 REST 的挂载前缀；下列子路由的真实路径为 /api + 各 Router 内 path（探针、/uploads、/api-docs 等不在此前缀下）
-// authRoutes / userRoutes：都是 express.Router()，当成一整块中间件挂在 /api 下面
-// app.use("/api", xxx) = 把 xxx 这套路由表接到 /api 后面；真实路径 = /api + 子路由里的 path。
+// 业务 REST：`app.use("/api", …)` 下各 Router 的真实路径一般为 `/api` + 子路由 path（探针、/uploads、/api-docs 等除外）。
+// 管理端单独 `app.use("/api/admin", adminRoutes)`，真实路径为 `/api/admin` + admin Router 内 path；其顶层的 auth 仅作用于该子树。
+// 公开接口（如 `/api/categories`）先于 admin 挂载，避免被管理端 Router 的中间件误拦。
 app.use("/api", authRoutes);
-app.use("/api", adminRoutes);
 app.use("/api", userRoutes);
 app.use("/api", postRoutes);
 app.use("/api", commentRoutes);
 app.use("/api", categoryRoutes);
 app.use("/api", uploadRoutes);
+//管理端路由挂载
+app.use("/api/admin", adminRoutes);
+
 // 404 兜底：未匹配任何已注册路由时进入此处，交给 errorMiddleware 输出统一错误格式
 //（若去掉本段，则会落到 Express 默认 404，响应格式与业务错误不一致）
 app.use((_req, _res, next) => {
