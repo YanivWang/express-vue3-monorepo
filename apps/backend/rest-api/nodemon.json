@@ -1,4 +1,6 @@
 {
+  "delay": 1500,
+  "signal": "SIGTERM",
   "ignore": [
     "node_modules/**",
     "public/**",
