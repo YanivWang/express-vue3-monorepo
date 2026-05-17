@@ -3,7 +3,7 @@ import { createClient } from "redis";
 import { REDIS_URL } from "./env.js";
 import { logger, serializeError } from "./utils/logger.js";
 
-// 创建redis客户端
+// 创建redis客户端并导出
 export const redis = createClient({ url: REDIS_URL });
 
 redis.on("error", (err) => {

@@ -3,7 +3,7 @@ import { redis } from "../redis.js";
 const JWT_BLACKLIST_KEY_PREFIX = "jwt:blacklist:";
 
 function getJwtBlackListKey(jti: string) {
-  return `${JWT_BLACKLIST_KEY_PREFIX}:${jti}`;
+  return `${JWT_BLACKLIST_KEY_PREFIX}${jti}`;
 }
 
 /**
@@ -14,6 +14,7 @@ function getJwtBlackListKey(jti: string) {
 export async function blacklistJwt(jti: string, ttlSeconds: number) {
   if (ttlSeconds <= 0) return;
 
+  // key value options
   await redis.set(getJwtBlackListKey(jti), "1", { EX: ttlSeconds });
 }
 
