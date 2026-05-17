@@ -21,7 +21,11 @@ export default defineConfig(({ mode }) => {
   const adminBaseRaw = process.env.VITE_ADMIN_BASE ?? viteEnv.VITE_ADMIN_BASE;
   const base = normalizeAssetBase(adminBaseRaw);
 
-  const hmrClientRaw = Number(env.VITE_DEV_HMR_CLIENT_PORT ?? viteEnv.VITE_DEV_HMR_CLIENT_PORT);
+  const hmrClientRaw = Number(
+    process.env.VITE_DEV_HMR_CLIENT_PORT ??
+      env.VITE_DEV_HMR_CLIENT_PORT ??
+      viteEnv.VITE_DEV_HMR_CLIENT_PORT,
+  );
   const hmr =
     Number.isFinite(hmrClientRaw) && hmrClientRaw > 0 ? { clientPort: hmrClientRaw } : undefined;
 
