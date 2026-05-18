@@ -17,10 +17,7 @@ out/
 coverage/
 .nyc_output/
 test-results/
-playwright-report/
 blob-report/
-playwright/.cache/
-.pw-browsers
 
 # 日志
 logs/

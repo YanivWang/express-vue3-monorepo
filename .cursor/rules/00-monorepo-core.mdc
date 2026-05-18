@@ -28,7 +28,7 @@ alwaysApply: true
 - **单应用开发**：`pnpm rest-api:dev`、`pnpm pc-portal:dev`、`pnpm pc-admin:dev`（等价于对对应包执行 `pnpm --filter <包名> dev`）。
 - **类型检查**：`pnpm typecheck`（各 workspace 包并行执行各自的 `typecheck` 脚本）；纯 TS 库的 solution 构图：`pnpm typecheck:solution`（根 `tsconfig.json` 的 `references` + `tsc -b`）。
 - **质量门禁**：`pnpm verify` → 依次为 `typecheck` → `lint`（全仓 ESLint）→ `lint:style`（Stylelint）→ `format:check`（Prettier）→ `test:all`。
-- **测试**：根目录 `pnpm test` 仅跑 `@express-vue3-monorepo/rest-api` 的 `test`；`pnpm test:all` = 上述 **+** `playwright test`（E2E）。改后端或契约时留意 E2E 是否受影响。
+- **测试**：根目录 `pnpm test` 与 `pnpm test:all` 均仅跑 `@express-vue3-monorepo/rest-api` 的 Vitest。
 
 ## TypeScript 构图说明（避免误判）
 

@@ -218,7 +218,7 @@ pnpm pc-admin:dev
 | 删库并重建 MySQL 库（`DROP DATABASE` + `CREATE`）          | `pnpm db:drop-create`（或 filter 同包 `db:drop-create`）                                   |
 | 写入 IT 示例类目（会 `connectDatabase`；仅空类目表时写入） | `pnpm db:seed-categories`                                                                  |
 | 幂等创建/更新超级管理员                                    | `pnpm --filter @express-vue3-monorepo/rest-api exec tsx scripts/ensure-super-admin.ts`     |
-| 测试                                                       | `pnpm test` / `pnpm test:all`                                                              |
+| 测试                                                       | `pnpm test`（`pnpm test:all` 与之同义，均仅 rest-api Vitest）                              |
 | 类型检查（全仓权威入口）                                   | `pnpm typecheck`                                                                           |
 | 纯 TS workspace 包的 `tsc -b` 构图                         | `pnpm typecheck:solution`                                                                  |
 | 仅 packages 并行 typecheck                                 | `pnpm typecheck:packages`                                                                  |
@@ -318,7 +318,6 @@ express-vue3-monorepo/
 │   ├── js-bridge/
 │   └── web-monitor/
 ├── docker/                  # Compose、Dockerfile、网关 Nginx
-├── e2e/
 ├── docs/
 │   ├── openapi.yaml
 │   ├── admin-bootstrap.md

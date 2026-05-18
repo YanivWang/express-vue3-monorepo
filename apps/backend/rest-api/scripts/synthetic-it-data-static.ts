@@ -692,7 +692,7 @@ const SYNTHETIC_IT_STATIC_BUNDLES_RAW: SyntheticBundle[] = [
       {
         title: "CI 分层测试与缓存",
         html: paras(
-          "快速反馈环：lint、单元测试先行；集成/E2E 可后置并行；失败早停节省资源。",
+          "快速反馈环：lint、单元测试先行；集成与端到端测试可后置并行；失败早停节省资源。",
           "依赖安装与构建产物缓存（pnpm store、Docker layer）显著缩短流水线时间，但要校验缓存键包含锁文件版本。",
           "流水线也应版本化（pipeline as code），变更可审计与回滚。",
         ),
@@ -747,7 +747,7 @@ const SYNTHETIC_IT_STATIC_BUNDLES_RAW: SyntheticBundle[] = [
           "适用于微服务间频繁演进的 API 与事件 schema；可减少集成环境才发现的破坏性变更。",
           "契约仓库应与版本控制联动；废弃字段要有明确的兼容窗口与沟通流程。",
         ),
-        comments: [{ body: "契约测试能替代 E2E 吗？" }],
+        comments: [{ body: "契约测试能替代端到端测试吗？" }],
       },
       {
         title: "制品库与依赖漏洞扫描",

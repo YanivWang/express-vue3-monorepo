@@ -19,7 +19,7 @@
     "pc-portal:dev": "pnpm --filter @express-vue3-monorepo/pc-portal dev",
     "pc-admin:dev": "pnpm --filter @express-vue3-monorepo/pc-admin dev",
     "test": "pnpm --filter @express-vue3-monorepo/rest-api test",
-    "test:all": "pnpm run test && playwright test",
+    "test:all": "pnpm run test",
     "typecheck": "pnpm -r --parallel run --if-present typecheck",
     "typecheck:solution": "tsc -b --pretty",
     "typecheck:packages": "pnpm -r --parallel --filter './packages/**' run --if-present typecheck",
@@ -30,11 +30,6 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "verify": "pnpm run typecheck && pnpm run lint && pnpm run lint:style && pnpm run format:check && pnpm run test:all",
-    "e2e": "playwright test",
-    "e2e:docker": "playwright test",
-    "e2e:local": "cross-env PLAYWRIGHT_LOCAL_SERVERS=1 playwright test",
-    "e2e:ui": "playwright test --ui",
-    "e2e:install": "playwright install chromium",
     "docker:install": "cross-env APP_ENV=development docker compose --env-file .env.development -f docker/docker-compose.base.yaml -f docker/docker-compose.dev.yaml exec -e CI=true -T rest-api pnpm install --frozen-lockfile",
     "docker:pnpm": "cross-env APP_ENV=development docker compose --env-file .env.development -f docker/docker-compose.base.yaml -f docker/docker-compose.dev.yaml exec -e CI=true -T rest-api pnpm",
     "docker:dev:debug": "bash scripts/docker-dev.sh --debug",
@@ -56,7 +51,6 @@
     "*.{json,md,yaml,yml,css,scss,vue,ts,js,mjs}": "prettier --write"
   },
   "devDependencies": {
-    "@playwright/test": "catalog:",
     "@commitlint/cli": "catalog:",
     "@commitlint/config-conventional": "catalog:",
     "@eslint/js": "catalog:",

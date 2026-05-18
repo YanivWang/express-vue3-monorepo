@@ -1,7 +1,7 @@
 # 测试/预发覆盖层：必须配合 docker-compose.base.yaml。生产镜像形态。
 # pnpm docker:test
 #
-# HTTP 网关 `${GATEWAY_HOST_PORT:-2026}`，与 Playwright 默认 baseURL（同端口）一致。
+# HTTP 网关 `${GATEWAY_HOST_PORT:-2026}`：浏览器访问 SPA 与 `/api` 的统一入口（宿主机端口）。
 
 name: express-vue3-monorepo-test
 

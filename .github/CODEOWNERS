@@ -22,7 +22,6 @@
 
 /docker/ @REPLACE_WITH_GITHUB_OWNER
 /docs/ @REPLACE_WITH_GITHUB_OWNER
-/e2e/ @REPLACE_WITH_GITHUB_OWNER
 /.github/ @REPLACE_WITH_GITHUB_OWNER
 
 # 根目录工程化与依赖锁文件（可按团队拆分为 dedicated owner）
@@ -37,4 +36,3 @@
 /prettier.config.mjs @REPLACE_WITH_GITHUB_OWNER
 /.stylelintrc.json @REPLACE_WITH_GITHUB_OWNER
 /.prettierignore @REPLACE_WITH_GITHUB_OWNER
-/playwright.config.ts @REPLACE_WITH_GITHUB_OWNER
