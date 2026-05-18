@@ -17,6 +17,7 @@
     "dompurify": "^3.4.2",
     "element-plus": "catalog:",
     "pinia": "catalog:",
+    "spark-md5": "catalog:",
     "vue": "catalog:",
     "vue-router": "catalog:"
   },

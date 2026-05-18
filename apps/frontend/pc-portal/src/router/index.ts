@@ -77,6 +77,12 @@ const router = createRouter({
       component: () => import("@/views/PostEditorView.vue"),
       meta: { title: "编辑文章", requiresAuth: true },
     },
+    {
+      path: "/test/big-file-upload",
+      name: "big-file-upload",
+      component: () => import("@/views/large-file-upload/LargeFileUploadDemoView.vue"),
+      meta: { title: "大文件分片上传", requiresAuth: true },
+    },
   ],
 });
 

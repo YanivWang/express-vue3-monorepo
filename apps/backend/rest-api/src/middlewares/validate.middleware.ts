@@ -13,6 +13,7 @@ export function validate<A extends ParsedParts>(schema: z.ZodType<A>) {
       body: req.body as unknown,
       query: req.query as unknown,
       params: req.params as unknown,
+      headers: req.headers,
     });
 
     if (!result.success) {

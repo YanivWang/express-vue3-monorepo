@@ -51,19 +51,19 @@ function createYmDiskStorage(diskSegment: string): multer.StorageEngine {
 const postStorage = createYmDiskStorage(postUploadDiskSegment);
 const profileStorage = createYmDiskStorage(profileUploadDiskSegment);
 
-/** 表单字段名 `files`，帖子配图最多 12 个，单文件最大 5MB */
+/** 表单字段名 `files`，帖子配图最多 9 个，单文件最大 8MB */
 export const uploadImagesMiddleware = multer({
   storage: postStorage,
-  limits: { fileSize: 5 * 1024 * 1024, files: 12 },
+  limits: { fileSize: 8 * 1024 * 1024, files: 9 },
   fileFilter,
-}).array("files", 12);
+}).array("files", 9);
 
-/** 同上；头像等资源落盘至 `profiles/`，单次最多 4 个文件 */
+/** 头像等：`POST /api/uploads/profiles` → `profiles/`，单次仅 1 个文件，单文件最大 8MB */
 export const uploadProfileImagesMiddleware = multer({
   storage: profileStorage,
-  limits: { fileSize: 5 * 1024 * 1024, files: 4 },
+  limits: { fileSize: 8 * 1024 * 1024, files: 1 },
   fileFilter,
-}).array("files", 4);
+}).array("files", 1);
 
 export function filePathToPublicUrl(absPath: string) {
   const rel = path.relative(uploadsRoot, absPath).split(path.sep).join("/");

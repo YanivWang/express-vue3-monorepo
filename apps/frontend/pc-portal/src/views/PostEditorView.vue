@@ -202,7 +202,7 @@ async function save() {
                     @change="onFileChange"
                   />
                 </div>
-                <p class="upload-panel__hint">最多 24 张，单次上传最多 12 个文件</p>
+                <p class="upload-panel__hint">最多 24 张，单次上传最多 9 个文件</p>
                 <div v-if="images.length > 0" class="thumbs" role="list">
                   <div v-for="(src, i) in images" :key="src + i" class="thumb" role="listitem">
                     <img :src="src" alt="" />

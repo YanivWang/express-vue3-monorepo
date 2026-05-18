@@ -55,6 +55,9 @@ Desktop.ini
 # 业务：本地上传目录（rest-api 静态资源）
 uploads/
 
+# rest-api：大文件合并幂等标记等（repo 根 `.data`，勿提交）
+.data/
+
 apps/backend/rest-api/scripts/synthetic-it-applied-comments.json
 
 # 合成帖种子：仓库跟踪 synthetic-it.env；本地密钥与覆盖仅存 synthetic-it.env.local

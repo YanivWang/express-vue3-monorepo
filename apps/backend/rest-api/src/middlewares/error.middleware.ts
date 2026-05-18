@@ -49,7 +49,7 @@ export const errorMiddleware: ErrorRequestHandler = (error, req, res, next) => {
 
   if (error instanceof multer.MulterError) {
     const map: Record<string, string> = {
-      LIMIT_FILE_SIZE: "单文件不超过 5MB",
+      LIMIT_FILE_SIZE: "单文件大小超出限制",
       LIMIT_FILE_COUNT: "上传文件数量过多",
       LIMIT_UNEXPECTED_FILE: "请使用表单字段名 files 上传",
     };
