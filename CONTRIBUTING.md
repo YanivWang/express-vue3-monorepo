@@ -4,14 +4,16 @@
 
 - **Node.js**：`>=20.19.5`（以根目录 `package.json` 的 `engines` 为准）
 - **pnpm**：`>=10.17.0`
+- **Redis**：后端启动与脚本链会加载 `apps/backend/rest-api/src/env.ts`，**`REDIS_URL` 必填**（与 `JWT_SECRET`、数据库变量等一致）；Docker 开发栈通常由 Compose 注入，本地直连示例见根目录 [`README.md`](README.md)「快速开始」环境表。
 - 安装依赖：在**仓库根目录**执行 `pnpm install`
 
 ## 常用脚本
 
 - 后端：`pnpm rest-api:dev`、`pnpm rest-api:start`
-- 首个超级管理员（根目录已配置 `ADMIN_BOOTSTRAP_USERNAME` / `ADMIN_BOOTSTRAP_PASSWORD`）：`pnpm --filter @express-vue3-monorepo/rest-api exec tsx scripts/ensure-super-admin.ts`
-- 前端：`pnpm pc-portal:dev`（5173）、`pnpm pc-admin:dev`（5174）
+- 首个超级管理员（根目录已配置 `ADMIN_BOOTSTRAP_USERNAME` / `ADMIN_BOOTSTRAP_PASSWORD`，且 **`REDIS_URL` 等 env 齐备**）：`pnpm --filter @express-vue3-monorepo/rest-api exec tsx scripts/ensure-super-admin.ts`
+- 前端：`pnpm pc-portal:dev`（**5173**）、`pnpm pc-admin:dev`（**5174**）
 - 全仓库并行开发：`pnpm dev`
+- 数据库：`pnpm db:drop-create`、`pnpm db:dedupe-indexes`、`pnpm db:seed-categories`、`pnpm db:seed-post`（后两者见 README 推荐顺序）
 - 类型检查 / 质量：`pnpm typecheck`、`pnpm lint`、`pnpm lint:style`、`pnpm format:check`；提交前全套校验：`pnpm verify`（含 `pnpm test`，即 rest-api Vitest）
 
 ## 文档

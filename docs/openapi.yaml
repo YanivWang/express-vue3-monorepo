@@ -5,6 +5,7 @@ info:
   version: 1.0.0
   description: |
     后端包 `apps/backend/rest-api`（Express ESM + TypeScript）；业务路由挂载于 `/api`，与 `src/app.ts`、`src/routes/*.routes.ts` 一致。
+    - 依赖：启动前 **`REDIS_URL` 必填**（`src/env.ts`）；**Redis** 用于 JWT 登出黑名单（`auth-token.service.ts`）、RBAC 权限快照缓存（`rbac.service.ts`，读写异常时回源 MySQL，不阻断鉴权）。
     - 文档：`GET /openapi.yaml`（YAML 原文）、`GET /api-docs`（Swagger UI）；契约源文件为仓库根 `docs/openapi.yaml`，由 `src/swagger.ts` 加载。
     - 安全与传输：`helmet`（`/api-docs` 路径关闭 CSP 以便 Swagger UI）；`cors` 行为见 `src/env.ts`（生产须配置 `CORS_ORIGINS`）。较大 JSON 响应可能经 `compression.middleware.ts` 压缩（`Content-Encoding: gzip` 等）。
     - 追踪：`requestId.middleware.ts` 写入响应头 **`X-Request-Id`**；客户端可传入同名请求头透传（最长 128 字符）。
@@ -15,6 +16,7 @@ info:
     - 上传：**`POST /api/uploads`** 与 **`POST /api/uploads/profiles`** 均需 Bearer；`multipart/form-data` 字段名 **`files`**；类型 jpeg/png/gif/webp。
       - 帖子配图：`/api/uploads`，**单次最多 9 张**，**单张最大 8MB**，落盘 **`uploads/posts/<年>/<月>/`**，URL **`/uploads/posts/…`**，用于文章 `images`。
       - **头像等用户资料图**：`/api/uploads/profiles`，**单次仅 1 张**，**单张最大 8MB**，落盘 **`uploads/profiles/<年>/<月>/`**，URL **`/uploads/profiles/…`**（可写入 `User.avatar` 等）。
+      - **大文件分片（单文件最大 1GB，与 `packages/shared` 常量一致）**：`POST /api/uploads/large/init` → `PUT .../chunks/{chunkIndex}`（表单字段 **`chunk`**，请求头 **`X-Chunk-Md5`**）→ `POST .../merge`；`GET .../status` 查询断点；`DELETE ...` 取消任务。成品 URL 形如 **`/uploads/large/...`**，任务 TTL **24h**（过期 `410`）。
       - 静态访问 **`GET /uploads/...`**（不走 API 全局限流）。
     - 文章：`Post.images` 为 URL 字符串数组（最多 24 条，须为 `/uploads/` 前缀）。`GET /api/posts` 公开分页（仅 `published: true`）；`GET /api/posts/{id}` 未挂载可选 JWT，`findPostByIdPublic` 的访问者恒为匿名，**未发布文章对任意客户端（含作者）均返回 404**；`POST /api/posts/{postId}/comments` 校验文章时传入**当前登录用户 id**，故 **作者仍可对本人的未发布文章发表评论**（与详情 GET 行为不一致，以 controller/service 为准）。`GET /api/posts/mine/list` 及创建/更新/删除需 Bearer；更新/删除在 **RBAC** 下为 **作者本人** 或具备 **`admin.posts.write`** / **`admin.posts.delete`** 等权限（见 `post.service.ts`）。
     - 内容与敏感词：发帖（`POST /api/posts`、`PUT /api/posts/{id}` 涉及 `title`/`content`）、发评（`POST .../comments`）在 **`400`** 可返回固定 **`msg`**「包含敏感言论，请删除敏感言论再试试？」（见 `utils/content-safety.ts`）；**先敏感词校验，再服务端 XSS 净化后入库**。
@@ -87,15 +89,21 @@ components:
       properties:
         fileName:
           type: string
+          minLength: 1
+          maxLength: 255
         fileSize:
           type: integer
           minimum: 1
+          maximum: 1073741824
+          description: 单文件最大 **1GB**（`LARGE_UPLOAD_MAX_FILE_BYTES`，见 `packages/shared`）
         chunkSize:
           type: integer
           minimum: 1048576
           maximum: 8388608
+          description: 单片 **1～8MB**；`ceil(fileSize/chunkSize)` 须在 **1～2000**（见 `large-upload.schema.ts`）
         mimeType:
           type: string
+          maxLength: 128
         fileMd5:
           type: string
           description: 32 位 MD5 hex；传入则启用 MD5 临时目录、合并校验与全局秒传
@@ -119,6 +127,69 @@ components:
             expiresAt:
               type: string
               format: date-time
+              description: 任务建议过期时间（服务端 TTL **24h**）
+    LargeUploadStatusSuccess:
+      allOf:
+        - $ref: "#/components/schemas/MsgBody"
+        - type: object
+          required: [status, chunkTotal, receivedIndices]
+          properties:
+            code:
+              example: 200
+            msg:
+              example: ok
+            status:
+              type: string
+              enum: [uploading, merging, done, failed]
+              description: 传输中 / 合并中 / 已完成 / 失败（失败态依实现）
+            chunkTotal:
+              type: integer
+              description: 计划分片总数；秒传完成场景可能为 0
+            receivedIndices:
+              type: array
+              description: "已校验落地的分片下标；任务 done 时通常为空数组"
+              items:
+                type: integer
+                minimum: 0
+                maximum: 1999
+            publicUrl:
+              type: string
+              description: "任务已完成（done）时返回成品 URL，形如 /uploads/large/..."
+            fileName:
+              type: string
+              description: 未上传完时返回，便于客户端展示
+            fileSize:
+              type: integer
+            chunkSize:
+              type: integer
+    LargeUploadChunkSuccess:
+      allOf:
+        - $ref: "#/components/schemas/MsgBody"
+        - type: object
+          required: [chunkIndex]
+          properties:
+            code:
+              example: 200
+            msg:
+              example: 分片已接收
+            chunkIndex:
+              type: integer
+              minimum: 0
+              maximum: 1999
+    LargeUploadMergeSuccess:
+      allOf:
+        - $ref: "#/components/schemas/MsgBody"
+        - type: object
+          required: [url, merged]
+          properties:
+            code:
+              example: 200
+            url:
+              type: string
+              description: 成品公开路径，形如 `/uploads/large/...`
+            merged:
+              type: boolean
+              description: "true 表示本次请求执行了合并；false 表示此前已完成（幂等）"
     RegisterSuccess:
       allOf:
         - $ref: "#/components/schemas/MsgBody"
@@ -188,21 +259,41 @@ components:
           example: ok
     ReadinessOk:
       type: object
-      required: [status]
+      required: [status, checks]
       properties:
         status:
           type: string
           example: ready
+        checks:
+          type: object
+          required: [mysql, redis]
+          properties:
+            mysql:
+              type: string
+              enum: [ok]
+            redis:
+              type: string
+              enum: [ok]
     ReadinessFail:
       type: object
-      required: [status, message]
+      required: [status, checks, message]
       properties:
         status:
           type: string
           example: not_ready
+        checks:
+          type: object
+          required: [mysql, redis]
+          properties:
+            mysql:
+              type: string
+              enum: [ok, failed]
+            redis:
+              type: string
+              enum: [ok, failed]
         message:
           type: string
-          example: database unavailable
+          example: 依赖不可用：mysql、redis
     UsersListPagination:
       type: object
       description: 与 `user.controller#getUsers` 返回的 `pagination` 字段一致
@@ -970,16 +1061,18 @@ paths:
     get:
       tags: [探针]
       summary: 就绪检查
-      description: 尝试 `sequelize.authenticate()`；在 `app.ts` 中先于全局限流挂载，不经全局限流计数。
+      description: |
+        并行探测 **MySQL**（`sequelize.authenticate()`）与 **Redis**（`PING`）；二者均为 ok 时 HTTP 200，否则 **503**。
+        在 `app.ts` 中先于全局限流挂载，不经全局限流计数。响应体见 `ReadinessOk` / `ReadinessFail`（含 `checks.mysql` / `checks.redis`）。
       responses:
         "200":
-          description: 数据库可连接
+          description: MySQL 与 Redis 均可连接
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ReadinessOk"
         "503":
-          description: 数据库不可用
+          description: MySQL 或 Redis 不可用
           content:
             application/json:
               schema:
@@ -1324,6 +1417,9 @@ paths:
     get:
       tags: [上传]
       summary: 大文件上传任务状态（断点续传）
+      description: |
+        返回 **`status`**、**`chunkTotal`**、已落地分片下标 **`receivedIndices`**；**done** 时含 **`publicUrl`**。
+        未结束前另含 **`fileName`** / **`fileSize`** / **`chunkSize`**。非任务所有者 **403**；元数据不存在 **404**；超过 TTL **410**。
       security:
         - bearerAuth: []
       parameters:
@@ -1339,13 +1435,39 @@ paths:
           content:
             application/json:
               schema:
+                $ref: "#/components/schemas/LargeUploadStatusSuccess"
+        "401":
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "403":
+          description: 非任务所有者
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "404":
+          description: 任务不存在或已清理
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "410":
+          description: 任务已过期
+          content:
+            application/json:
+              schema:
                 $ref: "#/components/schemas/MsgBody"
 
   /api/uploads/large/{uploadId}/chunks/{chunkIndex}:
     put:
       tags: [上传]
       summary: 上传单个分片
-      description: multipart/form-data，字段名 **chunk**；须同时携带 **X-Chunk-Md5**（当前分片二进制内容的 32 位 hex MD5，大小写均可），服务端校验与落盘文件一致。
+      description: |
+        multipart/form-data，字段名 **chunk**；须同时携带 **X-Chunk-Md5**（当前分片二进制内容的 32 位 hex MD5，大小写均可），服务端校验尺寸、内容与声明 MD5 一致。
+        单分片二进制 **≤ 8MB**；须与 init 时 **`chunkSize`** 及最后一片的尾片大小规则一致。合并进行中 **409**、任务已完成 **409**、非所有者 **403**、已过期 **410**。
       security:
         - bearerAuth: []
       parameters:
@@ -1368,6 +1490,8 @@ paths:
           schema:
             type: integer
             minimum: 0
+            maximum: 1999
+            description: 与 init 时 `chunkTotal` 对齐，最大 **1999**（总分片 ≤ **2000**）
       requestBody:
         required: true
         content:
@@ -1385,12 +1509,45 @@ paths:
           content:
             application/json:
               schema:
+                $ref: "#/components/schemas/LargeUploadChunkSuccess"
+        "400":
+          description: 缺 file、分片越界、尺寸或 MD5 不符等
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "401":
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "403":
+          description: 非任务所有者
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "409":
+          description: 正在合并或任务已结束等互斥状态
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "410":
+          description: 任务已过期
+          content:
+            application/json:
+              schema:
                 $ref: "#/components/schemas/MsgBody"
 
   /api/uploads/large/{uploadId}/merge:
     post:
       tags: [上传]
       summary: 合并分片
+      description: |
+        所有分片就绪后合并为成品，写入 **`/uploads/large/...`**。响应 **`merged`** 区分是否本次执行合并。
+        非所有者 **403**；合并冲突或分片未齐全 **409**；过期 **410**。
       security:
         - bearerAuth: []
       parameters:
@@ -1406,12 +1563,49 @@ paths:
           content:
             application/json:
               schema:
+                $ref: "#/components/schemas/LargeUploadMergeSuccess"
+        "401":
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "403":
+          description: 非任务所有者
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "404":
+          description: 任务不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "409":
+          description: 正在合并、分片缺失或未就绪等
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "410":
+          description: 任务已过期
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "500":
+          description: 合并后校验失败等
+          content:
+            application/json:
+              schema:
                 $ref: "#/components/schemas/MsgBody"
 
   /api/uploads/large/{uploadId}:
     delete:
       tags: [上传]
       summary: 取消大文件上传任务
+      description: 删除临时分片与会话；任务不存在时亦为 **200**（幂等）。非所有者 **403**。
       security:
         - bearerAuth: []
       parameters:
@@ -1423,7 +1617,19 @@ paths:
             format: uuid
       responses:
         "200":
-          description: 已取消
+          description: 已取消（或任务本不存在）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "401":
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "403":
+          description: 非任务所有者
           content:
             application/json:
               schema:

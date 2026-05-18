@@ -2,7 +2,7 @@
  * 幂等：确保指定用户名为超级管理员（super_admin），并写入 bcrypt 密码。
  * 账号来源：仅 `ADMIN_BOOTSTRAP_*`（由 monorepo 根 `.env.${APP_ENV}` 注入），二者均须非空。
  *
- * 依赖与 HTTP 服务相同：须能加载 src/env.js（DB/JWT 等），并执行 connectDatabase（RBAC bootstrap；不包含示例类目）。
+ * 依赖与 HTTP 服务相同：须能加载 `src/env.ts`（**`REDIS_URL`**、DB、JWT 等），并执行 `connectDatabase`（RBAC bootstrap；不包含示例类目）。
  */
 import path from "node:path";
 import { fileURLToPath } from "node:url";
