@@ -1,30 +1,17 @@
 /**
- * 不向第三方站点抓取：按「IT技术」种子下的叶子分类注入合成技术短文与评论。
- * **执行**：在 monorepo 根 `pnpm db:seed-post`，或在 `apps/backend/rest-api` 下 `pnpm db:seed-post`，或根目录 `pnpm --filter @express-vue3-monorepo/rest-api db:seed-post`。环境变量见 `synthetic-it.env`。
- * 上游链路（由 package 脚本串联）：`dedupe-mysql-redundant-indexes` → `synthetic-it-clear-posts` → **本脚本**；**IT 示例类目须已由 `pnpm db:seed-categories`（或等价数据）写入**。
+ * 合成 IT 帖子灌入（HTTP）。
  *
- * **认证**：可设 `REST_API_IMPORT_TOKEN`，或不设则由脚本 **`POST …/login`** 取 JWT（管理员账号）。
- * **一键灌帖**：同上 **`pnpm db:seed-post`**（**前提**：库内已有与 synthetic-it 一致的 IT 类目，通常先 **`pnpm db:seed-categories`**）。
+ * **执行**：`pnpm db:seed-post`（仓库根或 `apps/backend/rest-api`）。
+ * **前提**：API 已启动；类目已由 `pnpm db:seed-categories` 写入（见 `it-category-seed.json`）。
  *
- * 帖子约束（脚本侧）：标题 trim 后 10～20 字符；正文 HTML trim 后 300～10000 字符（含标签）；至少 1 张本站 `/uploads/` 配图（嵌入正文 `<img>`）。**每个叶子分类**在 synthetic-it-data.ts / synthetic-it-data-static.ts 中须配置 **16～60** 篇（synthetic-it-run 启动时校验）。
+ * 链路（package 脚本串联）：`dedupe-mysql-redundant-indexes` → `synthetic-it-clear-posts` → **本脚本**。
  *
- * 环境变量：
- * - REST_API_BASE：API 根路径（默认 http://127.0.0.1:2026/api，对齐 Compose 宿主网关 GATEWAY_HOST_PORT）。本机直连 `pnpm rest-api:dev`（PORT=3000）时可设为 `http://127.0.0.1:3000/api`。
- * - REST_API_IMPORT_TOKEN：管理员 Bearer JWT（可选；不设则调用登录接口）
- * - REST_API_IMPORT_USERNAME / REST_API_IMPORT_PASSWORD：专为种子登录（可选；须成对）；未设置时须能读取根 `.env.${APP_ENV}` 的非空 `ADMIN_BOOTSTRAP_*`
- * - SYNTHETIC_RATE_MS（默认 120）
- * - SYNTHETIC_USE_STATIC_BUNDLE：`1`|`true`|`0`|`false` 如上；不传则按是否配置 LLM Key 自动选择
- * - SYNTHETIC_LLM_API_KEY：走 LLM 时必填（自动静态模式下可不设）
- * - SYNTHETIC_LLM_BASE_URL（默认 https://api.openai.com/v1）
- * - SYNTHETIC_LLM_MODEL（默认 gpt-4o-mini）
- * - SYNTHETIC_LLM_JSON_OBJECT=0：禁用 response_format json_object（兼容不支持该参数的网关）
- * - SYNTHETIC_LLM_MAX_TOKENS（默认 4096）
- * - SYNTHETIC_LLM_TEMPERATURE（可选；默认由脚本设为约 0.42，兼顾事实稳妥与自然文风）
- * - SYNTHETIC_FETCH_IMAGES：可选。设为 0 / false 时**关闭**自动配图；设为 1 / true 时**强制开启**（须同时配置 SYNTHETIC_PEXELS_API_KEY）。**未设置时：只要配置了 SYNTHETIC_PEXELS_API_KEY 即默认拉取 Pexels 并上传**。
- * - SYNTHETIC_PEXELS_API_KEY：Pexels API Key（https://www.pexels.com/api/）。配置后即默认启用配图流水线：单次检索拉多张并翻页，整场种子维护已用 **Pexels photo id**，优先选未见过的资源；检索词仍会走兜底链路。对每个分类会先预热一张通用封面。
- * - SYNTHETIC_IMAGE_REUSE_LAST（可选）：拉图整链失败时为 `0` / `false` 则**不复用**「上一张成功封面」，直接仅占位 `/uploads/synthetic/...`（易 404）；默认开启复用以减少坏链。
+ * 帖子形态（与 rest-api 一致）：
+ * - 无 `images[]` 字段；配图须嵌入正文 HTML 的 `<img src="/uploads/...">`
+ * - 入库前经 `content-safety.ts` 白名单净化；本脚本 POST 前做同等预检
+ * - 封面优先 Pexels 拉图并 `POST /api/uploads`；失败则复用本分类上一张成功图或上传内置占位 PNG
  *
- * 环境与 monorepo：根目录 `.env.development`（及 `.local`）先合并；再合并 `scripts/synthetic-it.env`（及 `.local`）中的种子相关键并**优先生效**。完整键名见同目录 `synthetic-it.env`。
+ * 环境变量见 `synthetic-it.env` 与下方注释。
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
@@ -35,17 +22,21 @@ import {
   SYNTHETIC_IT_MANIFEST_RELATIVE,
 } from "./synthetic-it-constants.js";
 import {
-  assertSyntheticPostHtmlHasUploadImage,
-  assertSyntheticPostLengths,
-  htmlPlainExcerpt,
   SYNTHETIC_HTML_MIN_LEN,
   SYNTHETIC_POSTS_PER_CATEGORY_MAX,
   SYNTHETIC_POSTS_PER_CATEGORY_MIN,
+  htmlPlainExcerpt,
+  prepareSyntheticPostForApi,
 } from "./synthetic-it-constraints.js";
 import { SYNTHETIC_IT_STATIC_BUNDLES } from "./synthetic-it-data-static.js";
 import { SYNTHETIC_IT_OUTLINES } from "./synthetic-it-data.js";
 import { fetchPexelsPhotoAndUpload } from "./synthetic-it-image-fetch.js";
 import { generateTechPost } from "./synthetic-it-llm.js";
+import {
+  embedCoverImageInHtml,
+  isPostUploadPublicUrl,
+  uploadSeedPlaceholderImage,
+} from "./synthetic-it-media.js";
 import { mergeDotenvFromMonorepoRoot } from "./synthetic-it-merge-monorepo-dotenv.js";
 import { resolveAdminImportToken } from "./synthetic-it-resolve-import-token.js";
 
@@ -56,32 +47,31 @@ mergeDotenvFromMonorepoRoot();
 const MANIFEST_PATH = path.resolve(process.cwd(), SYNTHETIC_IT_MANIFEST_RELATIVE);
 
 type CommentManifest = {
-  /** 已成功写入完整评论集合的帖子键（与 REST 幂等键一致） */
   postsWithComments: string[];
 };
 
 type PostPayload = SyntheticBundle["posts"][number];
 
-function escapeAttr(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
-}
-
-function sleep(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-type CatRoot = {
+type CategoryTreeRoot = {
   id: number;
   name: string;
   children?: { id: number; name: string }[];
 };
 
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+function postDedupeKey(categoryName: string, externalKey: string) {
+  return `${SYNTHETIC_IT_EXTERNAL_SOURCE}|${categoryName}|${externalKey}`;
+}
+
 function resolveLeafCategoryId(categories: unknown[], leafName: string): number {
-  const roots = categories as CatRoot[];
+  const roots = categories as CategoryTreeRoot[];
   const it = roots.find((r) => r.name === "IT技术");
   if (!it?.children?.length) {
     throw new Error(
-      "分类树中未找到「IT技术」或其子节点。请先执行 `pnpm db:seed-categories`（或确保库内已有与 synthetic-it 数据一致的类目），并确保 REST 可读到的库已含该分类。",
+      "分类树中未找到「IT技术」或其子节点。请先执行 `pnpm db:seed-categories`（或确保库内已有与 synthetic-it 数据一致的类目）。",
     );
   }
   const leaf = it.children.find((c) => c.name === leafName);
@@ -109,15 +99,6 @@ async function saveCommentManifest(keys: Set<string>) {
   await fs.writeFile(MANIFEST_PATH, JSON.stringify(body, null, 2), "utf8");
 }
 
-function postDedupeKey(categoryName: string, externalKey: string) {
-  return `${SYNTHETIC_IT_EXTERNAL_SOURCE}|${categoryName}|${externalKey}`;
-}
-
-/** 脚本占位路径：校验可通过但磁盘上通常无实体文件 */
-function isSyntheticDiskPlaceholderPath(src: string): boolean {
-  return src.includes("/uploads/synthetic/");
-}
-
 function assertCategoryPostCounts(): void {
   for (const o of SYNTHETIC_IT_OUTLINES) {
     const n = o.topics.length;
@@ -137,6 +118,58 @@ function assertCategoryPostCounts(): void {
   }
 }
 
+async function resolveCoverUrl(opts: {
+  apiBase: string;
+  token: string;
+  post: PostPayload;
+  bundle: { categoryName: string; keyPrefix: string };
+  idx: number;
+  fetchImages: boolean;
+  pexelsKey: string;
+  usedPexelsPhotoIds: Set<number>;
+  reuseLastCoverOnMiss: boolean;
+  reuseCoverUrl: string | null;
+}): Promise<string> {
+  const { apiBase, token, post, bundle, idx, fetchImages, pexelsKey, usedPexelsPhotoIds } = opts;
+  const label = `${bundle.keyPrefix}-${idx}`;
+
+  if (fetchImages && pexelsKey) {
+    const query =
+      typeof post.imageSearchQuery === "string" && post.imageSearchQuery.trim().length > 0
+        ? post.imageSearchQuery.trim()
+        : `${bundle.categoryName} technology ${htmlPlainExcerpt(post.html, 160)}`;
+    const selectionSalt = `${SYNTHETIC_IT_EXTERNAL_SOURCE}|${bundle.categoryName}|${label}`;
+    const uploaded = await fetchPexelsPhotoAndUpload({
+      apiBase,
+      restToken: token,
+      pexelsApiKey: pexelsKey,
+      query,
+      refineHint: "developer",
+      fallbackQueries: [
+        `${bundle.categoryName} programming`,
+        "software developer laptop",
+        "technology workspace",
+        "coding computer",
+      ],
+      avoidPexelsPhotoIds: usedPexelsPhotoIds,
+      selectionSalt,
+    });
+    if (uploaded && isPostUploadPublicUrl(uploaded.uploadUrl)) {
+      usedPexelsPhotoIds.add(uploaded.pexelsPhotoId);
+      return uploaded.uploadUrl;
+    }
+  }
+
+  const reuse = opts.reuseCoverUrl?.trim() ?? "";
+  if (opts.reuseLastCoverOnMiss && reuse && isPostUploadPublicUrl(reuse)) {
+    console.warn(`  [cover] ${label} 未拉到新图，复用本分类上一张本站封面`);
+    return reuse;
+  }
+
+  console.warn(`  [cover] ${label} 上传内置占位 PNG 至 /uploads/posts/…`);
+  return uploadSeedPlaceholderImage(apiBase, token, `${bundle.categoryName}-${label}`);
+}
+
 async function prepareSyntheticPostPayload(
   post: PostPayload,
   bundle: { categoryName: string; keyPrefix: string },
@@ -147,70 +180,37 @@ async function prepareSyntheticPostPayload(
     rateMs: number;
     fetchImages: boolean;
     pexelsKey: string;
-    /** 整场种子会话内出现过的 Pexels `photos[].id`，用于尽量不重复配图 */
     usedPexelsPhotoIds: Set<number>;
     reuseLastCoverOnMiss: boolean;
-    /** 已成功上传的本站封面，用于本条拉图全失败时的可选复用，避免仅占位路径 */
     reuseCoverUrl: string | null;
   },
 ): Promise<{ title: string; html: string; coverUrl: string }> {
   const title = post.title.trim();
   let html = post.html.trim();
-  const fallbackSrc = `/uploads/synthetic/${bundle.keyPrefix}-${idx}.webp`;
 
-  let coverUrl = fallbackSrc;
+  const coverUrl = await resolveCoverUrl({
+    apiBase: ctx.apiBase,
+    token: ctx.token,
+    post,
+    bundle,
+    idx,
+    fetchImages: ctx.fetchImages,
+    pexelsKey: ctx.pexelsKey,
+    usedPexelsPhotoIds: ctx.usedPexelsPhotoIds,
+    reuseLastCoverOnMiss: ctx.reuseLastCoverOnMiss,
+    reuseCoverUrl: ctx.reuseCoverUrl,
+  });
+  await sleep(ctx.rateMs);
 
-  if (ctx.fetchImages && ctx.pexelsKey) {
-    const query =
-      typeof post.imageSearchQuery === "string" && post.imageSearchQuery.trim().length > 0
-        ? post.imageSearchQuery.trim()
-        : `${bundle.categoryName} technology ${htmlPlainExcerpt(html, 160)}`;
-    const selectionSalt = `${SYNTHETIC_IT_EXTERNAL_SOURCE}|${bundle.categoryName}|${bundle.keyPrefix}-${idx}`;
-    const uploaded = await fetchPexelsPhotoAndUpload({
-      apiBase: ctx.apiBase,
-      restToken: ctx.token,
-      pexelsApiKey: ctx.pexelsKey,
-      query,
-      refineHint: "developer",
-      fallbackQueries: [
-        `${bundle.categoryName} programming`,
-        "software developer laptop",
-        "technology workspace",
-        "coding computer",
-      ],
-      avoidPexelsPhotoIds: ctx.usedPexelsPhotoIds,
-      selectionSalt,
-    });
-    if (uploaded) {
-      ctx.usedPexelsPhotoIds.add(uploaded.pexelsPhotoId);
-      coverUrl = uploaded.uploadUrl;
-    }
-    await sleep(ctx.rateMs);
-  }
-
-  if (!coverUrl || coverUrl === fallbackSrc) {
-    const reuse = ctx.reuseCoverUrl?.trim() ?? "";
-    if (ctx.reuseLastCoverOnMiss && reuse && !isSyntheticDiskPlaceholderPath(reuse)) {
-      console.warn(`  [pexels] 本条未拉到新图，复用本站已有封面`);
-      coverUrl = reuse;
-    } else {
-      coverUrl = fallbackSrc;
-    }
-  }
-
-  if (!html.includes(coverUrl)) {
-    html = `${html}\n<p><img src="${coverUrl}" alt="${escapeAttr(title)}" loading="lazy"/></p>`;
-  }
+  html = embedCoverImageInHtml(html, coverUrl, title);
 
   const filler = `<p>工程细节请以官方文档与团队约定为准；以上为提纲式说明。</p>`;
   while (html.trim().length < SYNTHETIC_HTML_MIN_LEN) {
     html = `${html}\n${filler}`;
   }
 
-  assertSyntheticPostLengths(title, html);
-  assertSyntheticPostHtmlHasUploadImage(html);
-
-  return { title, html, coverUrl };
+  const prepared = prepareSyntheticPostForApi(title, html);
+  return { ...prepared, coverUrl };
 }
 
 async function postCommentChain(
@@ -282,10 +282,10 @@ async function injectBundlePosts(
       avoidPexelsPhotoIds: usedPexelsPhotoIds,
       selectionSalt: `${SYNTHETIC_IT_EXTERNAL_SOURCE}|${bundle.categoryName}|warmup-cover`,
     });
-    if (prime) {
+    if (prime && isPostUploadPublicUrl(prime.uploadUrl)) {
       usedPexelsPhotoIds.add(prime.pexelsPhotoId);
       reuseCoverUrl = prime.uploadUrl;
-      console.log(`  [pexels] 本分类预热封面已写入 uploads`);
+      console.log(`  [pexels] 本分类预热封面已写入 uploads/posts`);
     }
     await sleep(rateMs);
   }
@@ -321,9 +321,8 @@ async function injectBundlePosts(
     postsProcessed += 1;
     console.log(`  帖子 ${externalKey} -> postId=${postId}`);
 
-    const cover = payload.coverUrl.trim();
-    if (cover && !isSyntheticDiskPlaceholderPath(cover)) {
-      reuseCoverUrl = cover;
+    if (isPostUploadPublicUrl(payload.coverUrl)) {
+      reuseCoverUrl = payload.coverUrl;
     }
 
     if (commentDone.has(dedupeKey)) {
@@ -351,7 +350,6 @@ async function main() {
   );
 
   const token = await resolveAdminImportToken(apiBase);
-
   assertCategoryPostCounts();
 
   const rateMs = Number(process.env.SYNTHETIC_RATE_MS ?? "120");
@@ -396,17 +394,15 @@ async function main() {
     process.exit(1);
   }
 
-  /** 配置了 Pexels Key 即默认搜图上传；仅 SYNTHETIC_FETCH_IMAGES=0|false 时关闭 */
   const fetchImages = Boolean(pexelsKey) && !fetchExplicitOff;
 
   if (!pexelsKey) {
     console.warn(
-      "[synthetic-it] 未配置 SYNTHETIC_PEXELS_API_KEY：将使用占位路径 /uploads/synthetic/{key}-{idx}.webp（磁盘上通常不存在，配图可能 404）。配置 Key 后重新运行即可自动搜图并写入 uploads。",
+      "[synthetic-it] 未配置 SYNTHETIC_PEXELS_API_KEY：跳过 Pexels 拉图，封面将通过 POST /api/uploads 写入占位 PNG（真实 /uploads/posts/… 路径）。",
     );
   }
 
   const commentDone = await loadCommentManifest();
-  /** 跨分类、整场 `db:seed-post` 会话内尽量不重复选用同一 Pexels 资源 id */
   const usedPexelsPhotoIds = new Set<number>();
 
   const tree = await apiSuccessJson("GET", apiBase, token, "/categories");
