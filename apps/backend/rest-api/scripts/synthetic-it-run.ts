@@ -22,7 +22,6 @@ import {
   SYNTHETIC_IT_MANIFEST_RELATIVE,
 } from "./synthetic-it-constants.js";
 import {
-  SYNTHETIC_HTML_MIN_LEN,
   SYNTHETIC_POSTS_PER_CATEGORY_MAX,
   SYNTHETIC_POSTS_PER_CATEGORY_MIN,
   htmlPlainExcerpt,
@@ -203,11 +202,6 @@ async function prepareSyntheticPostPayload(
   await sleep(ctx.rateMs);
 
   html = embedCoverImageInHtml(html, coverUrl, title);
-
-  const filler = `<p>工程细节请以官方文档与团队约定为准；以上为提纲式说明。</p>`;
-  while (html.trim().length < SYNTHETIC_HTML_MIN_LEN) {
-    html = `${html}\n${filler}`;
-  }
 
   const prepared = prepareSyntheticPostForApi(title, html);
   return { ...prepared, coverUrl };

@@ -24,6 +24,10 @@ export const SYNTHETIC_TITLE_MAX_LEN = 20;
 export const SYNTHETIC_HTML_MIN_LEN = 300;
 export const SYNTHETIC_HTML_MAX_LEN = 10000;
 
+/** 净化后仍不足最小长度时追加；须为白名单内 `<p>`，避免再次被 strip */
+export const SYNTHETIC_HTML_LENGTH_FILLER =
+  "<p>工程细节请以官方文档与团队约定为准；以上为提纲式说明。</p>";
+
 export function assertSyntheticPostLengths(title: string, html: string): void {
   const t = title.trim();
   const h = html.trim();
@@ -57,12 +61,14 @@ export function prepareSyntheticPostForApi(
   title: string,
   html: string,
 ): { title: string; html: string } {
-  assertSyntheticPostLengths(title, html);
-
   const sanitizedTitle = sanitizeTitleForStorage(title.trim());
-  const sanitizedHtml = sanitizeHtmlContentForStorage(html.trim());
+  let sanitizedHtml = sanitizeHtmlContentForStorage(html.trim());
   if (!sanitizedTitle || !sanitizedHtml) {
     throw new Error("标题或正文经服务端净化后为空");
+  }
+
+  while (sanitizedHtml.length < SYNTHETIC_HTML_MIN_LEN) {
+    sanitizedHtml = `${sanitizedHtml}\n${SYNTHETIC_HTML_LENGTH_FILLER}`;
   }
 
   assertSyntheticPostLengths(sanitizedTitle, sanitizedHtml);

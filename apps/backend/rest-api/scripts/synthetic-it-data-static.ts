@@ -163,8 +163,8 @@ const SYNTHETIC_IT_STATIC_BUNDLES_RAW: SyntheticBundle[] = [
       {
         title: "Vue3 组合式与类型",
         html: paras(
-          "组合式 API 把同一功能的 ref/reactive、方法与生命周期收敛到 setup 或 <script setup> 中，便于按「功能横切」拆出 composable，而不是按选项类型纵向堆积。",
-          "TypeScript 下，ref 解包与 props 类型在 <script setup> 中有较好的推导体验；复杂 props 建议用接口定义并在组件外复用。",
+          "组合式 API 把同一功能的 ref/reactive、方法与生命周期收敛到 setup 或 &lt;script setup&gt; 中，便于按「功能横切」拆出 composable，而不是按选项类型纵向堆积。",
+          "TypeScript 下，ref 解包与 props 类型在 &lt;script setup&gt; 中有较好的推导体验；复杂 props 建议用接口定义并在组件外复用。",
           "与选项式并存：迁移期可混用，但长期维护建议在新模块优先组合式以降低巨型组件的理解成本。",
         ),
         comments: [
