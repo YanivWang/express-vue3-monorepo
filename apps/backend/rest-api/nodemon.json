@@ -15,7 +15,7 @@
     "coverage/**",
     ".gitignore",
     "pnpm-lock.yaml",
-    "scripts/synthetic-it-applied-comments.json"
+    "scripts/**"
   ],
   "events": {
     "start": "echo 'Starting app...'",
