@@ -57,7 +57,6 @@ const dlg = reactive({
     content: "",
     categoryId: undefined as unknown as number,
     published: true,
-    imagesText: "",
   },
 });
 
@@ -106,7 +105,6 @@ async function openEdit(row: PostItem & { author?: unknown; category?: unknown }
   dlg.form.content = post.content;
   dlg.form.categoryId = post.categoryId;
   dlg.form.published = post.published;
-  dlg.form.imagesText = Array.isArray(post.images) ? post.images.join("\n") : "";
   dlg.visible = true;
 }
 
@@ -124,16 +122,11 @@ async function saveEdit() {
   if (!dlg.row) return;
   dlg.saving = true;
   try {
-    const imgs = dlg.form.imagesText
-      .split(/\r?\n/)
-      .map((s) => s.trim())
-      .filter(Boolean);
     await httpPutPost(dlg.row.id, {
       title: dlg.form.title,
       content: dlg.form.content,
       categoryId: dlg.form.categoryId,
       published: dlg.form.published,
-      images: imgs.length ? imgs : [],
     });
     dlg.visible = false;
     await reloadList();
@@ -280,13 +273,6 @@ function onPublishedQuick(row: PostItem, published: boolean) {
           </el-select>
         </el-form-item>
         <el-form-item label="发布"><el-switch v-model="dlg.form.published" /></el-form-item>
-        <el-form-item label="图片 URL">
-          <el-input
-            v-model="dlg.form.imagesText"
-            type="textarea"
-            placeholder="一行一个本站 /uploads/posts/… 路径（新上传默认为此前缀）"
-          />
-        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dlg.visible = false">取消</el-button>

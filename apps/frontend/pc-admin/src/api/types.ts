@@ -32,7 +32,6 @@ export interface PostItem {
   published: boolean;
   authorId: number;
   categoryId: number;
-  images?: string[];
 }
 
 export interface PostAuthor {

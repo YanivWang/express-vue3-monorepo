@@ -69,13 +69,13 @@ const router = createRouter({
       path: "/mine/editor",
       name: "editor-new",
       component: () => import("@/views/PostEditorView.vue"),
-      meta: { title: "写文章", requiresAuth: true },
+      meta: { title: "写文章", requiresAuth: true, blankLayout: true },
     },
     {
       path: "/mine/editor/:id",
       name: "editor-edit",
       component: () => import("@/views/PostEditorView.vue"),
-      meta: { title: "编辑文章", requiresAuth: true },
+      meta: { title: "编辑文章", requiresAuth: true, blankLayout: true },
     },
     {
       path: "/test/big-file-upload",

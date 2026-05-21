@@ -31,7 +31,6 @@ export interface PostItem {
   published: boolean;
   authorId: number;
   categoryId: number;
-  images?: string[];
   createdAt: string;
   updatedAt: string;
   commentCount?: number;

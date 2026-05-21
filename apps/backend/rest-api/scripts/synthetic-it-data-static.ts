@@ -9,8 +9,6 @@ export type SyntheticBundle = {
     title: string;
     html: string;
     comments: { body: string; replies?: string[] }[];
-    /** 可选；缺省时 synthetic-it-run.ts 使用 `/uploads/synthetic/{keyPrefix}-{idx}.webp` */
-    images?: string[];
     /** 仅 LLM 动态帖使用；静态 bundle 可省略 */
     imageSearchQuery?: string;
   }[];

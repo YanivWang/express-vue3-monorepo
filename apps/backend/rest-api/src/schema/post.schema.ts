@@ -102,15 +102,6 @@ export const getPostSchema = z.object({
   }),
 });
 
-const postImagePathSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(500)
-  .regex(/^\/uploads\/[a-zA-Z0-9._/-]+$/, "图片须为本站 /uploads/ 路径");
-
-const postImagesSchema = z.array(postImagePathSchema).max(24, "图片最多 24 张").optional();
-
 const postBodySchema = z.object({
   title: z
     .string({ error: "标题不能为空" })
@@ -119,7 +110,6 @@ const postBodySchema = z.object({
     .max(200, "标题最多 200 个字符"),
   content: z.string({ error: "正文不能为空" }).trim().min(1, "正文不能为空"),
   published: z.coerce.boolean().optional(),
-  images: postImagesSchema,
 });
 
 const createPostBodySchema = postBodySchema

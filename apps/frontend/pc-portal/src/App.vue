@@ -48,4 +48,11 @@ body {
     -apple-system, blinkmacsystemfont, "SF UI Text", arial, "PingFang SC", "Hiragino Sans GB",
     "Microsoft YaHei", "微软雅黑", "WenQuanYi Micro Hei", sans-serif;
 }
+
+/* 富文本编辑页：禁止页面级滚动，高度交给 Yaniv Editor 内部 */
+html.editor-route-lock,
+html.editor-route-lock body {
+  height: 100%;
+  overflow: hidden;
+}
 </style>

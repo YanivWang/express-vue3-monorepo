@@ -1,12 +1,30 @@
 <script setup lang="ts">
+import {
+  YanivEditor,
+  type EditorAppearance,
+  type EditorColorMode,
+  type EditorMode,
+  type EditorPreset,
+  type FeatureConfig,
+} from "@yanivjs/yaniv-editor";
+import "@yanivjs/yaniv-editor/style.css";
+import "katex/dist/katex.min.css";
 import { ElMessage } from "element-plus";
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import { fetchCategories } from "@/api/categories";
 import { createPost, fetchPostForEditor, updatePost } from "@/api/posts";
 import type { CategoryTreeNode, PostItem } from "@/api/types";
-import { uploadImages } from "@/api/uploads";
+import { usePostMediaUpload } from "@/utils/usePostMediaUpload";
+
+const EDITOR_ROUTE_LOCK_CLASS = "editor-route-lock";
+
+const EDITOR_MODE: EditorMode = "edit";
+const EDITOR_PRESET: EditorPreset = "full";
+const EDITOR_APPEARANCE: EditorAppearance = "default";
+const EDITOR_COLOR_MODE: EditorColorMode = "light";
+const EDITOR_FEATURES: FeatureConfig = { ai: false };
 
 const route = useRoute();
 const router = useRouter();
@@ -14,17 +32,17 @@ const router = useRouter();
 const categories = ref<CategoryTreeNode[]>([]);
 const loading = ref(false);
 const saving = ref(false);
-const uploadBusy = ref(false);
-const fileRef = ref<HTMLInputElement | null>(null);
+const editorRef = ref<InstanceType<typeof YanivEditor> | null>(null);
+const editorInitialContent = ref("<p></p>");
 
 const form = reactive({
   title: "",
-  content: "",
   categoryId: null as number | null,
   published: false,
 });
 
-const images = ref<string[]>([]);
+const { handleUploadImage, handleUploadVideo } = usePostMediaUpload();
+
 const editId = computed(() => {
   const raw = route.params.id;
   if (raw == null || raw === "") return null;
@@ -42,6 +60,14 @@ const leafOptions = computed(() => {
   return out;
 });
 
+function lockEditorRouteScroll() {
+  document.documentElement.classList.add(EDITOR_ROUTE_LOCK_CLASS);
+}
+
+function unlockEditorRouteScroll() {
+  document.documentElement.classList.remove(EDITOR_ROUTE_LOCK_CLASS);
+}
+
 async function hydrateCategories() {
   const { categories: tree } = await fetchCategories();
   categories.value = tree;
@@ -49,13 +75,13 @@ async function hydrateCategories() {
 
 function applyPost(p: PostItem) {
   form.title = p.title;
-  form.content = p.content;
   form.categoryId = p.categoryId;
   form.published = p.published;
-  images.value = [...(p.images ?? [])];
+  editorInitialContent.value = p.content?.trim() || "<p></p>";
 }
 
 onMounted(async () => {
+  lockEditorRouteScroll();
   loading.value = true;
   try {
     await hydrateCategories();
@@ -71,27 +97,22 @@ onMounted(async () => {
   }
 });
 
-async function onFileChange(e: Event) {
-  const input = e.target as HTMLInputElement;
-  const files = input.files;
-  if (!files?.length) return;
-  uploadBusy.value = true;
-  try {
-    const { urls } = await uploadImages(Array.from(files));
-    images.value = [...images.value, ...urls].slice(0, 24);
-    ElMessage.success("上传成功");
-  } finally {
-    uploadBusy.value = false;
-    input.value = "";
-  }
+onBeforeUnmount(() => {
+  unlockEditorRouteScroll();
+});
+
+function getEditorContentHtml(): string {
+  return editorRef.value?.getHTML()?.trim() ?? "";
 }
 
-function removeImage(i: number) {
-  images.value.splice(i, 1);
+function getEditorPlainText(): string {
+  return editorRef.value?.getText()?.trim() ?? "";
 }
 
 async function save() {
-  if (!form.title.trim() || !form.content.trim()) {
+  const content = getEditorContentHtml();
+  const plain = getEditorPlainText();
+  if (!form.title.trim() || !plain) {
     ElMessage.warning("标题与正文不能为空");
     return;
   }
@@ -101,23 +122,17 @@ async function save() {
   }
   saving.value = true;
   try {
+    const payload = {
+      title: form.title.trim(),
+      content,
+      categoryId: form.categoryId,
+      published: form.published,
+    };
     if (editId.value == null) {
-      await createPost({
-        title: form.title.trim(),
-        content: form.content.trim(),
-        categoryId: form.categoryId,
-        published: form.published,
-        images: images.value,
-      });
+      await createPost(payload);
       ElMessage.success("创建成功");
     } else {
-      await updatePost(editId.value, {
-        title: form.title.trim(),
-        content: form.content.trim(),
-        categoryId: form.categoryId,
-        published: form.published,
-        images: images.value,
-      });
+      await updatePost(editId.value, payload);
       ElMessage.success("已保存");
     }
     await router.push({ name: "mine" });
@@ -125,27 +140,56 @@ async function save() {
     saving.value = false;
   }
 }
+
+function cancelEdit() {
+  void router.push({ name: "mine" });
+}
 </script>
 
 <template>
-  <div v-loading="loading" class="editor-page">
-    <header class="editor-page__head">
-      <button type="button" class="editor-back" @click="router.push({ name: 'mine' })">
-        <span class="editor-back__arrow" aria-hidden="true">←</span>
-        我的文章
-      </button>
-      <div class="editor-page__head-text">
-        <h1 class="editor-page__title">{{ editId == null ? "写文章" : "编辑文章" }}</h1>
-        <p class="editor-page__subtitle">
-          纯文本正文，配图可选；保存后可在「我的文章」中继续修改。
-        </p>
-      </div>
-    </header>
+  <div v-loading="loading" class="post-editor-page">
+    <el-form label-position="top" class="post-editor-form">
+      <aside class="editor-publish-bar" aria-label="发布设置">
+        <el-form-item label="分类" class="editor-publish-bar__field">
+          <el-select
+            v-model="form.categoryId"
+            placeholder="选择栏目"
+            filterable
+            class="editor-select"
+          >
+            <el-option v-for="o in leafOptions" :key="o.value" :label="o.label" :value="o.value" />
+          </el-select>
+        </el-form-item>
 
-    <el-form label-position="top" class="editor-form">
-      <div class="editor-layout">
-        <div class="editor-layout__main">
-          <section class="editor-card">
+        <el-form-item
+          label="发布"
+          class="editor-publish-bar__field editor-publish-bar__field--switch"
+        >
+          <el-switch
+            v-model="form.published"
+            active-text="立即发布"
+            inactive-text="草稿"
+            class="editor-switch"
+          />
+        </el-form-item>
+
+        <div class="editor-actions editor-publish-bar__actions">
+          <el-button
+            type="primary"
+            size="large"
+            class="editor-actions__primary"
+            :loading="saving"
+            @click="save"
+          >
+            保存
+          </el-button>
+          <el-button size="large" @click="cancelEdit">取消</el-button>
+        </div>
+      </aside>
+
+      <div class="post-editor-layout">
+        <div class="post-editor-layout__main">
+          <section class="editor-card editor-card--title">
             <el-form-item label="标题" class="editor-form-item--bleed">
               <el-input
                 v-model="form.title"
@@ -155,19 +199,26 @@ async function save() {
                 placeholder="起一个有信息量的标题"
               />
             </el-form-item>
-            <el-form-item label="正文" class="editor-form-item--bleed editor-form-item--body">
-              <el-input
-                v-model="form.content"
-                type="textarea"
-                :rows="14"
-                class="editor-body-input"
-                placeholder="支持纯文本；勿粘贴不可信 HTML。"
-              />
-            </el-form-item>
+          </section>
+
+          <section class="editor-card editor-card--body yaniv-editor-host">
+            <YanivEditor
+              v-if="!loading"
+              ref="editorRef"
+              :mode="EDITOR_MODE"
+              :preset="EDITOR_PRESET"
+              :appearance="EDITOR_APPEARANCE"
+              :color-mode="EDITOR_COLOR_MODE"
+              :features="EDITOR_FEATURES"
+              locale="zh-CN"
+              :initial-content="editorInitialContent"
+              :upload-image="handleUploadImage"
+              :upload-video="handleUploadVideo"
+            />
           </section>
         </div>
 
-        <aside class="editor-layout__side">
+        <aside class="post-editor-layout__side" aria-label="发布设置">
           <section class="editor-card">
             <el-form-item label="分类">
               <el-select
@@ -183,41 +234,6 @@ async function save() {
                   :value="o.value"
                 />
               </el-select>
-            </el-form-item>
-          </section>
-
-          <section class="editor-card">
-            <el-form-item label="配图" class="editor-form-item--images">
-              <div class="upload-panel">
-                <div class="upload-panel__actions">
-                  <el-button :loading="uploadBusy" type="primary" plain @click="fileRef?.click()">
-                    上传图片
-                  </el-button>
-                  <input
-                    ref="fileRef"
-                    type="file"
-                    accept="image/jpeg,image/png,image/gif,image/webp"
-                    multiple
-                    hidden
-                    @change="onFileChange"
-                  />
-                </div>
-                <p class="upload-panel__hint">最多 24 张，单次上传最多 9 个文件</p>
-                <div v-if="images.length > 0" class="thumbs" role="list">
-                  <div v-for="(src, i) in images" :key="src + i" class="thumb" role="listitem">
-                    <img :src="src" alt="" />
-                    <button
-                      type="button"
-                      class="thumb__remove"
-                      aria-label="移除图片"
-                      @click="removeImage(i)"
-                    >
-                      ×
-                    </button>
-                  </div>
-                </div>
-                <p v-else class="upload-panel__empty">暂未添加配图</p>
-              </div>
             </el-form-item>
           </section>
 
@@ -240,7 +256,7 @@ async function save() {
               >
                 保存
               </el-button>
-              <el-button size="large" @click="router.push({ name: 'mine' })">取消</el-button>
+              <el-button size="large" @click="cancelEdit">取消</el-button>
             </div>
           </section>
         </aside>
@@ -250,110 +266,133 @@ async function save() {
 </template>
 
 <style scoped lang="scss">
-$brand: #ea6f5a;
 $border: #e8e9ec;
-$muted: #888;
 
-.editor-page {
-  margin: -8px 0 0;
-}
-
-.editor-page__head {
-  margin-bottom: 20px;
-}
-
-.editor-back {
-  display: inline-flex;
-  gap: 6px;
-  align-items: center;
-  padding: 4px 2px 12px;
-  margin: 0 0 0 -2px;
-  font-family: inherit;
-  font-size: 14px;
-  color: $muted;
-  cursor: pointer;
-  background: none;
-  border: none;
-  border-radius: 6px;
-  transition:
-    color 0.15s ease,
-    background-color 0.15s ease;
-
-  &:hover {
-    color: $brand;
-    background-color: rgb(0 0 0 / 0.03);
-  }
-
-  &:focus-visible {
-    outline: 2px solid rgb(234 111 90 / 0.45);
-    outline-offset: 2px;
-  }
-}
-
-.editor-back__arrow {
-  font-size: 15px;
-  line-height: 1;
-  opacity: 0.85;
-}
-
-.editor-page__head-text {
-  padding-bottom: 2px;
-  border-bottom: 1px solid #eee;
-}
-
-.editor-page__title {
-  margin: 0 0 6px;
-  font-size: 22px;
-  font-weight: 600;
-  line-height: 1.3;
-  color: #222;
-  letter-spacing: 0.02em;
-}
-
-.editor-page__subtitle {
-  margin: 0 0 16px;
-  font-size: 13px;
-  line-height: 1.5;
-  color: $muted;
-}
-
-.editor-layout {
-  display: grid;
-  gap: 20px;
-  align-items: start;
-
-  @media (width >= 920px) {
-    grid-template-columns: minmax(0, 1fr) 300px;
-    gap: 24px;
-  }
-}
-
-.editor-layout__side {
+.post-editor-page {
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  height: 100dvh;
+  min-height: 100vh;
+  padding: 12px 16px;
+  overflow: hidden;
+  background: #f6f7f9;
+}
+
+.post-editor-form {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.editor-publish-bar {
+  display: none;
+}
+
+.post-editor-layout {
+  display: grid;
+  flex: 1;
+  gap: 12px;
+  min-height: 0;
 
   @media (width >= 920px) {
-    position: sticky;
-    top: 12px;
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 16px;
+  }
+}
+
+.post-editor-layout__main {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+.post-editor-layout__side {
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+
+  @media (width >= 920px) {
+    display: flex;
+    align-self: start;
+  }
+}
+
+@media (width < 920px) {
+  .editor-publish-bar {
+    display: flex;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    align-items: flex-end;
+    padding: 12px;
+    margin-bottom: 8px;
+    background: #fff;
+    border: 1px solid $border;
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+  }
+
+  .editor-publish-bar__field {
+    flex: 1 1 160px;
+    min-width: 0;
+    margin-bottom: 0 !important;
+  }
+
+  .editor-publish-bar__field--switch {
+    flex: 0 1 auto;
+  }
+
+  .editor-publish-bar__actions {
+    flex: 1 1 100%;
+    justify-content: flex-end;
+    padding-top: 0;
   }
 }
 
 .editor-card {
-  padding: 18px 18px 4px;
+  padding: 16px 16px 4px;
   background: #fff;
   border: 1px solid $border;
   border-radius: 12px;
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
 }
 
-.editor-card--footer {
-  padding-bottom: 18px;
+.editor-card--title {
+  flex-shrink: 0;
+  padding-bottom: 8px;
 }
 
-.editor-form {
+.editor-card--body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.editor-card--body.yaniv-editor-host {
+  height: 100%;
+}
+
+.editor-card--body.yaniv-editor-host :deep(.yaniv-editor) {
+  flex: 1;
+  min-height: 0;
+}
+
+.editor-card--footer {
+  padding-bottom: 16px;
+}
+
+.post-editor-form {
   :deep(.el-form-item) {
-    margin-bottom: 18px;
+    margin-bottom: 16px;
   }
 
   :deep(.el-form-item__label) {
@@ -364,38 +403,10 @@ $muted: #888;
   }
 }
 
-.editor-form-item--bleed {
-  :deep(.el-form-item__content) {
-    line-height: 1.5;
-  }
-}
-
-.editor-form-item--body {
-  margin-bottom: 8px !important;
-}
-
 .editor-title-input {
   :deep(.el-input__wrapper) {
     padding: 10px 14px;
     font-size: 16px;
-    border-radius: 10px;
-    box-shadow: 0 0 0 1px #e4e5e8 inset;
-  }
-
-  :deep(.el-input__inner) {
-    font-weight: 500;
-    letter-spacing: 0.01em;
-  }
-}
-
-.editor-body-input {
-  :deep(.el-textarea__inner) {
-    min-height: 360px;
-    padding: 14px 16px;
-    font-size: 15px;
-    line-height: 1.65;
-    color: #2a2a2a;
-    resize: vertical;
     border-radius: 10px;
     box-shadow: 0 0 0 1px #e4e5e8 inset;
   }
@@ -412,90 +423,6 @@ $muted: #888;
   }
 }
 
-.upload-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.upload-panel__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-}
-
-.upload-panel__hint {
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.45;
-  color: $muted;
-}
-
-.upload-panel__empty {
-  padding: 12px 14px;
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.45;
-  color: #b0b0b0;
-  text-align: center;
-  background: #fafbfc;
-  border: 1px dashed #dcdde2;
-  border-radius: 10px;
-}
-
-.thumbs {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
-  gap: 8px;
-  margin: 4px 0 0;
-}
-
-.thumb {
-  position: relative;
-  aspect-ratio: 1;
-  overflow: hidden;
-  background: #f3f4f6;
-  border-radius: 8px;
-}
-
-.thumb img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.thumb__remove {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  margin: 0;
-  font-size: 16px;
-  line-height: 1;
-  color: #fff;
-  cursor: pointer;
-  background: rgb(0 0 0 / 0.45);
-  border: none;
-  border-radius: 999px;
-  transition: background 0.15s ease;
-
-  &:hover {
-    background: rgb(0 0 0 / 0.62);
-  }
-
-  &:focus-visible {
-    outline: 2px solid #fff;
-    outline-offset: 1px;
-  }
-}
-
 .editor-switch {
   :deep(.el-switch__label) {
     font-size: 13px;
@@ -508,7 +435,6 @@ $muted: #888;
   flex-wrap: wrap;
   gap: 10px;
   padding-top: 4px;
-  margin-top: 4px;
 }
 
 .editor-actions__primary {

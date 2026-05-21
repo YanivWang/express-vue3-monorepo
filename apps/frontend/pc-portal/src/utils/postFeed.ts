@@ -15,8 +15,6 @@ export function cardAbstract(p: PostItem): string {
 }
 
 export function cardCoverUrl(p: PostItem): string | null {
-  const first = p.images?.[0];
-  if (first != null && first !== "") return first;
   const m = (p.content ?? "").match(/<img[^>]+src=["']([^"']+)["']/i);
   return m?.[1] ?? null;
 }

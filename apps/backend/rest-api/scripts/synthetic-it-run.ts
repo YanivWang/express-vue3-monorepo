@@ -6,7 +6,7 @@
  * **认证**：可设 `REST_API_IMPORT_TOKEN`，或不设则由脚本 **`POST …/login`** 取 JWT（管理员账号）。
  * **一键灌帖**：同上 **`pnpm db:seed-post`**（**前提**：库内已有与 synthetic-it 一致的 IT 类目，通常先 **`pnpm db:seed-categories`**）。
  *
- * 帖子约束（脚本侧）：标题 trim 后 10～20 字符；正文 HTML trim 后 300～10000 字符（含标签）；至少 1 张本站 `/uploads/` 配图（正文内插入 `<img>`，`images` 数组与之对齐）。**每个叶子分类**在 synthetic-it-data.ts / synthetic-it-data-static.ts 中须配置 **16～60** 篇（synthetic-it-run 启动时校验）。
+ * 帖子约束（脚本侧）：标题 trim 后 10～20 字符；正文 HTML trim 后 300～10000 字符（含标签）；至少 1 张本站 `/uploads/` 配图（嵌入正文 `<img>`）。**每个叶子分类**在 synthetic-it-data.ts / synthetic-it-data-static.ts 中须配置 **16～60** 篇（synthetic-it-run 启动时校验）。
  *
  * 环境变量：
  * - REST_API_BASE：API 根路径（默认 http://127.0.0.1:2026/api，对齐 Compose 宿主网关 GATEWAY_HOST_PORT）。本机直连 `pnpm rest-api:dev`（PORT=3000）时可设为 `http://127.0.0.1:3000/api`。
@@ -35,7 +35,7 @@ import {
   SYNTHETIC_IT_MANIFEST_RELATIVE,
 } from "./synthetic-it-constants.js";
 import {
-  assertSyntheticPostImages,
+  assertSyntheticPostHtmlHasUploadImage,
   assertSyntheticPostLengths,
   htmlPlainExcerpt,
   SYNTHETIC_HTML_MIN_LEN,
@@ -153,13 +153,12 @@ async function prepareSyntheticPostPayload(
     /** 已成功上传的本站封面，用于本条拉图全失败时的可选复用，避免仅占位路径 */
     reuseCoverUrl: string | null;
   },
-): Promise<{ title: string; html: string; images: string[] }> {
+): Promise<{ title: string; html: string; coverUrl: string }> {
   const title = post.title.trim();
   let html = post.html.trim();
   const fallbackSrc = `/uploads/synthetic/${bundle.keyPrefix}-${idx}.webp`;
 
-  let images =
-    Array.isArray(post.images) && post.images.length > 0 ? post.images.map((x) => x.trim()) : [];
+  let coverUrl = fallbackSrc;
 
   if (ctx.fetchImages && ctx.pexelsKey) {
     const query =
@@ -184,24 +183,23 @@ async function prepareSyntheticPostPayload(
     });
     if (uploaded) {
       ctx.usedPexelsPhotoIds.add(uploaded.pexelsPhotoId);
-      images = [uploaded.uploadUrl];
+      coverUrl = uploaded.uploadUrl;
     }
     await sleep(ctx.rateMs);
   }
 
-  if (images.length === 0) {
+  if (!coverUrl || coverUrl === fallbackSrc) {
     const reuse = ctx.reuseCoverUrl?.trim() ?? "";
     if (ctx.reuseLastCoverOnMiss && reuse && !isSyntheticDiskPlaceholderPath(reuse)) {
       console.warn(`  [pexels] 本条未拉到新图，复用本站已有封面`);
-      images = [reuse];
+      coverUrl = reuse;
     } else {
-      images = [fallbackSrc];
+      coverUrl = fallbackSrc;
     }
   }
 
-  const primary = images[0];
-  if (!html.includes(primary)) {
-    html = `${html}\n<p><img src="${primary}" alt="${escapeAttr(title)}" loading="lazy"/></p>`;
+  if (!html.includes(coverUrl)) {
+    html = `${html}\n<p><img src="${coverUrl}" alt="${escapeAttr(title)}" loading="lazy"/></p>`;
   }
 
   const filler = `<p>工程细节请以官方文档与团队约定为准；以上为提纲式说明。</p>`;
@@ -210,9 +208,9 @@ async function prepareSyntheticPostPayload(
   }
 
   assertSyntheticPostLengths(title, html);
-  assertSyntheticPostImages(images);
+  assertSyntheticPostHtmlHasUploadImage(html);
 
-  return { title, html, images };
+  return { title, html, coverUrl };
 }
 
 async function postCommentChain(
@@ -297,7 +295,7 @@ async function injectBundlePosts(
     const externalKey = `${bundle.keyPrefix}-${idx}`;
     const dedupeKey = postDedupeKey(bundle.categoryName, externalKey);
 
-    let payload: { title: string; html: string; images: string[] };
+    let payload: { title: string; html: string; coverUrl: string };
     try {
       payload = await prepareSyntheticPostPayload(post, bundle, idx, {
         ...prepBase,
@@ -312,7 +310,6 @@ async function injectBundlePosts(
       title: payload.title,
       content: payload.html,
       published: true,
-      images: payload.images,
       categoryId,
       externalSource: SYNTHETIC_IT_EXTERNAL_SOURCE,
       externalKey,
@@ -324,7 +321,7 @@ async function injectBundlePosts(
     postsProcessed += 1;
     console.log(`  帖子 ${externalKey} -> postId=${postId}`);
 
-    const cover = payload.images[0]?.trim() ?? "";
+    const cover = payload.coverUrl.trim();
     if (cover && !isSyntheticDiskPlaceholderPath(cover)) {
       reuseCoverUrl = cover;
     }

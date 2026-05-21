@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import DOMPurify from "dompurify";
+import katex from "katex";
+import "katex/dist/katex.min.css";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { storeToRefs } from "pinia";
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import * as commentsApi from "@/api/comments";
@@ -15,6 +16,7 @@ import {
 } from "@/api/posts";
 import type { CommentReplyItem, CommentThreadItem, PostItem } from "@/api/types";
 import { useAuthStore } from "@/stores/auth";
+import { sanitizePostBodyHtml } from "@/utils/post-content-sanitize";
 
 const route = useRoute();
 const router = useRouter();
@@ -242,10 +244,34 @@ const canEditPost = computed(() => {
   return post.value.authorId === claims.value.id;
 });
 
+const postBodyRef = ref<HTMLElement | null>(null);
+
 const postBodyHtml = computed(() => {
   const raw = post.value?.content;
   if (raw == null || raw === "") return "";
-  return DOMPurify.sanitize(raw);
+  return sanitizePostBodyHtml(raw);
+});
+
+function renderPostBodyMath() {
+  const root = postBodyRef.value;
+  if (!root) return;
+  root.querySelectorAll('[data-type="math"]').forEach((node) => {
+    const el = node as HTMLElement;
+    const latex = el.getAttribute("data-latex");
+    if (!latex || el.dataset.rendered === "1") return;
+    const display = el.getAttribute("data-block") === "true";
+    try {
+      katex.render(latex, el, { throwOnError: false, displayMode: display });
+      el.dataset.rendered = "1";
+    } catch {
+      /* 渲染失败保留 data-latex 供调试 */
+    }
+  });
+}
+
+watch(postBodyHtml, async () => {
+  await nextTick();
+  renderPostBodyMath();
 });
 
 function goBackList() {
@@ -397,11 +423,8 @@ watch(isLoggedIn, (loggedIn) => {
         </div>
 
         <div class="body">
-          <!-- eslint-disable-next-line vue/no-v-html -- sanitized with DOMPurify -->
-          <div class="rich-text" v-html="postBodyHtml" />
-          <div v-if="post.images?.length" class="images">
-            <img v-for="(src, i) in post.images" :key="i" :src="src" :alt="`配图 ${i + 1}`" />
-          </div>
+          <!-- eslint-disable-next-line vue/no-v-html -- sanitized in post-content-sanitize -->
+          <div ref="postBodyRef" class="rich-text" v-html="postBodyHtml" />
         </div>
 
         <p class="disclaimer">本文观点仅代表作者本人，本站仅提供信息存储空间服务。</p>
@@ -851,24 +874,59 @@ $bg-soft: #fafafa;
   vertical-align: middle;
 }
 
+.rich-text :deep(video) {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 0 14px;
+  border-radius: 6px;
+}
+
+.rich-text :deep(table) {
+  width: 100%;
+  margin: 0 0 14px;
+  border-collapse: collapse;
+}
+
+.rich-text :deep(th),
+.rich-text :deep(td) {
+  padding: 8px 10px;
+  border: 1px solid #e8e8e8;
+}
+
+.rich-text :deep(th) {
+  font-weight: 600;
+  background: $bg-soft;
+}
+
+.rich-text :deep(ul[data-type="taskList"]) {
+  padding-left: 0;
+  list-style: none;
+}
+
+.rich-text :deep(li[data-type="taskItem"]) {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-bottom: 6px;
+}
+
+.rich-text :deep(.math-node) {
+  margin: 0 2px;
+}
+
+.rich-text :deep(.math-block) {
+  display: block;
+  margin: 12px 0;
+  overflow-x: auto;
+}
+
 .rich-text :deep(a) {
   color: #3194d0;
 
   &:hover {
     text-decoration: underline;
   }
-}
-
-.images {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 20px;
-}
-
-.images img {
-  max-width: 100%;
-  border-radius: 6px;
 }
 
 .disclaimer {

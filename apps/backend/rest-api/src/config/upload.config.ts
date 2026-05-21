@@ -51,7 +51,7 @@ function createYmDiskStorage(diskSegment: string): multer.StorageEngine {
 const postStorage = createYmDiskStorage(postUploadDiskSegment);
 const profileStorage = createYmDiskStorage(profileUploadDiskSegment);
 
-/** 表单字段名 `files`，帖子配图最多 9 个，单文件最大 8MB */
+/** 表单字段名 `files`，富文本插图最多 9 个，单文件最大 8MB */
 export const uploadImagesMiddleware = multer({
   storage: postStorage,
   limits: { fileSize: 8 * 1024 * 1024, files: 9 },

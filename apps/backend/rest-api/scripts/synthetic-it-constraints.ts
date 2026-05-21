@@ -15,9 +15,8 @@ export const SYNTHETIC_TITLE_MIN_LEN = 10;
 export const SYNTHETIC_TITLE_MAX_LEN = 20;
 export const SYNTHETIC_HTML_MIN_LEN = 300;
 export const SYNTHETIC_HTML_MAX_LEN = 10000;
-export const SYNTHETIC_MAX_IMAGES = 24;
 
-/** 与 post.schema / post.service 本站配图路径一致 */
+/** 与 content-safety 本站媒体路径一致 */
 export const POST_UPLOAD_PUBLIC_PATH_RE = /^\/uploads\/[a-zA-Z0-9._/-]+$/;
 
 export function assertSyntheticPostLengths(title: string, html: string): void {
@@ -35,18 +34,14 @@ export function assertSyntheticPostLengths(title: string, html: string): void {
   }
 }
 
-export function assertSyntheticPostImages(images: string[]): void {
-  if (images.length === 0) {
-    throw new Error("images 至少包含 1 条本站 /uploads/ 路径");
+export function assertSyntheticPostHtmlHasUploadImage(html: string): void {
+  const m = html.match(/<img[^>]+src=["'](\/uploads\/[^"']+)["']/i);
+  if (!m?.[1]) {
+    throw new Error("正文 HTML 须至少包含 1 张本站 /uploads/ 配图");
   }
-  if (images.length > SYNTHETIC_MAX_IMAGES) {
-    throw new Error(`images 最多 ${SYNTHETIC_MAX_IMAGES} 条`);
-  }
-  for (const u of images) {
-    const s = u.trim();
-    if (!POST_UPLOAD_PUBLIC_PATH_RE.test(s) || s.includes("..")) {
-      throw new Error(`非法配图路径：${u}`);
-    }
+  const src = m[1].trim();
+  if (!POST_UPLOAD_PUBLIC_PATH_RE.test(src) || src.includes("..")) {
+    throw new Error(`非法配图路径：${src}`);
   }
 }
 

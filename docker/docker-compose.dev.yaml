@@ -16,6 +16,10 @@
 #
 # MySQL：仅在容器内运行；rest-api 通过 Compose 注入的 DB_HOST=mysql 连接。默认不映射 3306 到宿主；
 # 若要用宿主上的 GUI 客户端连库，或宿主本机跑 pnpm rest-api:dev 且连同一实例，请取消注释下方 ports。
+#
+# pc-portal 依赖 monorepo 外的 @yanivjs/yaniv-editor（file: 相对路径在容器内解析为
+# /frontEnd/pixelBloomSpace/tiptapCases/yaniv-editor）。默认挂载与 docs/pc-portal-yaniv-editor.md
+# 一致的 workSpace 目录；本机路径不同时设置 YANIV_EDITOR_HOST_PATH（绝对路径或相对 compose 文件）。
 
 name: express-vue3-monorepo-dev
 
@@ -73,6 +77,7 @@ services:
     volumes:
       - ..:/app
       - app_node_modules:/app/node_modules
+      - ${YANIV_EDITOR_HOST_PATH:-../../../../../frontEnd/pixelBloomSpace/tiptapCases/yaniv-editor}:/frontEnd/pixelBloomSpace/tiptapCases/yaniv-editor:ro
     command:
       - sh
       - -c
@@ -99,6 +104,7 @@ services:
     volumes:
       - ..:/app
       - app_node_modules:/app/node_modules
+      - ${YANIV_EDITOR_HOST_PATH:-../../../../../frontEnd/pixelBloomSpace/tiptapCases/yaniv-editor}:/frontEnd/pixelBloomSpace/tiptapCases/yaniv-editor:ro
     command:
       - sh
       - -c
@@ -126,6 +132,7 @@ services:
     volumes:
       - ..:/app
       - app_node_modules:/app/node_modules
+      - ${YANIV_EDITOR_HOST_PATH:-../../../../../frontEnd/pixelBloomSpace/tiptapCases/yaniv-editor}:/frontEnd/pixelBloomSpace/tiptapCases/yaniv-editor:ro
     command:
       - sh
       - -c

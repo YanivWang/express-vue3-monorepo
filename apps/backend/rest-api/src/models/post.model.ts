@@ -33,12 +33,6 @@ export function definePostModel(
         allowNull: false,
         comment: "所属叶子分类（二级）id",
       },
-      images: {
-        type: DataTypes.JSON,
-        allowNull: false,
-        defaultValue: [],
-        comment: "正文配图 URL 列表（本站 /uploads/posts/… 等与上传策略一致的路径）",
-      },
       externalSource: {
         type: DataTypes.STRING(64),
         allowNull: true,

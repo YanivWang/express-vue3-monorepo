@@ -19,33 +19,6 @@ import type { AppJwtUser } from "../types/jwt-user.js";
 const authorAttributes = ["id", "username", "avatar"];
 const categoryAttributes = ["id", "name"];
 
-const MAX_POST_IMAGES = 24;
-const UPLOAD_PUBLIC_PATH_RE = /^\/uploads\/[a-zA-Z0-9._/-]+$/;
-
-function normalizePostImagesInput(raw: unknown) {
-  if (raw === undefined) {
-    return undefined;
-  }
-  if (!Array.isArray(raw)) {
-    throw createHttpError(400, "images 须为数组");
-  }
-  if (raw.length > MAX_POST_IMAGES) {
-    throw createHttpError(400, `图片最多 ${MAX_POST_IMAGES} 张`);
-  }
-  const out: string[] = [];
-  for (const item of raw) {
-    const s = trimmedStringFromUnknown(item);
-    if (!s) {
-      throw createHttpError(400, "图片路径不能为空");
-    }
-    if (!UPLOAD_PUBLIC_PATH_RE.test(s) || s.includes("..")) {
-      throw createHttpError(400, "图片路径须为本站 /uploads/ 下的地址");
-    }
-    out.push(s);
-  }
-  return out;
-}
-
 const postIncludeAuthor = { model: User, as: "author" as const, attributes: authorAttributes };
 const postIncludeCategory = {
   model: Category,
@@ -388,8 +361,6 @@ export async function createPost(authorId: number, payload: Record<string, unkno
   }
   await assertPostCategoryLeaf(Number(categoryId));
 
-  const images = normalizePostImagesInput(payload.images) ?? [];
-
   const extSource = trimmedStringFromUnknown(payload.externalSource);
   const extKey = trimmedStringFromUnknown(payload.externalKey);
   if (!!extSource !== !!extKey) {
@@ -412,7 +383,6 @@ export async function createPost(authorId: number, payload: Record<string, unkno
     published: Boolean(payload.published),
     authorId,
     categoryId: Number(categoryId),
-    images,
     ...(extSource && extKey ? { externalSource: extSource, externalKey: extKey } : {}),
   });
 
@@ -462,10 +432,6 @@ export async function updatePostById(
   if (payload.categoryId !== undefined) {
     await assertPostCategoryLeaf(Number(payload.categoryId));
     next.categoryId = Number(payload.categoryId);
-  }
-
-  if (payload.images !== undefined) {
-    next.images = normalizePostImagesInput(payload.images);
   }
 
   if (Object.keys(next).length === 0) {

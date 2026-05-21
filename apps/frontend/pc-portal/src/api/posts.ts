@@ -37,7 +37,6 @@ export interface CreatePostBody {
   content: string;
   categoryId: number;
   published?: boolean;
-  images?: string[];
 }
 
 export function createPost(body: CreatePostBody) {

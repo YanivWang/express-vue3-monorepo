@@ -17,7 +17,6 @@ export function updatePost(
     content: string;
     categoryId: number;
     published: boolean;
-    images: string[];
   }>,
 ) {
   return http.put<{ post: PostItem }>(`/api/posts/${id}`, body);
@@ -32,7 +31,6 @@ export function createPost(body: {
   content: string;
   categoryId: number;
   published?: boolean;
-  images?: string[];
 }) {
   return http.post<{ post: PostItem }>("/api/posts", body);
 }
