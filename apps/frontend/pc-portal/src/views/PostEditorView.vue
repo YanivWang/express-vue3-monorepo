@@ -18,6 +18,7 @@ import { createPost, fetchPostForEditor, updatePost } from "@/api/posts";
 import type { CategoryTreeNode, PostItem } from "@/api/types";
 import { uploadImages } from "@/api/uploads";
 import {
+  isPostEditorBodyEmpty,
   mergeCoverIntoContent,
   parseEditorContent,
   POST_COVER_ACCEPT,
@@ -49,6 +50,7 @@ const saving = ref(false);
 const coverUploading = ref(false);
 const editorRef = ref<InstanceType<typeof YanivEditor> | null>(null);
 const editorInitialContent = ref("<p></p>");
+const editorBodyFilled = ref(false);
 const coverUrl = ref<string | null>(null);
 const coverInputRef = ref<HTMLInputElement | null>(null);
 const draftSavedAt = ref<number | null>(null);
@@ -70,16 +72,13 @@ const editId = computed(() => {
   return Number.isFinite(n) ? n : null;
 });
 
-const pageTitle = computed(() => (editId.value != null ? "编辑帖子" : "写帖子"));
+const pageTitle = computed(() => (editId.value != null ? "编辑文章" : "写文章"));
 
-const saveButtonLabel = computed(() => {
-  if (form.published) return editId.value != null ? "保存并发布" : "发布";
-  return "保存草稿";
-});
+const publishButtonLabel = computed(() => (editId.value != null ? "保存并发布" : "发布"));
 
 const autosaveHintText = computed(() => {
   if (draftSavedAt.value == null) return "";
-  return `草稿已自动保存于 ${formatDraftSavedAt(draftSavedAt.value)}`;
+  return `草稿已保存 · ${formatDraftSavedAt(draftSavedAt.value)}`;
 });
 
 const leafOptions = computed(() => {
@@ -91,6 +90,41 @@ const leafOptions = computed(() => {
   }
   return out;
 });
+
+const checklistItems = computed(() => [
+  {
+    key: "title",
+    label: "标题",
+    done: form.title.trim().length > 0,
+    required: true,
+  },
+  {
+    key: "body",
+    label: "正文",
+    done: editorBodyFilled.value,
+    required: true,
+  },
+  {
+    key: "category",
+    label: "栏目",
+    done: form.categoryId != null,
+    required: true,
+  },
+  {
+    key: "cover",
+    label: "封面",
+    done: coverUrl.value != null,
+    required: false,
+  },
+]);
+
+const publishReady = computed(
+  () => form.title.trim().length > 0 && editorBodyFilled.value && form.categoryId != null,
+);
+
+const requiredChecklistDone = computed(() =>
+  checklistItems.value.filter((item) => item.required).every((item) => item.done),
+);
 
 let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -120,6 +154,19 @@ function markDirty() {
 function resetDirtyBaseline() {
   initialSnapshot.value = takeSnapshot();
   dirty.value = false;
+}
+
+function refreshEditorBodyState() {
+  const plain = getEditorPlainText();
+  const html = getEditorContentHtml() || editorInitialContent.value;
+  editorBodyFilled.value = !isPostEditorBodyEmpty(html, plain);
+}
+
+async function refreshEditorBodyStateWhenReady() {
+  refreshEditorBodyState();
+  await nextTick();
+  refreshEditorBodyState();
+  requestAnimationFrame(() => refreshEditorBodyState());
 }
 
 async function hydrateCategories() {
@@ -244,14 +291,14 @@ onMounted(async () => {
     await router.push({ name: "mine" });
   } finally {
     loading.value = false;
-    await nextTick();
+    await refreshEditorBodyStateWhenReady();
     resetDirtyBaseline();
   }
 });
 
 watch(editorRef, async (ed) => {
   if (ed == null || loading.value) return;
-  await nextTick();
+  await refreshEditorBodyStateWhenReady();
   resetDirtyBaseline();
 });
 
@@ -277,21 +324,31 @@ function getEditorPlainText(): string {
 }
 
 function onEditorUpdate() {
+  refreshEditorBodyState();
   markDirty();
   scheduleAutosave();
 }
 
-async function save() {
+async function saveAsDraft() {
+  await save(false);
+}
+
+async function saveAndPublish() {
+  await save(true);
+}
+
+async function save(published?: boolean) {
   const bodyHtml = getEditorContentHtml();
   const plain = getEditorPlainText();
-  if (!form.title.trim() || !plain) {
+  if (!form.title.trim() || isPostEditorBodyEmpty(bodyHtml, plain)) {
     ElMessage.warning("标题与正文不能为空");
     return;
   }
   if (form.categoryId == null) {
-    ElMessage.warning("请选择分类（须为二级叶子）");
+    ElMessage.warning("请选择栏目");
     return;
   }
+  const willPublish = published ?? form.published;
   const content = mergeCoverIntoContent(bodyHtml, coverUrl.value, form.title.trim());
   saving.value = true;
   try {
@@ -299,15 +356,16 @@ async function save() {
       title: form.title.trim(),
       content,
       categoryId: form.categoryId,
-      published: form.published,
+      published: willPublish,
     };
     if (editId.value == null) {
       await createPost(payload);
-      ElMessage.success("创建成功");
+      ElMessage.success(willPublish ? "发布成功" : "草稿已保存");
     } else {
       await updatePost(editId.value, payload);
-      ElMessage.success("已保存");
+      ElMessage.success(willPublish ? "已保存并发布" : "草稿已保存");
     }
+    form.published = willPublish;
     clearPostEditorDraft(editId.value);
     dirty.value = false;
     await router.push({ name: "mine" });
@@ -330,7 +388,7 @@ async function confirmDiscardIfDirty(): Promise<boolean> {
   }
 }
 
-async function cancelEdit() {
+async function leaveEditor() {
   if (!(await confirmDiscardIfDirty())) return;
   void router.push({ name: "mine" });
 }
@@ -342,385 +400,652 @@ onBeforeRouteLeave(async () => {
 </script>
 
 <template>
-  <div v-loading="loading" class="post-editor-page">
-    <div class="post-editor-layout">
-      <div class="post-editor-layout__main">
-        <header class="editor-head">
-          <div class="editor-head__meta">
-            <h1 class="editor-head__title">{{ pageTitle }}</h1>
-            <p class="editor-head__sub">分享你的知识与见解，让更多开发者受益</p>
-          </div>
-          <button type="button" class="editor-head__back" @click="cancelEdit">← 返回列表</button>
-        </header>
+  <div v-loading="loading" class="post-editor">
+    <header class="post-editor__header">
+      <div class="post-editor__header-inner">
+        <div class="post-editor__header-start">
+          <button type="button" class="post-editor__back" @click="leaveEditor">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+              <path fill="currentColor" d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
+            </svg>
+            <span>返回</span>
+          </button>
+          <h1 class="post-editor__heading">{{ pageTitle }}</h1>
+        </div>
 
-        <section class="editor-card editor-card--title">
-          <el-form-item label="标题" class="editor-form-item--bleed">
-            <el-input
-              v-model="form.title"
-              class="editor-title-input"
-              maxlength="200"
-              show-word-limit
-              placeholder="起一个有信息量的标题"
-            />
-          </el-form-item>
-        </section>
-
-        <section class="editor-card editor-card--body yaniv-editor-host">
-          <YanivEditor
-            v-if="!loading"
-            ref="editorRef"
-            :mode="EDITOR_MODE"
-            :preset="EDITOR_PRESET"
-            :appearance="EDITOR_APPEARANCE"
-            :color-mode="EDITOR_COLOR_MODE"
-            :features="EDITOR_FEATURES"
-            locale="zh-CN"
-            :initial-content="editorInitialContent"
-            :upload-image="handleUploadImage"
-            :upload-video="handleUploadVideo"
-            @update="onEditorUpdate"
-          />
-        </section>
-      </div>
-
-      <aside class="post-editor-layout__side" aria-label="发布设置">
-        <section class="side-panel">
-          <h2 class="side-panel__title">发布设置</h2>
-
-          <div class="side-panel__section">
-            <h3 class="side-card-title">封面图</h3>
-            <input
-              ref="coverInputRef"
-              type="file"
-              class="cover-file-input"
-              :accept="POST_COVER_ACCEPT"
-              @change="onCoverInputChange"
-            />
-            <div
-              v-if="coverUrl"
-              class="cover-preview"
-              @dragover="onCoverDragOver"
-              @drop="onCoverDrop"
+        <div class="post-editor__header-end">
+          <p v-if="autosaveHintText" class="post-editor__autosave">{{ autosaveHintText }}</p>
+          <div class="post-editor__header-actions">
+            <el-button
+              class="post-editor__btn post-editor__btn--ghost"
+              :loading="saving"
+              @click="saveAsDraft"
             >
-              <img class="cover-preview__img" :src="coverUrl" alt="封面预览" />
-              <div class="cover-preview__actions">
-                <el-button size="small" :loading="coverUploading" @click="openCoverPicker">
-                  更换
-                </el-button>
-                <el-button size="small" type="danger" plain @click="removeCover">移除</el-button>
-              </div>
-            </div>
-            <button
-              v-else
-              type="button"
-              class="cover-upload-placeholder"
-              :disabled="coverUploading"
-              @click="openCoverPicker"
-              @dragover="onCoverDragOver"
-              @drop="onCoverDrop"
-            >
-              {{ coverUploading ? "上传中…" : "点击或拖拽上传封面图" }}
-            </button>
-            <p class="side-card-hint">建议尺寸 1200x630，JPG/PNG 格式，大小不超过 5MB</p>
-          </div>
-
-          <div class="side-panel__section">
-            <el-form-item label="选择栏目" class="side-form-item">
-              <el-select
-                v-model="form.categoryId"
-                placeholder="选择栏目"
-                filterable
-                class="editor-select"
-              >
-                <el-option
-                  v-for="o in leafOptions"
-                  :key="o.value"
-                  :label="o.label"
-                  :value="o.value"
-                />
-              </el-select>
-            </el-form-item>
-          </div>
-
-          <div class="side-panel__section">
-            <div class="publish-status-row" role="group" aria-label="发布状态切换">
-              <span class="publish-status-row__label">发布状态</span>
-              <div class="publish-status-toggle">
-                <span class="publish-status-toggle__text" :class="{ 'is-active': !form.published }"
-                  >存为草稿</span
-                >
-                <el-switch v-model="form.published" />
-                <span class="publish-status-toggle__text" :class="{ 'is-active': form.published }"
-                  >立即发布</span
-                >
-              </div>
-            </div>
-          </div>
-
-          <div class="editor-actions">
-            <el-button size="large" class="editor-actions__cancel" @click="cancelEdit"
-              >取消</el-button
-            >
+              存草稿
+            </el-button>
             <el-button
               type="primary"
-              size="large"
-              class="editor-actions__primary"
+              class="post-editor__btn post-editor__btn--primary"
               :loading="saving"
-              @click="save"
+              :disabled="!publishReady"
+              @click="saveAndPublish"
             >
-              {{ saveButtonLabel }}
+              {{ publishButtonLabel }}
             </el-button>
           </div>
-          <p v-if="autosaveHintText" class="autosave-hint">{{ autosaveHintText }}</p>
+        </div>
+      </div>
+    </header>
+
+    <div class="post-editor__workspace">
+      <main class="post-editor__main">
+        <article class="post-editor__surface">
+          <div class="post-editor__title-zone">
+            <el-input
+              v-model="form.title"
+              class="post-editor__title-input"
+              maxlength="200"
+              show-word-limit
+              placeholder="输入标题"
+            />
+          </div>
+
+          <div class="post-editor__title-divider" aria-hidden="true" />
+
+          <section class="post-editor__body yaniv-editor-host">
+            <YanivEditor
+              v-if="!loading"
+              ref="editorRef"
+              :mode="EDITOR_MODE"
+              :preset="EDITOR_PRESET"
+              :appearance="EDITOR_APPEARANCE"
+              :color-mode="EDITOR_COLOR_MODE"
+              :features="EDITOR_FEATURES"
+              locale="zh-CN"
+              :initial-content="editorInitialContent"
+              :upload-image="handleUploadImage"
+              :upload-video="handleUploadVideo"
+              @update="onEditorUpdate"
+              @update:content="onEditorUpdate"
+            />
+          </section>
+        </article>
+      </main>
+
+      <aside class="post-editor__sidebar" aria-label="发布设置">
+        <section class="sidebar-card sidebar-card--checklist">
+          <div class="sidebar-card__head">
+            <h2 class="sidebar-card__title">发布前检查</h2>
+            <span
+              class="sidebar-card__badge"
+              :class="requiredChecklistDone ? 'is-ready' : 'is-pending'"
+            >
+              {{ requiredChecklistDone ? "可发布" : "待完善" }}
+            </span>
+          </div>
+          <ul class="checklist">
+            <li
+              v-for="item in checklistItems"
+              :key="item.key"
+              class="checklist__item"
+              :class="{ 'is-done': item.done, 'is-optional': !item.required }"
+            >
+              <span class="checklist__mark" aria-hidden="true">
+                <svg v-if="item.done" viewBox="0 0 24 24" width="14" height="14">
+                  <path fill="currentColor" d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                </svg>
+              </span>
+              <span class="checklist__label">
+                {{ item.label }}
+                <span v-if="!item.required" class="checklist__tag">可选</span>
+              </span>
+              <span class="checklist__status">{{ item.done ? "已完成" : "未完成" }}</span>
+            </li>
+          </ul>
+        </section>
+
+        <section class="sidebar-card">
+          <h2 class="sidebar-card__title">选择栏目</h2>
+          <p class="sidebar-card__desc">发布前必须选择二级栏目</p>
+          <el-select
+            v-model="form.categoryId"
+            placeholder="请选择栏目"
+            filterable
+            class="post-editor__select"
+            :class="{ 'is-empty': form.categoryId == null }"
+          >
+            <el-option v-for="o in leafOptions" :key="o.value" :label="o.label" :value="o.value" />
+          </el-select>
+        </section>
+
+        <section class="sidebar-card">
+          <h2 class="sidebar-card__title">封面图</h2>
+          <p class="sidebar-card__desc">可选，用于列表与分享展示</p>
+          <input
+            ref="coverInputRef"
+            type="file"
+            class="cover-file-input"
+            :accept="POST_COVER_ACCEPT"
+            @change="onCoverInputChange"
+          />
+          <div
+            v-if="coverUrl"
+            class="cover-preview"
+            @dragover="onCoverDragOver"
+            @drop="onCoverDrop"
+          >
+            <img class="cover-preview__img" :src="coverUrl" alt="封面预览" />
+            <div class="cover-preview__actions">
+              <el-button size="small" :loading="coverUploading" @click="openCoverPicker">
+                更换
+              </el-button>
+              <el-button size="small" type="danger" plain @click="removeCover">移除</el-button>
+            </div>
+          </div>
+          <button
+            v-else
+            type="button"
+            class="cover-upload"
+            :disabled="coverUploading"
+            @click="openCoverPicker"
+            @dragover="onCoverDragOver"
+            @drop="onCoverDrop"
+          >
+            <span class="cover-upload__icon" aria-hidden="true">+</span>
+            <span>{{ coverUploading ? "上传中…" : "点击或拖拽上传" }}</span>
+          </button>
+          <p class="sidebar-card__hint">建议 1200×630，JPG/PNG，不超过 5MB</p>
         </section>
       </aside>
     </div>
+
+    <footer class="post-editor__mobile-bar" aria-label="快捷操作">
+      <el-button
+        class="post-editor__btn post-editor__btn--ghost"
+        :loading="saving"
+        @click="saveAsDraft"
+      >
+        存草稿
+      </el-button>
+      <el-button
+        type="primary"
+        class="post-editor__btn post-editor__btn--primary"
+        :loading="saving"
+        :disabled="!publishReady"
+        @click="saveAndPublish"
+      >
+        {{ publishButtonLabel }}
+      </el-button>
+    </footer>
   </div>
 </template>
 
 <style scoped lang="scss">
-$border: #e8ecf3;
-$radius-md: 12px;
-$radius-lg: 14px;
-$stroke: #e3e8f1;
+$brand: #ea6f5a;
+$brand-hover: #e25b46;
+$brand-soft: rgb(234 111 90 / 0.1);
+$stroke: #e8ebf0;
+$stroke-subtle: rgb(0 0 0 / 0.06);
+$shadow-soft: 0 1px 3px rgb(0 0 0 / 0.045);
+$shadow-toolbar: 0 1px 3px rgb(0 0 0 / 0.05);
 $text-main: #1f2329;
 $text-sub: #6b7280;
 $text-muted: #9aa3b2;
-$surface: #ffffff;
+$surface: #fff;
 $surface-soft: #fafbfd;
-$shadow-soft: none;
+$radius-md: 10px;
+$radius-lg: 12px;
+$layout-max-width: 1360px;
 
-.post-editor-page {
+.post-editor {
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
   height: 100dvh;
-  padding: 14px 20px;
   overflow: hidden;
-  background: #f7f8fb;
+  background: $surface-soft;
 }
 
-.post-editor-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
+.post-editor__header {
+  flex-shrink: 0;
+  background: $surface;
+  border-bottom: 1px solid $stroke;
+}
+
+.post-editor__header-inner {
+  box-sizing: border-box;
+  display: flex;
   gap: 16px;
-  max-width: 1320px;
-  height: 100%;
+  align-items: center;
+  justify-content: space-between;
+  max-width: $layout-max-width;
+  min-height: 56px;
+  padding: 10px 20px;
   margin: 0 auto;
 }
 
-.post-editor-layout__main {
+.post-editor__header-start {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+}
+
+.post-editor__back {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 2px;
+  align-items: center;
+  padding: 6px 10px 6px 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: $text-sub;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
+
+  &:hover {
+    color: $brand;
+    background: rgb(0 0 0 / 0.04);
+  }
+}
+
+.post-editor__heading {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: $text-main;
+  white-space: nowrap;
+}
+
+.post-editor__header-end {
+  display: flex;
+  flex-shrink: 0;
+  gap: 12px;
+  align-items: center;
+}
+
+.post-editor__autosave {
+  margin: 0;
+  font-size: 12px;
+  color: $text-muted;
+  white-space: nowrap;
+}
+
+.post-editor__header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.post-editor__btn {
+  height: 36px;
+  padding: 0 16px;
+  margin: 0;
+  font-size: 14px;
+  border-radius: 999px;
+}
+
+.post-editor__btn--ghost {
+  color: $text-sub;
+  border: 1px solid $stroke;
+}
+
+.post-editor__btn--primary {
+  font-weight: 600;
+  color: #fff;
+  background: $brand;
+  border: 0;
+
+  &:hover,
+  &:focus {
+    background: $brand-hover;
+  }
+
+  &.is-disabled {
+    color: #fff;
+    background: rgb(234 111 90 / 0.45);
+  }
+}
+
+.post-editor__workspace {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 16px;
+  max-width: $layout-max-width;
+  min-height: 0;
+  padding: 16px 20px;
+  margin: 0 auto;
+}
+
+.post-editor__main {
   display: flex;
   flex-direction: column;
-  gap: 16px;
   min-height: 0;
 }
 
-.editor-head {
+.post-editor__surface {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 2px 2px 0;
-}
-
-.editor-head__title {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 700;
-  line-height: 1.2;
-  color: $text-main;
-}
-
-.editor-head__sub {
-  margin: 8px 0 0;
-  font-size: 13px;
-  font-weight: 500;
-  color: $text-sub;
-}
-
-.editor-head__back {
-  padding: 6px 10px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #5a6477;
-  cursor: pointer;
-  background: $surface;
-  border: 1px solid $stroke;
-  border-radius: 10px;
-}
-
-.editor-card {
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
   background: $surface;
   border: 1px solid $stroke;
   border-radius: $radius-lg;
   box-shadow: $shadow-soft;
 }
 
-.editor-card--title {
-  padding: 14px 16px;
+.post-editor__title-zone {
+  flex-shrink: 0;
+  padding: 20px 24px 12px;
 }
 
-:deep(.editor-form-item--bleed.el-form-item) {
-  display: flex;
-  align-items: center;
-  margin-bottom: 0;
+.post-editor__title-input :deep(.el-input__wrapper) {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none !important;
 }
 
-:deep(.el-form-item__label) {
-  margin-bottom: 0;
-  font-size: 14px;
-  font-weight: 700;
+.post-editor__title-input :deep(.el-input__inner) {
+  height: 32px;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.4;
   color: $text-main;
+
+  &::placeholder {
+    font-weight: 400;
+    color: #c5cad3;
+  }
 }
 
-:deep(.editor-form-item--bleed .el-form-item__content) {
-  flex: 1;
-}
-
-.editor-title-input :deep(.el-input__wrapper) {
-  min-height: 46px;
-  padding: 0 16px;
-  font-size: 15px;
-  border-radius: $radius-md;
-  box-shadow: 0 0 0 1px $stroke inset;
-}
-
-.editor-title-input :deep(.el-input__count) {
+.post-editor__title-input :deep(.el-input__count) {
   font-size: 12px;
   color: $text-muted;
 }
 
-.editor-card--body {
+.post-editor__title-divider {
+  flex-shrink: 0;
+  height: 1px;
+  margin: 0 24px;
+  background: $stroke-subtle;
+}
+
+.post-editor__body {
   display: flex;
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  border-top: 1px solid $stroke;
 }
 
-.editor-card--body.yaniv-editor-host :deep(.yaniv-editor) {
+.post-editor__body.yaniv-editor-host :deep(.yaniv-editor.appearance-default) {
   flex: 1;
   min-height: 0;
 
   --ye-bg-secondary: #{$surface};
   --ye-bg: #{$surface};
   --ye-toolbar-bg: #{$surface};
-  --ye-border: #{$stroke};
-  --ye-toolbar-border: #{$stroke};
-  --ye-footer-bg: #ffffff;
-  --ye-footer-text: #7f8a9d;
-  --ye-footer-divider: #{$stroke};
+  --ye-border: #{$stroke-subtle};
+  --ye-toolbar-border: #{$stroke-subtle};
+  --ye-footer-bg: #{$surface};
+  --ye-footer-text: #{$text-muted};
+  --ye-footer-divider: #{$stroke-subtle};
+  --ye-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.04);
+  --ye-shadow-md: none;
 }
 
-.editor-card--body.yaniv-editor-host :deep(.ye-toolbar),
-.editor-card--body.yaniv-editor-host :deep(.ye-footer),
-.editor-card--body.yaniv-editor-host :deep(.ye-toolbar-section) {
-  border-color: $stroke;
+.post-editor__body.yaniv-editor-host :deep(.yaniv-editor.document-layout) {
+  background: $surface;
 }
 
-.editor-card--body.yaniv-editor-host :deep(.ye-footer) {
-  color: #7f8a9d;
-  background: #fafbfd;
+.post-editor__body.yaniv-editor-host :deep(.document-toolbar-container) {
+  box-shadow: $shadow-toolbar !important;
 }
 
-.editor-card--body.yaniv-editor-host :deep(.footer-nav-container),
-.editor-card--body.yaniv-editor-host :deep(.footer-nav),
-.editor-card--body.yaniv-editor-host :deep(.footer-nav__inner) {
-  background: #fafbfd !important;
+.post-editor__body.yaniv-editor-host :deep(.yaniv-editor.appearance-default .document-toolbar) {
+  border-bottom-color: $stroke-subtle !important;
 }
 
-.editor-card--body.yaniv-editor-host :deep(.footer-nav-container),
-.editor-card--body.yaniv-editor-host :deep(.footer-nav *) {
-  color: #7f8a9d !important;
+.post-editor__body.yaniv-editor-host :deep(.yaniv-editor.appearance-default .continuous-pages) {
+  border-color: $stroke-subtle;
+  border-radius: 2px;
+  box-shadow: var(--ye-shadow-sm);
 }
 
-.editor-card--body.yaniv-editor-host :deep(.zoom-controls--bottom) {
-  background: #ffffff !important;
-  border-top: 1px solid $stroke !important;
+.post-editor__body.yaniv-editor-host :deep(.toolbar-section + .toolbar-section),
+.post-editor__body.yaniv-editor-host :deep(.tool-row + .tool-row) {
+  border-left-color: $stroke-subtle;
+}
+
+.post-editor__body.yaniv-editor-host :deep(.ye-toolbar),
+.post-editor__body.yaniv-editor-host :deep(.ye-footer),
+.post-editor__body.yaniv-editor-host :deep(.ye-toolbar-section) {
+  border-color: $stroke-subtle;
+}
+
+.post-editor__body.yaniv-editor-host :deep(.ye-toolbar button),
+.post-editor__body.yaniv-editor-host :deep(.ye-toolbar .ye-select-trigger) {
+  border-radius: 8px;
+}
+
+.post-editor__body.yaniv-editor-host :deep(.ye-toolbar button:hover),
+.post-editor__body.yaniv-editor-host :deep(.ye-toolbar .ye-select-trigger:hover) {
+  background: rgb(0 0 0 / 0.04);
+}
+
+.post-editor__body.yaniv-editor-host :deep(.zoom-controls--bottom) {
+  background: $surface !important;
+  border-top: 1px solid $stroke-subtle !important;
   border-bottom: 0 !important;
   box-shadow: none !important;
 }
 
-.editor-card--body.yaniv-editor-host :deep(.zoom-controls--bottom .zoom-level),
-.editor-card--body.yaniv-editor-host :deep(.zoom-controls--bottom .page-info),
-.editor-card--body.yaniv-editor-host :deep(.zoom-controls--bottom .char-count),
-.editor-card--body.yaniv-editor-host :deep(.zoom-controls--bottom .shortcut-hints) {
-  color: #7f8a9d !important;
-  border-color: $stroke !important;
+.post-editor__body.yaniv-editor-host :deep(.zoom-controls--bottom .zoom-level),
+.post-editor__body.yaniv-editor-host :deep(.zoom-controls--bottom .page-info),
+.post-editor__body.yaniv-editor-host :deep(.zoom-controls--bottom .char-count),
+.post-editor__body.yaniv-editor-host :deep(.zoom-controls--bottom .shortcut-hints) {
+  color: $text-muted !important;
+  border-color: $stroke-subtle !important;
 }
 
-.editor-card--body.yaniv-editor-host :deep(.zoom-controls.zoom-controls--bottom) {
-  border-bottom: 0 !important;
+.post-editor__sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  overflow: auto;
 }
 
-.editor-card--body.yaniv-editor-host :deep(.ye-toolbar button),
-.editor-card--body.yaniv-editor-host :deep(.ye-toolbar .ye-select-trigger) {
-  border-radius: 8px;
-}
-
-.editor-card--body.yaniv-editor-host :deep(.ye-toolbar button:hover),
-.editor-card--body.yaniv-editor-host :deep(.ye-toolbar .ye-select-trigger:hover) {
-  background: #f6f8fb;
-}
-
-.post-editor-layout__side {
-  display: block;
-  margin-top: 74px;
-}
-
-.side-panel {
-  position: sticky;
-  top: 0;
-  padding: 18px;
+.sidebar-card {
+  flex-shrink: 0;
+  padding: 16px;
   background: $surface;
-  border: 1px solid $border;
+  border: 1px solid $stroke;
   border-radius: $radius-lg;
   box-shadow: $shadow-soft;
 }
 
-.side-panel__title {
-  margin: 0 0 14px;
-  font-size: 17px;
+.sidebar-card--checklist {
+  background: linear-gradient(180deg, #fff 0%, $surface-soft 100%);
+}
+
+.sidebar-card__head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.sidebar-card__title {
+  margin: 0;
+  font-size: 15px;
   font-weight: 700;
   color: $text-main;
 }
 
-.side-panel__section {
-  margin-bottom: 16px;
+.sidebar-card__badge {
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 999px;
+
+  &.is-ready {
+    color: #0f766e;
+    background: rgb(15 118 110 / 0.12);
+  }
+
+  &.is-pending {
+    color: #b45309;
+    background: rgb(180 83 9 / 0.12);
+  }
 }
 
-.side-panel__section:last-of-type {
-  margin-bottom: 10px;
+.sidebar-card__desc {
+  margin: 4px 0 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: $text-muted;
 }
 
-.side-card-title {
-  margin: 0 0 8px;
+.sidebar-card__hint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: $text-muted;
+}
+
+.checklist {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.checklist__item {
+  display: grid;
+  grid-template-columns: 20px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid $stroke-subtle;
+
+  &:last-child {
+    border-bottom: 0;
+  }
+
+  &.is-done .checklist__mark {
+    color: #0f766e;
+    background: rgb(15 118 110 / 0.12);
+    border-color: transparent;
+  }
+
+  &.is-done .checklist__status {
+    color: #0f766e;
+  }
+
+  &.is-optional .checklist__status {
+    color: $text-muted;
+  }
+}
+
+.checklist__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: transparent;
+  border: 1.5px solid rgb(0 0 0 / 0.12);
+  border-radius: 50%;
+}
+
+.checklist__label {
   font-size: 13px;
-  font-weight: 700;
-  color: $text-sub;
-  letter-spacing: 0.2px;
+  font-weight: 500;
+  color: $text-main;
 }
 
-.side-panel__section:nth-of-type(3) .side-card-title {
-  display: none;
+.checklist__tag {
+  margin-left: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: $text-muted;
+}
+
+.checklist__status {
+  font-size: 12px;
+  color: #b45309;
+}
+
+.post-editor__select {
+  width: 100%;
+
+  &.is-empty :deep(.el-select__wrapper) {
+    box-shadow: 0 0 0 1px rgb(234 111 90 / 0.35) inset;
+  }
+}
+
+.post-editor__select :deep(.el-select__wrapper) {
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: $radius-md;
+  box-shadow: 0 0 0 1px $stroke inset;
 }
 
 .cover-file-input {
   display: none;
 }
 
-.cover-upload-placeholder {
+.cover-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
   width: 100%;
-  min-height: 128px;
+  min-height: 120px;
   font-size: 13px;
   color: $text-muted;
   cursor: pointer;
   background: $surface-soft;
-  border: 1px dashed #dce3ef;
+  border: 1px dashed rgb(0 0 0 / 0.1);
   border-radius: $radius-md;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: $brand-soft;
+    border-color: rgb(234 111 90 / 0.45);
+  }
 
   &:disabled {
     cursor: wait;
     opacity: 0.7;
   }
+}
+
+.cover-upload__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  font-size: 20px;
+  line-height: 1;
+  color: $brand;
+  background: $brand-soft;
+  border-radius: 50%;
 }
 
 .cover-preview {
@@ -732,148 +1057,92 @@ $shadow-soft: none;
 .cover-preview__img {
   display: block;
   width: 100%;
-  max-height: 160px;
+  max-height: 140px;
   object-fit: cover;
 }
 
 .cover-preview__actions {
   display: flex;
   gap: 8px;
-  padding: 10px;
+  padding: 8px;
   background: $surface-soft;
 }
 
-.side-card-hint {
-  margin: 12px 0 0;
-  font-size: 12px;
-  line-height: 1.5;
-  color: $text-muted;
-}
-
-.side-form-item {
-  margin-bottom: 0;
-}
-
-.publish-status-row {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 14px;
-  background: #f8fafd;
-  border: 1px solid #e6ecf5;
-  border-radius: 10px;
-}
-
-.publish-status-row__label {
-  font-size: 14px;
-  font-weight: 700;
-  color: $text-main;
-}
-
-.publish-status-toggle {
-  display: inline-flex;
-  gap: 10px;
-  align-items: center;
-}
-
-.publish-status-toggle__text {
-  font-size: 14px;
-  font-weight: 600;
-  color: #7f8a9d;
-  transition: color 0.2s ease;
-}
-
-.publish-status-toggle__text.is-active {
-  color: #2b84f6;
-}
-
-.publish-status-toggle :deep(.el-switch) {
-  --el-switch-on-color: #2b84f6;
-  --el-switch-off-color: #c5cbd6;
-}
-
-:deep(.side-form-item.el-form-item) {
-  display: flex;
-  align-items: center;
-}
-
-:deep(.side-form-item .el-form-item__label) {
-  margin-bottom: 0;
-}
-
-:deep(.side-form-item .el-form-item__content) {
-  flex: 1;
-}
-
-.editor-select {
-  width: 100%;
-}
-
-.editor-select :deep(.el-select__wrapper) {
-  min-height: 38px;
-  padding: 0 14px;
-  border-radius: 10px;
-  box-shadow: 0 0 0 1px $stroke inset;
-}
-
-.editor-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-top: 14px;
-}
-
-.editor-actions :deep(.el-button) {
-  width: 100%;
-  height: 44px;
-  margin: 0;
-  font-size: 15px;
-  border-radius: 10px;
-}
-
-.editor-actions__cancel {
-  color: #4b5568;
-  border: 1px solid $stroke;
-}
-
-.editor-actions__primary {
-  font-weight: 600;
-  background: #2b84f6;
-  border: 0;
-}
-
-.autosave-hint {
-  margin: 8px 0 0;
-  font-size: 12px;
-  color: #7a8ea8;
-  text-align: center;
+.post-editor__mobile-bar {
+  display: none;
 }
 
 @media (width < 920px) {
-  .post-editor-page {
+  .post-editor {
     height: auto;
     min-height: 100dvh;
+    padding-bottom: 72px;
     overflow: auto;
   }
 
-  .post-editor-layout {
+  .post-editor__header-inner {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px 14px;
+  }
+
+  .post-editor__header-start {
+    flex: 1 1 100%;
+  }
+
+  .post-editor__header-end {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .post-editor__header-actions {
+    display: none;
+  }
+
+  .post-editor__workspace {
     grid-template-columns: 1fr;
-    height: auto;
-    min-height: 0;
+    padding: 12px 14px;
   }
 
-  .post-editor-layout__main {
-    min-height: 60vh;
+  .post-editor__main {
+    min-height: 58vh;
   }
 
-  .post-editor-layout__side {
-    display: block;
-    margin-top: 0;
+  .post-editor__title-zone {
+    padding: 16px 16px 10px;
   }
 
-  .side-panel {
-    position: static;
+  .post-editor__title-divider {
+    margin: 0 16px;
+  }
+
+  .post-editor__title-input :deep(.el-input__inner) {
+    height: 38px;
+    font-size: 22px;
+  }
+
+  .post-editor__sidebar {
+    overflow: visible;
+  }
+
+  .post-editor__mobile-bar {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 50;
+    box-sizing: border-box;
+    display: flex;
+    gap: 10px;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0));
+    background: rgb(255 255 255 / 0.96);
+    border-top: 1px solid $stroke;
+    backdrop-filter: blur(8px);
+  }
+
+  .post-editor__mobile-bar .post-editor__btn {
+    flex: 1;
   }
 }
 </style>

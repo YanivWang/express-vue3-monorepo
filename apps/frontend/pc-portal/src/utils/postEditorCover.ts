@@ -3,6 +3,9 @@ export const POST_COVER_MAX_BYTES = 5 * 1024 * 1024;
 
 export const POST_COVER_ACCEPT = "image/jpeg,image/png,image/jpg";
 
+const EMPTY_PARAGRAPH_RE = /<p[^>]*>\s*(<br[^>]*\/?>\s*)*<\/p>/gi;
+const MEANINGFUL_BLOCK_RE = /<(img|video|table|iframe|figure|blockquote|pre|ul|ol|hr|h[1-6])\b/i;
+
 function escapeHtmlAttr(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 }
@@ -49,6 +52,25 @@ export function mergeCoverIntoContent(
   const safeSrc = escapeHtmlAttr(src);
   const block = `<p data-post-cover="1"><img src="${safeSrc}" alt="${alt}" loading="lazy"/></p>`;
   return `${block}${body}`;
+}
+
+/** 判断编辑器正文是否为空（纯文本，或图片/表格等非文本块均视为有内容） */
+export function isPostEditorBodyEmpty(html: string, plainText = ""): boolean {
+  if (plainText.trim().length > 0) return false;
+
+  const body = stripPostCoverBlock((html ?? "").trim());
+  if (!body) return true;
+
+  const withoutEmptyParagraphs = body.replace(EMPTY_PARAGRAPH_RE, "").trim();
+  if (!withoutEmptyParagraphs) return true;
+
+  const textOnly = withoutEmptyParagraphs
+    .replace(/<[^>]+>/g, "")
+    .replace(/\u00a0/g, " ")
+    .trim();
+  if (textOnly.length > 0) return false;
+
+  return !MEANINGFUL_BLOCK_RE.test(withoutEmptyParagraphs);
 }
 
 export function validateCoverFile(file: File): string | null {
