@@ -38,7 +38,7 @@ const editorInitialContent = ref("<p></p>");
 const form = reactive({
   title: "",
   categoryId: null as number | null,
-  published: false,
+  published: true,
 });
 
 const { handleUploadImage, handleUploadVideo } = usePostMediaUpload();
@@ -148,79 +148,57 @@ function cancelEdit() {
 
 <template>
   <div v-loading="loading" class="post-editor-page">
-    <el-form label-position="top" class="post-editor-form">
-      <aside class="editor-publish-bar" aria-label="发布设置">
-        <el-form-item label="分类" class="editor-publish-bar__field">
-          <el-select
-            v-model="form.categoryId"
-            placeholder="选择栏目"
-            filterable
-            class="editor-select"
-          >
-            <el-option v-for="o in leafOptions" :key="o.value" :label="o.label" :value="o.value" />
-          </el-select>
-        </el-form-item>
+    <div class="post-editor-layout">
+      <div class="post-editor-layout__main">
+        <header class="editor-head">
+          <div class="editor-head__meta">
+            <h1 class="editor-head__title">写帖子</h1>
+            <p class="editor-head__sub">分享你的知识与见解，让更多开发者受益</p>
+          </div>
+          <button type="button" class="editor-head__back" @click="cancelEdit">← 返回列表</button>
+        </header>
 
-        <el-form-item
-          label="发布"
-          class="editor-publish-bar__field editor-publish-bar__field--switch"
-        >
-          <el-switch
-            v-model="form.published"
-            active-text="立即发布"
-            inactive-text="草稿"
-            class="editor-switch"
-          />
-        </el-form-item>
-
-        <div class="editor-actions editor-publish-bar__actions">
-          <el-button
-            type="primary"
-            size="large"
-            class="editor-actions__primary"
-            :loading="saving"
-            @click="save"
-          >
-            保存
-          </el-button>
-          <el-button size="large" @click="cancelEdit">取消</el-button>
-        </div>
-      </aside>
-
-      <div class="post-editor-layout">
-        <div class="post-editor-layout__main">
-          <section class="editor-card editor-card--title">
-            <el-form-item label="标题" class="editor-form-item--bleed">
-              <el-input
-                v-model="form.title"
-                class="editor-title-input"
-                maxlength="200"
-                show-word-limit
-                placeholder="起一个有信息量的标题"
-              />
-            </el-form-item>
-          </section>
-
-          <section class="editor-card editor-card--body yaniv-editor-host">
-            <YanivEditor
-              v-if="!loading"
-              ref="editorRef"
-              :mode="EDITOR_MODE"
-              :preset="EDITOR_PRESET"
-              :appearance="EDITOR_APPEARANCE"
-              :color-mode="EDITOR_COLOR_MODE"
-              :features="EDITOR_FEATURES"
-              locale="zh-CN"
-              :initial-content="editorInitialContent"
-              :upload-image="handleUploadImage"
-              :upload-video="handleUploadVideo"
+        <section class="editor-card editor-card--title">
+          <el-form-item label="标题" class="editor-form-item--bleed">
+            <el-input
+              v-model="form.title"
+              class="editor-title-input"
+              maxlength="200"
+              show-word-limit
+              placeholder="起一个有信息量的标题"
             />
-          </section>
-        </div>
+          </el-form-item>
+        </section>
 
-        <aside class="post-editor-layout__side" aria-label="发布设置">
-          <section class="editor-card">
-            <el-form-item label="分类">
+        <section class="editor-card editor-card--body yaniv-editor-host">
+          <YanivEditor
+            v-if="!loading"
+            ref="editorRef"
+            :mode="EDITOR_MODE"
+            :preset="EDITOR_PRESET"
+            :appearance="EDITOR_APPEARANCE"
+            :color-mode="EDITOR_COLOR_MODE"
+            :features="EDITOR_FEATURES"
+            locale="zh-CN"
+            :initial-content="editorInitialContent"
+            :upload-image="handleUploadImage"
+            :upload-video="handleUploadVideo"
+          />
+        </section>
+      </div>
+
+      <aside class="post-editor-layout__side" aria-label="发布设置">
+        <section class="side-panel">
+          <h2 class="side-panel__title">发布设置</h2>
+
+          <div class="side-panel__section">
+            <h3 class="side-card-title">封面图</h3>
+            <button class="cover-upload-placeholder" type="button">点击或拖拽上传封面图</button>
+            <p class="side-card-hint">建议尺寸 1200x630，JPG/PNG 格式，大小不超过 5MB</p>
+          </div>
+
+          <div class="side-panel__section">
+            <el-form-item label="选择栏目" class="side-form-item">
               <el-select
                 v-model="form.categoryId"
                 placeholder="选择栏目"
@@ -235,211 +213,397 @@ function cancelEdit() {
                 />
               </el-select>
             </el-form-item>
-          </section>
+          </div>
 
-          <section class="editor-card editor-card--footer">
-            <el-form-item label="发布">
-              <el-switch
-                v-model="form.published"
-                active-text="立即发布"
-                inactive-text="草稿"
-                class="editor-switch"
-              />
-            </el-form-item>
-            <div class="editor-actions">
-              <el-button
-                type="primary"
-                size="large"
-                class="editor-actions__primary"
-                :loading="saving"
-                @click="save"
-              >
-                保存
-              </el-button>
-              <el-button size="large" @click="cancelEdit">取消</el-button>
+          <div class="side-panel__section">
+            <div class="publish-status-row" role="group" aria-label="发布状态切换">
+              <span class="publish-status-row__label">发布状态</span>
+              <div class="publish-status-toggle">
+                <span class="publish-status-toggle__text" :class="{ 'is-active': !form.published }"
+                  >存为草稿</span
+                >
+                <el-switch v-model="form.published" />
+                <span class="publish-status-toggle__text" :class="{ 'is-active': form.published }"
+                  >立即发布</span
+                >
+              </div>
             </div>
-          </section>
-        </aside>
-      </div>
-    </el-form>
+          </div>
+
+          <div class="editor-actions">
+            <el-button size="large" class="editor-actions__cancel" @click="cancelEdit"
+              >取消</el-button
+            >
+            <el-button
+              type="primary"
+              size="large"
+              class="editor-actions__primary"
+              :loading="saving"
+              @click="save"
+            >
+              保存并发布
+            </el-button>
+          </div>
+          <p class="autosave-hint">内容已自动保存</p>
+        </section>
+      </aside>
+    </div>
   </div>
 </template>
 
 <style scoped lang="scss">
-$border: #e8e9ec;
+$border: #e8ecf3;
+$radius-md: 12px;
+$radius-lg: 14px;
+$stroke: #e3e8f1;
+$text-main: #1f2329;
+$text-sub: #6b7280;
+$text-muted: #9aa3b2;
+$surface: #ffffff;
+$surface-soft: #fafbfd;
+$shadow-soft: none;
 
 .post-editor-page {
   box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
   height: 100dvh;
-  min-height: 100vh;
-  padding: 12px 16px;
+  padding: 14px 20px;
   overflow: hidden;
-  background: #f6f7f9;
-}
-
-.post-editor-form {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.editor-publish-bar {
-  display: none;
+  background: #f7f8fb;
 }
 
 .post-editor-layout {
   display: grid;
-  flex: 1;
-  gap: 12px;
-  min-height: 0;
-
-  @media (width >= 920px) {
-    grid-template-columns: minmax(0, 1fr) 280px;
-    gap: 16px;
-  }
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 16px;
+  max-width: 1320px;
+  height: 100%;
+  margin: 0 auto;
 }
 
 .post-editor-layout__main {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 16px;
   min-height: 0;
 }
 
-.post-editor-layout__side {
-  display: none;
-  flex-direction: column;
-  gap: 12px;
-
-  @media (width >= 920px) {
-    display: flex;
-    align-self: start;
-  }
+.editor-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 2px 2px 0;
 }
 
-@media (width < 920px) {
-  .editor-publish-bar {
-    display: flex;
-    flex-shrink: 0;
-    flex-wrap: wrap;
-    gap: 8px 12px;
-    align-items: flex-end;
-    padding: 12px;
-    margin-bottom: 8px;
-    background: #fff;
-    border: 1px solid $border;
-    border-radius: 12px;
-    box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
-  }
+.editor-head__title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: $text-main;
+}
 
-  .editor-publish-bar__field {
-    flex: 1 1 160px;
-    min-width: 0;
-    margin-bottom: 0 !important;
-  }
+.editor-head__sub {
+  margin: 8px 0 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: $text-sub;
+}
 
-  .editor-publish-bar__field--switch {
-    flex: 0 1 auto;
-  }
-
-  .editor-publish-bar__actions {
-    flex: 1 1 100%;
-    justify-content: flex-end;
-    padding-top: 0;
-  }
+.editor-head__back {
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #5a6477;
+  cursor: pointer;
+  background: $surface;
+  border: 1px solid $stroke;
+  border-radius: 10px;
 }
 
 .editor-card {
-  padding: 16px 16px 4px;
-  background: #fff;
-  border: 1px solid $border;
-  border-radius: 12px;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+  background: $surface;
+  border: 1px solid $stroke;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-soft;
 }
 
 .editor-card--title {
-  flex-shrink: 0;
-  padding-bottom: 8px;
+  padding: 14px 16px;
+}
+
+:deep(.editor-form-item--bleed.el-form-item) {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0;
+}
+
+:deep(.el-form-item__label) {
+  margin-bottom: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: $text-main;
+}
+
+:deep(.editor-form-item--bleed .el-form-item__content) {
+  flex: 1;
+}
+
+.editor-title-input :deep(.el-input__wrapper) {
+  min-height: 46px;
+  padding: 0 16px;
+  font-size: 15px;
+  border-radius: $radius-md;
+  box-shadow: 0 0 0 1px $stroke inset;
+}
+
+.editor-title-input :deep(.el-input__count) {
+  font-size: 12px;
+  color: $text-muted;
 }
 
 .editor-card--body {
   display: flex;
   flex: 1;
-  flex-direction: column;
   min-height: 0;
-  padding: 0;
   overflow: hidden;
-  background: transparent;
-  border: none;
-  box-shadow: none;
-}
-
-.editor-card--body.yaniv-editor-host {
-  height: 100%;
+  border-top: 1px solid $stroke;
 }
 
 .editor-card--body.yaniv-editor-host :deep(.yaniv-editor) {
   flex: 1;
   min-height: 0;
+
+  --ye-bg-secondary: #{$surface};
+  --ye-bg: #{$surface};
+  --ye-toolbar-bg: #{$surface};
+  --ye-border: #{$stroke};
+  --ye-toolbar-border: #{$stroke};
+  --ye-footer-bg: #ffffff;
+  --ye-footer-text: #7f8a9d;
+  --ye-footer-divider: #{$stroke};
 }
 
-.editor-card--footer {
-  padding-bottom: 16px;
+.editor-card--body.yaniv-editor-host :deep(.ye-toolbar),
+.editor-card--body.yaniv-editor-host :deep(.ye-footer),
+.editor-card--body.yaniv-editor-host :deep(.ye-toolbar-section) {
+  border-color: $stroke;
 }
 
-.post-editor-form {
-  :deep(.el-form-item) {
-    margin-bottom: 16px;
-  }
-
-  :deep(.el-form-item__label) {
-    margin-bottom: 6px;
-    font-size: 13px;
-    font-weight: 600;
-    color: #333;
-  }
+.editor-card--body.yaniv-editor-host :deep(.ye-footer) {
+  color: #7f8a9d;
+  background: #fafbfd;
 }
 
-.editor-title-input {
-  :deep(.el-input__wrapper) {
-    padding: 10px 14px;
-    font-size: 16px;
-    border-radius: 10px;
-    box-shadow: 0 0 0 1px #e4e5e8 inset;
-  }
+/* Yaniv 编辑器实际底栏容器（库内类名） */
+.editor-card--body.yaniv-editor-host :deep(.footer-nav-container),
+.editor-card--body.yaniv-editor-host :deep(.footer-nav),
+.editor-card--body.yaniv-editor-host :deep(.footer-nav__inner) {
+  background: #fafbfd !important;
+}
+
+.editor-card--body.yaniv-editor-host :deep(.footer-nav-container),
+.editor-card--body.yaniv-editor-host :deep(.footer-nav *) {
+  color: #7f8a9d !important;
+}
+
+/* 直达 zoom 底栏（最终兜底覆盖） */
+.editor-card--body.yaniv-editor-host :deep(.zoom-controls--bottom) {
+  background: #ffffff !important;
+  border-top: 1px solid $stroke !important;
+  border-bottom: 0 !important;
+  box-shadow: none !important;
+}
+
+.editor-card--body.yaniv-editor-host :deep(.zoom-controls--bottom .zoom-level),
+.editor-card--body.yaniv-editor-host :deep(.zoom-controls--bottom .page-info),
+.editor-card--body.yaniv-editor-host :deep(.zoom-controls--bottom .char-count),
+.editor-card--body.yaniv-editor-host :deep(.zoom-controls--bottom .shortcut-hints) {
+  color: #7f8a9d !important;
+  border-color: $stroke !important;
+}
+
+/* 去掉 zoom-controls 基类在底栏场景下的额外分隔线，只留一条顶部分隔 */
+.editor-card--body.yaniv-editor-host :deep(.zoom-controls.zoom-controls--bottom) {
+  border-bottom: 0 !important;
+}
+
+.editor-card--body.yaniv-editor-host :deep(.ye-toolbar button),
+.editor-card--body.yaniv-editor-host :deep(.ye-toolbar .ye-select-trigger) {
+  border-radius: 8px;
+}
+
+.editor-card--body.yaniv-editor-host :deep(.ye-toolbar button:hover),
+.editor-card--body.yaniv-editor-host :deep(.ye-toolbar .ye-select-trigger:hover) {
+  background: #f6f8fb;
+}
+
+.post-editor-layout__side {
+  display: block;
+  margin-top: 74px;
+}
+
+.side-panel {
+  position: sticky;
+  top: 0;
+  padding: 18px;
+  background: $surface;
+  border: 1px solid $border;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-soft;
+}
+
+.side-panel__title {
+  margin: 0 0 14px;
+  font-size: 17px;
+  font-weight: 700;
+  color: $text-main;
+}
+
+.side-panel__section {
+  margin-bottom: 16px;
+}
+
+.side-panel__section:last-of-type {
+  margin-bottom: 10px;
+}
+
+.side-card-title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: $text-sub;
+  letter-spacing: 0.2px;
+}
+
+.side-panel__section:nth-of-type(3) .side-card-title {
+  display: none;
+}
+
+.cover-upload-placeholder {
+  width: 100%;
+  min-height: 128px;
+  font-size: 13px;
+  color: $text-muted;
+  cursor: pointer;
+  background: $surface-soft;
+  border: 1px dashed #dce3ef;
+  border-radius: $radius-md;
+}
+
+.side-card-hint {
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: $text-muted;
+}
+
+.side-form-item {
+  margin-bottom: 0;
+}
+
+.publish-status-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: #f8fafd;
+  border: 1px solid #e6ecf5;
+  border-radius: 10px;
+}
+
+.publish-status-row__label {
+  font-size: 14px;
+  font-weight: 700;
+  color: $text-main;
+}
+
+.publish-status-toggle {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.publish-status-toggle__text {
+  font-size: 14px;
+  font-weight: 600;
+  color: #7f8a9d;
+  transition: color 0.2s ease;
+}
+
+.publish-status-toggle__text.is-active {
+  color: #2b84f6;
+}
+
+.publish-status-toggle :deep(.el-switch) {
+  --el-switch-on-color: #2b84f6;
+  --el-switch-off-color: #c5cbd6;
+}
+
+:deep(.side-form-item.el-form-item) {
+  display: flex;
+  align-items: center;
+}
+
+:deep(.side-form-item .el-form-item__label) {
+  margin-bottom: 0;
+}
+
+:deep(.side-form-item .el-form-item__content) {
+  flex: 1;
 }
 
 .editor-select {
   width: 100%;
-
-  :deep(.el-select__wrapper) {
-    min-height: 40px;
-    padding: 4px 12px;
-    border-radius: 10px;
-    box-shadow: 0 0 0 1px #e4e5e8 inset;
-  }
 }
 
-.editor-switch {
-  :deep(.el-switch__label) {
-    font-size: 13px;
-    color: #555;
-  }
+.editor-select :deep(.el-select__wrapper) {
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px $stroke inset;
 }
 
 .editor-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding-top: 4px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.editor-actions :deep(.el-button) {
+  width: 100%;
+  height: 44px;
+  margin: 0;
+  font-size: 15px;
+  border-radius: 10px;
+}
+
+.editor-actions__cancel {
+  color: #4b5568;
+  border: 1px solid $stroke;
 }
 
 .editor-actions__primary {
-  min-width: 112px;
-  font-weight: 500;
-  border-radius: 999px;
+  font-weight: 600;
+  background: #2b84f6;
+  border: 0;
+}
+
+.autosave-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #7a8ea8;
+  text-align: center;
+}
+
+@media (width < 920px) {
+  .post-editor-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .post-editor-layout__side {
+    display: none;
+  }
 }
 </style>
