@@ -198,7 +198,7 @@ app.mount("#app");
 
 - 入库：[`content-safety.ts`](../apps/backend/rest-api/src/utils/content-safety.ts)
 - 详情页：[`post-content-sanitize.ts`](../apps/frontend/pc-portal/src/utils/post-content-sanitize.ts)
-- 数学公式：详情页对 `[data-type="math"]` 调用 `katex.render()`
+- 数学公式：由 yaniv-editor 内置 `MathNodeView` 在 preview 模式下渲染，宿主仅需引入 `katex/dist/katex.min.css`
 
 ---
 

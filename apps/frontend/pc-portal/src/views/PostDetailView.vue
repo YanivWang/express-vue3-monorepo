@@ -807,40 +807,22 @@ $bg-soft: #fafafa;
 }
 
 .post-body.yaniv-editor-host :deep(.yaniv-editor.document-layout) {
+  --ye-bg-secondary: transparent;
+  --ye-doc-page-width: 100%;
+  --ye-doc-padding-top: 0;
+  --ye-doc-padding-bottom: 0;
+  --ye-doc-padding-inline: 0;
+  --ye-doc-container-padding-y: 0;
+
   height: auto;
   min-height: 0;
   overflow: visible;
   background: transparent;
 }
 
-.post-body.yaniv-editor-host :deep(.yaniv-editor__workspace) {
-  overflow: visible;
-}
-
+.post-body.yaniv-editor-host :deep(.yaniv-editor__workspace),
 .post-body.yaniv-editor-host :deep(.document-container) {
-  padding: 0;
   overflow: visible;
-}
-
-.post-body.yaniv-editor-host :deep(.document-pages) {
-  transform: none !important;
-}
-
-.post-body.yaniv-editor-host :deep(.continuous-pages) {
-  max-width: none;
-  padding: 0;
-  margin: 0;
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  box-shadow: none;
-}
-
-/* stylelint-disable-next-line selector-class-pattern -- Tiptap ProseMirror root */
-.post-body.yaniv-editor-host :deep(.document-content .ProseMirror) {
-  min-height: 0;
-  padding: 0;
-  background: transparent;
 }
 
 .disclaimer {

@@ -398,6 +398,9 @@ importers:
 
   apps/frontend/pc-portal:
     dependencies:
+      '@ant-design/icons-vue':
+        specifier: ^7.0.1
+        version: 7.0.1(vue@3.5.34(typescript@5.5.4))
       '@element-plus/icons-vue':
         specifier: 'catalog:'
         version: 2.3.2(vue@3.5.34(typescript@5.5.4))
@@ -488,6 +491,9 @@ importers:
       '@yanivjs/yaniv-editor':
         specifier: file:../../../../../../../frontEnd/pixelBloomSpace/tiptapCases/yaniv-editor
         version: file:../../../../frontEnd/pixelBloomSpace/tiptapCases/yaniv-editor(d06013566decb4483a0f946683c91580)
+      ant-design-vue:
+        specifier: ^4.2.6
+        version: 4.2.6(vue@3.5.34(typescript@5.5.4))
       docx:
         specifier: ^9.5.1
         version: 9.6.1
