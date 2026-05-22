@@ -94,6 +94,9 @@ async function load() {
     });
     posts.value = res.posts;
     pagination.value = res.pagination;
+  } catch {
+    posts.value = [];
+    pagination.value = null;
   } finally {
     loading.value = false;
   }

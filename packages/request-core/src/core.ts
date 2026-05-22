@@ -107,14 +107,16 @@ export class HttpRequest {
           }
         }
 
+        // 用请求头防缓存，避免 `_t` 等 query 污染后端 Zod `.strict()` 校验
         if (config.method?.toUpperCase() === "GET") {
-          const prev: unknown = config.params;
-          config.params = {
-            _t: Date.now(),
-            ...(typeof prev === "object" && prev !== null && !Array.isArray(prev)
-              ? (prev as Record<string, unknown>)
-              : {}),
-          };
+          const headers = AxiosHeaders.from(config.headers ?? {});
+          if (!headers.has("Cache-Control")) {
+            headers.set("Cache-Control", "no-cache");
+          }
+          if (!headers.has("Pragma")) {
+            headers.set("Pragma", "no-cache");
+          }
+          config.headers = headers;
         }
 
         return config;
