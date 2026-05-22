@@ -1,6 +1,5 @@
 import { DataTypes, type Model, type ModelStatic, type Sequelize } from "sequelize";
 
-//新建 comment 的数据库模型
 export function defineCommentModel(
   sequelize: Sequelize,
   User: ModelStatic<Model>,

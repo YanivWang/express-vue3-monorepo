@@ -17,7 +17,7 @@ function trimUnset(value: string | undefined): string | undefined {
 
 /**
  * 幂等：写入权限、系统角色、超级管理员全量权限绑定。
- * 若无任何 super_admin 账号且满足启动条件，则创建首个后台账号（见附录「首个超级管理员」）。
+ * 若无任何 super_admin 账号且满足启动条件，则创建首个后台账号（见 docs/admin-bootstrap.md）。
  */
 export async function bootstrapRbacIfNeeded(): Promise<void> {
   for (const code of PERMISSION_CODES) {

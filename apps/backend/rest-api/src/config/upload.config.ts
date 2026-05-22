@@ -1,4 +1,3 @@
-//crypto 模块：Node.js 原生密码学工具：加密、解密、哈希、安全随机数
 import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -7,7 +6,7 @@ import multer from "multer";
 
 import { projectRoot } from "../utils/projectRoot.js";
 
-//从工具模块导入 monorepo 根目录；上传落在仓库根 `uploads/` 下固定子目录。
+/** 上传根目录：monorepo 根 `uploads/` */
 export const uploadsRoot = path.join(projectRoot, "uploads");
 
 /** 帖子插图：`POST /api/uploads` → `<uploadsRoot>/posts/<年>/<月>/` → `/uploads/posts/…` */

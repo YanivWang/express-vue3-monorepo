@@ -14,14 +14,8 @@ export const DEFAULT_PAGINATION = Object.freeze({
 /** 默认请求超时时间（毫秒） */
 export const DEFAULT_REQUEST_TIMEOUT = 10_000;
 
-/** refresh 请求超时时间（毫秒） */
-export const DEFAULT_REFRESH_TIMEOUT = 15_000;
-
 /** Token 默认有效期（天） */
 export const DEFAULT_TOKEN_EXPIRES_DAYS = 1;
-
-/** Refresh Token 默认有效期（天） */
-export const DEFAULT_REFRESH_TOKEN_EXPIRES_DAYS = 7;
 
 /** 业务成功码 */
 export const DEFAULT_SUCCESS_CODE = 200;

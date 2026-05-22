@@ -5,7 +5,6 @@ import type { Ref } from "vue";
 /** 登录返回的基础负载，业务层可在 TLoginResult 中扩展 */
 export interface AuthLoginResult {
   token: string;
-  refreshToken?: string;
   [k: string]: unknown;
 }
 

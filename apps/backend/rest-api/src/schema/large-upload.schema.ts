@@ -33,8 +33,7 @@ export const largeUploadInitSchema = z.object({
         .min(MIN_CHUNK_BYTES, `分片不小于 ${MIN_CHUNK_BYTES / 1024 / 1024}MB`)
         .max(MAX_CHUNK_BYTES, `分片不大于 ${MAX_CHUNK_BYTES / 1024 / 1024}MB`),
       mimeType: z.string().trim().max(128, "mimeType 过长").optional(),
-      /** 传入则启用 MD5 目录分片、合并校验、全局秒传索引 */
-      fileMd5: fileMd5Schema.optional(),
+      fileMd5: fileMd5Schema,
     })
     .refine((b) => b.fileSize >= b.chunkSize || Math.ceil(b.fileSize / b.chunkSize) === 1, {
       message: "fileSize 与 chunkSize 组合无效",

@@ -4,13 +4,10 @@ import { createPcHttp, type TokenStorage } from "@express-vue3-monorepo/shared/r
 import { createTokenStorage } from "@express-vue3-monorepo/shared/utils";
 
 const tokenKey = "pc_portal_access_token";
-const refreshTokenKey = "pc_portal_refresh_unused";
 
 export const tokenStorage: TokenStorage = createTokenStorage({
   tokenKey,
-  refreshTokenKey,
   tokenExpires: 7,
-  refreshExpires: 7,
 });
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");

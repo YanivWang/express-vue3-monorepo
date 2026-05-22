@@ -1,6 +1,5 @@
 import { DataTypes, type Sequelize } from "sequelize";
 
-//完善 User 模型的字段
 export function defineUserModel(sequelize: Sequelize) {
   return sequelize.define(
     "User",

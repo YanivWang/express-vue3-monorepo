@@ -1,4 +1,3 @@
-// 新增一个日志工具类，用来记录日志
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -60,7 +59,6 @@ const consoleFormat = printf(({ level, message, timestamp: ts, stack, ...meta })
   return `${tsPart} ${levelPart}: ${body}${metaText}`;
 });
 
-// 创建一个日志记录器logger, 用来记录日志
 export const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || "info",
   format: combine(timestamp(), errors({ stack: true }), json()),

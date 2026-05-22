@@ -1,7 +1,3 @@
-// service 负责处理业务逻辑
-// 1. 注册用户
-// 2. 登录用户
-
 import { randomUUID } from "node:crypto";
 
 import bcrypt from "bcrypt";

@@ -22,6 +22,6 @@ export async function blacklistJwt(jti: string, ttlSeconds: number) {
  * 判断某个JWT的jti是否已经在黑名单中
  */
 export async function isJwtBlacklisted(jti: string) {
-  const exits = await redis.exists(getJwtBlackListKey(jti));
-  return exits === 1;
+  const exists = await redis.exists(getJwtBlackListKey(jti));
+  return exists === 1;
 }

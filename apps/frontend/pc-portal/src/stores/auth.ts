@@ -30,7 +30,6 @@ export const useAuthStore = defineStore("auth", () => {
 
   function clearSession() {
     tokenStorage.removeToken();
-    tokenStorage.removeRefreshToken();
     token.value = null;
     profile.value = null;
   }

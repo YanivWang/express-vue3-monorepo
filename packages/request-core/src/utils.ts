@@ -1,18 +1,8 @@
-import type { NestedResponseData, RequestConfig, NormalizedError } from "./types";
+import type { RequestConfig, NormalizedError } from "./types";
 
 export function isRecord(data: unknown): data is Record<string, unknown> {
   return typeof data === "object" && data !== null;
 }
-
-/** 嵌套 `{ code, message, data }` 成功体 */
-export function isNestedSuccessPayload<T>(data: unknown): data is NestedResponseData<T> {
-  return isRecord(data) && "code" in data && "data" in data;
-}
-
-/**
- * @deprecated 请使用 isNestedSuccessPayload；与 rest-api 扁平体无关
- */
-export const isSuccessPayload = isNestedSuccessPayload;
 
 export function getRestApiMessage(data: Record<string, unknown>): string {
   const m = data.msg ?? data.message;

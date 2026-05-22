@@ -5,7 +5,6 @@ import {
   createNormalizedError,
   getRequestKey,
   getRestApiMessage,
-  isNestedSuccessPayload,
   isRecord,
   stripRestApiEnvelope,
   retryDelay,
@@ -13,34 +12,20 @@ import {
 
 import type {
   RequestConfig,
-  ResponseData,
-  ResponseStyle,
   CreateHttpOptions,
   TokenProvider,
   LoadingHandler,
   RequestHooks,
-  RefreshTokenResult,
   NormalizedError,
 } from "./types";
 import type { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from "axios";
 
 /**
- * UI 无关的 HTTP 核心。
- *
- * 设计原则：
- * 1. 不直接依赖 Element Plus / Vant / 任何 UI 框架
- * 2. 通过依赖注入：tokenProvider / loading / hooks 将副作用交给 UI 绑定层
- * 3. 刷新 Token 使用「单例 Promise」，并发的 401 请求共享同一次刷新流程
- * 4. 请求/响应异常归一化为 NormalizedError
- *
- * 默认 `responseStyle: 'rest-api'`，与 apps/backend/rest-api 的 `success`/`fail` JSON 对齐。
+ * UI 无关的 HTTP 核心，响应形态固定为 rest-api：`{ code, msg, ...payload }`。
  */
 export class HttpRequest {
   private instance: AxiosInstance;
-  private baseURL: string;
   private successCode: number;
-  private responseStyle: ResponseStyle;
-  private refreshPath: string;
   private tokenProvider?: TokenProvider;
   private loading?: LoadingHandler;
   private hooks: RequestHooks;
@@ -48,26 +33,18 @@ export class HttpRequest {
   /** 进行中的请求池：key → AbortController */
   private pendingRequests = new Map<string, AbortController>();
 
-  /** 单例刷新 Promise：并发 401 共享同一次刷新 */
-  private refreshPromise: Promise<RefreshTokenResult> | null = null;
-
   constructor(options: CreateHttpOptions = {}) {
     const {
       baseURL = "",
       timeout = 10000,
       headers = { "Content-Type": "application/json;charset=UTF-8" },
       successCode = 200,
-      responseStyle = "rest-api",
-      refreshPath = "/auth/refresh",
       tokenProvider,
       loading,
       hooks = {},
     } = options;
 
-    this.baseURL = baseURL;
     this.successCode = successCode;
-    this.responseStyle = responseStyle;
-    this.refreshPath = refreshPath;
     this.tokenProvider = tokenProvider;
     this.loading = loading;
     this.hooks = hooks;
@@ -76,7 +53,6 @@ export class HttpRequest {
     this.setupInterceptors();
   }
 
-  /** 若存在同 key 的旧请求则取消；然后将新 controller 加入池 */
   private addPending(config: RequestConfig & InternalAxiosRequestConfig): void {
     const key = getRequestKey(config);
     if (this.pendingRequests.has(key)) {
@@ -88,13 +64,11 @@ export class HttpRequest {
     this.pendingRequests.set(key, controller);
   }
 
-  /** 请求完成（成功/失败）后从池中移除 */
   private removePending(config: RequestConfig & InternalAxiosRequestConfig): void {
     const key = getRequestKey(config);
     this.pendingRequests.delete(key);
   }
 
-  /** 手动取消指定 key 的请求 */
   cancelRequest(key: string): void {
     if (this.pendingRequests.has(key)) {
       this.pendingRequests.get(key)!.abort();
@@ -102,72 +76,13 @@ export class HttpRequest {
     }
   }
 
-  /** 取消所有进行中的请求（页面跳转、退出登录等场景） */
   cancelAllRequests(): void {
     this.pendingRequests.forEach((controller) => controller.abort());
     this.pendingRequests.clear();
   }
 
-  /** 获取底层 axios 实例（高级场景使用） */
   getAxiosInstance(): AxiosInstance {
     return this.instance;
-  }
-
-  /**
-   * 执行刷新 Token：如果已有进行中的刷新，直接返回同一个 Promise，避免重复刷新。
-   * 默认实现使用原始 axios 调用 `baseURL + refreshPath`；如果业务层提供了 `onRefreshToken`，则优先使用业务实现。
-   */
-  private refreshToken(): Promise<RefreshTokenResult> {
-    if (this.refreshPromise) return this.refreshPromise;
-
-    const task = this.hooks.onRefreshToken
-      ? this.hooks.onRefreshToken()
-      : this.defaultRefreshToken();
-
-    this.refreshPromise = task.finally(() => {
-      this.refreshPromise = null;
-    });
-    return this.refreshPromise;
-  }
-
-  /** 核心层兜底实现：POST {baseURL}{refreshPath} with refreshToken */
-  private async defaultRefreshToken(): Promise<RefreshTokenResult> {
-    const refreshToken = this.tokenProvider?.getRefreshToken();
-    if (!refreshToken) throw createNormalizedError("无刷新凭证", { type: "auth" });
-
-    const url = `${this.baseURL.replace(/\/$/, "")}${this.refreshPath}`;
-    const { data, status } = await axios.post<unknown>(
-      url,
-      { refreshToken },
-      {
-        headers: { "Content-Type": "application/json;charset=UTF-8" },
-        timeout: 15000,
-      },
-    );
-    if (status !== 200) throw createNormalizedError("Token 刷新失败", { type: "auth" });
-
-    if (this.responseStyle === "rest-api" && isRecord(data) && data.code === this.successCode) {
-      const rest = stripRestApiEnvelope(data);
-      const access =
-        typeof rest.accessToken === "string"
-          ? rest.accessToken
-          : typeof rest.token === "string"
-            ? rest.token
-            : undefined;
-      if (!access) throw createNormalizedError("Token 刷新失败", { type: "auth" });
-      return {
-        accessToken: access,
-        refreshToken: typeof rest.refreshToken === "string" ? rest.refreshToken : undefined,
-      };
-    }
-
-    if (!isNestedSuccessPayload<RefreshTokenResult>(data) || data.code !== this.successCode) {
-      const msg = isNestedSuccessPayload<RefreshTokenResult>(data)
-        ? data.message
-        : "Token 刷新失败";
-      throw createNormalizedError(msg, { type: "auth" });
-    }
-    return data.data;
   }
 
   private setupInterceptors(): void {
@@ -215,33 +130,21 @@ export class HttpRequest {
         if (customConfig.cancelDuplicate) this.removePending(customConfig);
         if (customConfig.showLoading) this.loading?.onEnd();
 
-        const businessErr = (): NormalizedError | null => {
-          if (this.responseStyle === "rest-api") {
-            if (!isRecord(data) || typeof data.code !== "number") {
-              return createNormalizedError("请求失败", { type: "business", config: customConfig });
-            }
-            if (data.code !== this.successCode) {
-              return createNormalizedError(getRestApiMessage(data), {
-                type: "business",
-                code: data.code,
-                config: customConfig,
-              });
-            }
-            return null;
+        if (!isRecord(data) || typeof data.code !== "number") {
+          const err = createNormalizedError("请求失败", { type: "business", config: customConfig });
+          if (customConfig.showError !== false) {
+            this.hooks.onBusinessError?.({ error: err, config: customConfig, response });
+            this.hooks.onError?.({ error: err, config: customConfig, response });
           }
-          if (!isNestedSuccessPayload(data) || (data as ResponseData).code !== this.successCode) {
-            const msg = isNestedSuccessPayload(data) ? (data as ResponseData).message : "请求失败";
-            return createNormalizedError(msg || "请求失败", {
-              type: "business",
-              code: isNestedSuccessPayload(data) ? (data as ResponseData).code : undefined,
-              config: customConfig,
-            });
-          }
-          return null;
-        };
+          return Promise.reject(err);
+        }
 
-        const err = businessErr();
-        if (err) {
+        if (data.code !== this.successCode) {
+          const err = createNormalizedError(getRestApiMessage(data), {
+            type: "business",
+            code: data.code,
+            config: customConfig,
+          });
           if (customConfig.showError !== false) {
             this.hooks.onBusinessError?.({ error: err, config: customConfig, response });
             this.hooks.onError?.({ error: err, config: customConfig, response });
@@ -268,12 +171,13 @@ export class HttpRequest {
         if (customConfig.showLoading) this.loading?.onEnd();
 
         if (axios.isCancel(error) || error.name === "CanceledError") {
-          const canceled = createNormalizedError("请求已取消", {
-            type: "canceled",
-            config: customConfig,
-            original: error,
-          });
-          return Promise.reject(canceled);
+          return Promise.reject(
+            createNormalizedError("请求已取消", {
+              type: "canceled",
+              config: customConfig,
+              original: error,
+            }),
+          );
         }
 
         if (error.code === "ECONNABORTED") {
@@ -309,62 +213,19 @@ export class HttpRequest {
             if (isRecord(response.data) && typeof response.data.msg === "string") {
               return response.data.msg;
             }
-            if (isRecord(response.data) && typeof response.data.message === "string") {
-              return response.data.message;
-            }
             return "登录已过期";
           };
 
-          const notifyUnauthorized = (authErr: NormalizedError) => {
-            if (customConfig.skipUnauthorizedDialog === true) return;
+          const authErr = createNormalizedError(unauthorizedMsg(), {
+            type: "auth",
+            status,
+            config: customConfig,
+            original: error,
+          });
+          if (customConfig.skipUnauthorizedDialog !== true) {
             this.hooks.onUnauthorized?.({ error: authErr, config: customConfig, response });
-          };
-
-          if (customConfig.skipAuthRefresh) {
-            const authErr = createNormalizedError(unauthorizedMsg() || "未授权", {
-              type: "auth",
-              status,
-              config: customConfig,
-              original: error,
-            });
-            notifyUnauthorized(authErr);
-            return Promise.reject(authErr);
           }
-
-          const hasRefresh = !!this.tokenProvider?.getRefreshToken();
-          if (hasRefresh) {
-            try {
-              const result = await this.refreshToken();
-              this.tokenProvider!.setToken(result.accessToken);
-              if (result.refreshToken) this.tokenProvider!.setRefreshToken(result.refreshToken);
-
-              const cfg = { ...requestConfig } as RequestConfig & InternalAxiosRequestConfig;
-              const headers = AxiosHeaders.from(cfg.headers ?? {});
-              headers.set("Authorization", `Bearer ${result.accessToken}`);
-              cfg.headers = headers;
-              return await this.instance.request(cfg);
-            } catch (e) {
-              this.tokenProvider!.removeToken();
-              this.tokenProvider!.removeRefreshToken();
-              const authErr = createNormalizedError((e as Error)?.message || unauthorizedMsg(), {
-                type: "auth",
-                status,
-                config: customConfig,
-                original: e,
-              });
-              notifyUnauthorized(authErr);
-              return Promise.reject(authErr);
-            }
-          } else {
-            const authErr = createNormalizedError(unauthorizedMsg(), {
-              type: "auth",
-              status,
-              config: customConfig,
-              original: error,
-            });
-            notifyUnauthorized(authErr);
-            return Promise.reject(authErr);
-          }
+          return Promise.reject(authErr);
         }
 
         const retryCount = customConfig.retryCount ?? 0;
@@ -382,10 +243,7 @@ export class HttpRequest {
         };
         const body = isRecord(response.data) ? response.data : null;
         const message =
-          msgMap[status] ||
-          (body ? getRestApiMessage(body) : undefined) ||
-          (response.data as { message?: string })?.message ||
-          `请求失败（${status}）`;
+          msgMap[status] || (body ? getRestApiMessage(body) : undefined) || `请求失败（${status}）`;
 
         const httpErr = createNormalizedError(message, {
           type: "http",
@@ -401,14 +259,10 @@ export class HttpRequest {
     );
   }
 
-  /** 将拦截器已校验过的 JSON 体解包为业务类型 */
   private unwrapResponseBody(data: unknown): unknown {
-    if (this.responseStyle === "rest-api") {
-      if (!isRecord(data)) return data;
-      const rest = stripRestApiEnvelope(data);
-      return Object.keys(rest).length === 0 ? undefined : rest;
-    }
-    return (data as ResponseData<unknown>).data;
+    if (!isRecord(data)) return data;
+    const rest = stripRestApiEnvelope(data);
+    return Object.keys(rest).length === 0 ? undefined : rest;
   }
 
   request<T = unknown>(config: RequestConfig): Promise<T> {
@@ -444,9 +298,6 @@ export class HttpRequest {
   }
 }
 
-/**
- * 快速创建 HttpRequest 实例的工厂函数
- */
 export function createHttp(options: CreateHttpOptions = {}): HttpRequest {
   return new HttpRequest(options);
 }

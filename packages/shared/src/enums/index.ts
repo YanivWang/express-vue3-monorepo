@@ -14,7 +14,6 @@ export enum Language {
 /** 本地存储 Key */
 export enum StorageKey {
   TOKEN = "access_token",
-  REFRESH_TOKEN = "refresh_token",
   SIDEBAR = "sidebar_collapsed",
   THEME = "theme_mode",
   LANGUAGE = "language",

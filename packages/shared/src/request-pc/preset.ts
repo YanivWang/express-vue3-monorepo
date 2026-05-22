@@ -66,7 +66,6 @@ export function createPcHooks(
       });
       isRedirectingToLogin = true;
       tokenProvider.removeToken();
-      tokenProvider.removeRefreshToken();
       await onLogout?.();
       if (typeof window !== "undefined") {
         window.location.replace(loginPath);

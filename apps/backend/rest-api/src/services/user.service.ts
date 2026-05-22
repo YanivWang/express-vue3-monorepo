@@ -1,9 +1,3 @@
-// service 负责处理业务逻辑
-// 1. 获取用户列表
-// 2. 获取用户详情
-// 3. 更新用户
-// 4. 删除用户
-
 import bcrypt from "bcrypt";
 
 import { User, UserProfile } from "../db.js";

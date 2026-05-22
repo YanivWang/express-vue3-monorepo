@@ -6,7 +6,6 @@ import { redis } from "../redis.js";
 const router = Router();
 
 /** 存活探针：不访问数据库 */
-// 判断应用是否存活
 router.get("/health", (_req, res) => {
   res.status(200).json({ status: "ok" });
 });

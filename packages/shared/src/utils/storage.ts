@@ -111,32 +111,22 @@ export interface TokenStorage {
   getToken(): string | undefined;
   setToken(token: string, expires?: number): void;
   removeToken(): void;
-  getRefreshToken(): string | undefined;
-  setRefreshToken(token: string, expires?: number): void;
-  removeRefreshToken(): void;
 }
 
 export interface CreateTokenStorageOptions {
   tokenKey: string;
-  refreshTokenKey: string;
   /** token 默认有效天数，默认 1 */
   tokenExpires?: number;
-  /** refresh token 默认有效天数，默认 7 */
-  refreshExpires?: number;
 }
 
 /**
- * 根据 key 构造一组 Token 存取器（两端通用：底层仍基于 js-cookie）
+ * 根据 key 构造 JWT 存取器（两端通用：底层仍基于 js-cookie）
  */
 export function createTokenStorage(options: CreateTokenStorageOptions): TokenStorage {
-  const { tokenKey, refreshTokenKey, tokenExpires = 1, refreshExpires = 7 } = options;
+  const { tokenKey, tokenExpires = 1 } = options;
   return {
     getToken: () => cookie.get(tokenKey),
     setToken: (token, expires = tokenExpires) => cookie.set(tokenKey, token, expires),
     removeToken: () => cookie.remove(tokenKey),
-    getRefreshToken: () => cookie.get(refreshTokenKey),
-    setRefreshToken: (token, expires = refreshExpires) =>
-      cookie.set(refreshTokenKey, token, expires),
-    removeRefreshToken: () => cookie.remove(refreshTokenKey),
   };
 }

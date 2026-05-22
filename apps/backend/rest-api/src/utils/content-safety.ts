@@ -211,7 +211,7 @@ const contentSanitizeOpts: sanitizeHtml.IOptions = {
   allowedSchemesByTag: {
     a: ["http", "https", "mailto"],
   },
-  allowedStyles: contentAllowedStyles,
+  allowedStyles: contentAllowedStyles as unknown as sanitizeHtml.IOptions["allowedStyles"],
   transformTags: {
     a: sanitizeHtml.simpleTransform("a", { rel: "noopener noreferrer", target: "_blank" }),
     img: (_tagName, attribs) => transformUploadMediaTag("img", attribs),

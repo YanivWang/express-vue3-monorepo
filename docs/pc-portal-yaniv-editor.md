@@ -2,30 +2,36 @@
 
 本文说明本仓库 **pc-portal** 如何接入 [`@yanivjs/yaniv-editor`](https://github.com/YanivWang/yaniv-editor) v0.1.0+（Vue 3 + Tiptap 3），用于帖子新建/编辑与发布。
 
-正文仅以 **HTML 字符串** 存储与展示；图片/视频嵌入正文 HTML。
+正文以 **HTML 字符串** 存储与展示；封面以专用段落嵌入正文（`data-post-cover`）；图片/视频嵌入正文 HTML。
 
 ---
 
 ## 概览
 
-| 项             | 说明                                                                   |
-| -------------- | ---------------------------------------------------------------------- |
-| **接入应用**   | `apps/frontend/pc-portal`                                              |
-| **编辑器包**   | `@yanivjs/yaniv-editor`（`pnpm file:` 本地链接）                       |
-| **发布页组件** | `PostEditorView.vue`                                                   |
-| **路由**       | `/mine/editor`（新建）、`/mine/editor/:id`（编辑）                     |
-| **页面布局**   | `meta.blankLayout: true` — 无站点顶栏，全视口沉浸式                    |
-| **UI 框架**    | 页面表单 **Element Plus**；编辑器内部 **Ant Design Vue**（须全局注册） |
-| **正文存储**   | HTML 字符串，入库前由 `rest-api` 白名单净化                            |
-| **详情展示**   | `PostDetailView` + DOMPurify 二次净化 + KaTeX 渲染数学公式             |
+| 项             | 说明                                                                    |
+| -------------- | ----------------------------------------------------------------------- |
+| **接入应用**   | `apps/frontend/pc-portal`                                               |
+| **编辑器包**   | `@yanivjs/yaniv-editor`（`pnpm file:` 本地链接，见该包 `package.json`） |
+| **发布页组件** | `PostEditorView.vue`                                                    |
+| **路由**       | `/mine/editor`（新建）、`/mine/editor/:id`（编辑）                      |
+| **页面布局**   | `meta.blankLayout: true` — 无站点顶栏，全视口沉浸式                     |
+| **UI 框架**    | 页面表单 **Element Plus**；编辑器内部 **Ant Design Vue**（须全局注册）  |
+| **正文存储**   | HTML 字符串，入库前由 `rest-api` 白名单净化                             |
+| **封面**       | 保存前 `mergeCoverIntoContent` 写入 `<p data-post-cover="1">…</p>`      |
+| **本地草稿**   | `localStorage`，键 `pc_portal_post_editor_draft:{id\|new}`              |
+| **详情展示**   | `PostDetailView` + DOMPurify 二次净化 + KaTeX 渲染数学公式              |
 
 ```mermaid
 flowchart LR
   subgraph portal [pc-portal]
     Entry["写文章 / 新建 / 编辑"]
     EditorPage["PostEditorView\nblankLayout"]
+    Cover["postEditorCover"]
+    Draft["postEditorDraft"]
     Yaniv["@yanivjs/yaniv-editor"]
     Entry --> EditorPage --> Yaniv
+    EditorPage --> Cover
+    EditorPage --> Draft
   end
   subgraph api [rest-api]
     ImgUpload["POST /api/uploads"]
@@ -35,7 +41,7 @@ flowchart LR
   end
   EditorPage -->|"uploadImage"| ImgUpload
   EditorPage -->|"uploadVideo"| LargeUpload
-  EditorPage -->|"getHTML()"| Posts --> Sanitize
+  Cover -->|"mergeCoverIntoContent"| Posts --> Sanitize
   Sanitize --> Detail["PostDetailView"]
 ```
 
@@ -44,7 +50,7 @@ flowchart LR
 ## 接入清单（Checklist）
 
 - [ ] yaniv-editor 源码已 `pnpm build` 产出 `dist/`
-- [ ] `pc-portal/package.json` 中 `file:` 路径正确，`pnpm install` 无报错
+- [ ] `apps/frontend/pc-portal/package.json` 中 `file:` 路径在本机有效，`pnpm install` 无报错
 - [ ] [`main.ts`](../apps/frontend/pc-portal/src/main.ts) 注册 **Ant Design Vue** 并引入 `ant-design-vue/dist/reset.css`
 - [ ] 发布页引入 `@yanivjs/yaniv-editor/style.css` 与 `katex/dist/katex.min.css`
 - [ ] 路由 meta 含 `blankLayout: true`
@@ -56,15 +62,7 @@ flowchart LR
 
 ## 本地依赖与构建
 
-### yaniv-editor 源码
-
-```text
-<workSpace>/frontEnd/pixelBloomSpace/tiptapCases/yaniv-editor
-```
-
-```json
-"@yanivjs/yaniv-editor": "file:../../../../../../../frontEnd/pixelBloomSpace/tiptapCases/yaniv-editor"
-```
+`@yanivjs/yaniv-editor` 通过 **`apps/frontend/pc-portal/package.json`** 的 `file:` 字段链接到本机 yaniv-editor 源码目录（路径因开发者机器而异，勿写死到文档）。
 
 ```bash
 cd /path/to/yaniv-editor && pnpm build
@@ -122,13 +120,40 @@ app.use(Antd);
 
 ### 读写约定
 
-| 操作              | 方式                                                  |
-| ----------------- | ----------------------------------------------------- |
-| 加载正文          | `:initial-content` 传 HTML（直接来自 `post.content`） |
-| 保存正文          | `editorRef.getHTML()`                                 |
-| 空校验            | `editorRef.getText().trim()` 非空                     |
-| 延迟挂载          | `v-if="!loading"`                                     |
-| 切换 edit/preview | `:mode` prop（禁止 `editor.setEditable()`）           |
+| 操作     | 方式                                                                 |
+| -------- | -------------------------------------------------------------------- |
+| 加载正文 | `:initial-content` 传 HTML；编辑态经 `parseEditorContent` 剥离封面块 |
+| 保存正文 | `mergeCoverIntoContent(getHTML(), coverUrl, title)` 后提交           |
+| 空校验   | `isPostEditorBodyEmpty(html, plain)`（含图片/表格等非文本块）        |
+| 延迟挂载 | `v-if="!loading"`                                                    |
+| 模式切换 | `:mode` prop（禁止 `editor.setEditable()`）                          |
+
+---
+
+## 封面
+
+封面不单独占 API 字段，而是写入正文首部专用段落，供列表 `cardCoverUrl` 读取首张图。
+
+| 函数                    | 作用                                      |
+| ----------------------- | ----------------------------------------- |
+| `parseEditorContent`    | 加载时分离 `coverUrl` 与 `bodyHtml`       |
+| `mergeCoverIntoContent` | 保存前插入 `<p data-post-cover="1">…</p>` |
+| `stripPostCoverBlock`   | 去掉首部封面段                            |
+| `validateCoverFile`     | JPG/PNG，最大 5MB                         |
+
+实现：[`postEditorCover.ts`](../apps/frontend/pc-portal/src/utils/postEditorCover.ts)
+
+---
+
+## 本地草稿
+
+| 项       | 说明                                                                    |
+| -------- | ----------------------------------------------------------------------- |
+| 存储键   | `pc_portal_post_editor_draft:{postId}` 或 `…:new`                       |
+| 字段     | `title`、`categoryId`、`published`、`coverUrl`、`contentHtml`           |
+| 读写 API | `readPostEditorDraft` / `writePostEditorDraft` / `clearPostEditorDraft` |
+
+实现：[`postEditorDraft.ts`](../apps/frontend/pc-portal/src/utils/postEditorDraft.ts)
 
 ---
 
@@ -144,6 +169,7 @@ app.use(Antd);
 | ---- | --------------------------- | --------------------------- |
 | 图片 | `POST /api/uploads`         | `:upload-image`             |
 | 视频 | `POST /api/uploads/large/*` | `:upload-video`（必须提供） |
+| 封面 | `POST /api/uploads`         | 发布页单独上传控件          |
 
 实现：[`usePostMediaUpload.ts`](../apps/frontend/pc-portal/src/utils/usePostMediaUpload.ts)
 
@@ -172,6 +198,8 @@ app.use(Antd);
 | 用途       | 路径                                                         |
 | ---------- | ------------------------------------------------------------ |
 | 发布页     | `apps/frontend/pc-portal/src/views/PostEditorView.vue`       |
+| 封面       | `apps/frontend/pc-portal/src/utils/postEditorCover.ts`       |
+| 本地草稿   | `apps/frontend/pc-portal/src/utils/postEditorDraft.ts`       |
 | 路由       | `apps/frontend/pc-portal/src/router/index.ts`                |
 | 媒体上传   | `apps/frontend/pc-portal/src/utils/usePostMediaUpload.ts`    |
 | 详情净化   | `apps/frontend/pc-portal/src/utils/post-content-sanitize.ts` |
@@ -197,6 +225,10 @@ app.use(Antd);
 ### 媒体不显示
 
 `src` 须为 `/uploads/...`，不能是外链或 Base64。
+
+### 有图无字仍提示正文为空
+
+确认使用 `isPostEditorBodyEmpty`，勿仅用 `getText().trim()`。
 
 ---
 

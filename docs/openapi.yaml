@@ -16,7 +16,7 @@ info:
     - 上传：**`POST /api/uploads`** 与 **`POST /api/uploads/profiles`** 均需 Bearer；`multipart/form-data` 字段名 **`files`**；类型 jpeg/png/gif/webp。
       - 富文本插图：`/api/uploads`，**单次最多 9 张**，**单张最大 8MB**，落盘 **`uploads/posts/<年>/<月>/`**，URL **`/uploads/posts/…`**，由编辑器嵌入正文 HTML 的 `<img src>` 引用。
       - **头像等用户资料图**：`/api/uploads/profiles`，**单次仅 1 张**，**单张最大 8MB**，落盘 **`uploads/profiles/<年>/<月>/`**，URL **`/uploads/profiles/…`**（可写入 `User.avatar` 等）。
-      - **大文件分片（单文件最大 1GB，与 `packages/shared` 常量一致）**：`POST /api/uploads/large/init` → `PUT .../chunks/{chunkIndex}`（表单字段 **`chunk`**，请求头 **`X-Chunk-Md5`**）→ `POST .../merge`；`GET .../status` 查询断点；`DELETE ...` 取消任务。成品 URL 形如 **`/uploads/large/...`**，任务 TTL **24h**（过期 `410`）。
+      - **大文件分片（单文件最大 1GB，与 `packages/shared` 常量一致）**：`POST /api/uploads/large/init`（**必填** `fileMd5`）→ `PUT .../chunks/{chunkIndex}`（表单字段 **`chunk`**，请求头 **`X-Chunk-Md5`**）→ `POST .../merge`；`GET .../status` 查询断点；`DELETE ...` 取消任务。分片目录 **`uploads/chunks-temp/<fileMd5>/<uploadId>/`**；成品 URL 形如 **`/uploads/large/...`**，任务 TTL **24h**（过期 `410`）。
       - 静态访问 **`GET /uploads/...`**（不走 API 全局限流）。
     - 文章：正文为 HTML 字符串，配图/视频须嵌入正文（`<img>` / `<video>` 的 `src` 须为本站 **`/uploads/...`**，入库前经 `content-safety.ts` 净化）。`GET /api/posts` 公开分页（仅 `published: true`）；`GET /api/posts/{id}` 未挂载可选 JWT，`findPostByIdPublic` 的访问者恒为匿名，**未发布文章对任意客户端（含作者）均返回 404**；`POST /api/posts/{postId}/comments` 校验文章时传入**当前登录用户 id**，故 **作者仍可对本人的未发布文章发表评论**（与详情 GET 行为不一致，以 controller/service 为准）。`GET /api/posts/mine/list` 及创建/更新/删除需 Bearer；更新/删除在 **RBAC** 下为 **作者本人** 或具备 **`admin.posts.write`** / **`admin.posts.delete`** 等权限（见 `post.service.ts`）。
     - 内容与敏感词：发帖（`POST /api/posts`、`PUT /api/posts/{id}` 涉及 `title`/`content`）、发评（`POST .../comments`）在 **`400`** 可返回固定 **`msg`**「包含敏感言论，请删除敏感言论再试试？」（见 `utils/content-safety.ts`）；**先敏感词校验，再服务端 XSS 净化后入库**。
@@ -85,7 +85,7 @@ components:
           type: string
     LargeUploadInitBody:
       type: object
-      required: [fileName, fileSize, chunkSize]
+      required: [fileName, fileSize, chunkSize, fileMd5]
       properties:
         fileName:
           type: string
@@ -106,7 +106,7 @@ components:
           maxLength: 128
         fileMd5:
           type: string
-          description: 32 位 MD5 hex；传入则启用 MD5 临时目录、合并校验与全局秒传
+          description: 32 位 MD5 hex（小写）；用于分片目录、合并校验与全局秒传
           pattern: "^[a-fA-F0-9]{32}$"
     LargeUploadInitSuccess:
       allOf:
@@ -1365,9 +1365,9 @@ paths:
       tags: [上传]
       summary: 大文件分片上传 — 创建任务或秒传
       description: |
-        需 Bearer。JSON body：`fileName`、`fileSize`、`chunkSize`（1～8MB）、可选 `mimeType`、可选 `fileMd5`（32 位 hex，小写）。
-        若携带 `fileMd5` 且与 `fileSize` 命中服务端**全局**已合并索引，则返回 `instant: true` 与 `publicUrl`，无需再传分片。
-        否则返回 `instant: false` 与 `uploadId`；分片目录为 `uploads/chunks-temp/<fileMd5>/<uploadId>/`（未传 `fileMd5` 时为 legacy `uploads/chunks-temp/<uploadId>/`）。
+        需 Bearer。JSON body：`fileName`、`fileSize`、`chunkSize`（1～8MB）、**必填** `fileMd5`（32 位 hex，小写）、可选 `mimeType`。
+        若 `fileMd5` 与 `fileSize` 命中服务端**全局**已合并索引，则返回 `instant: true` 与 `publicUrl`，无需再传分片。
+        否则返回 `instant: false` 与 `uploadId`；分片目录为 `uploads/chunks-temp/<fileMd5>/<uploadId>/`。
       security:
         - bearerAuth: []
       requestBody:

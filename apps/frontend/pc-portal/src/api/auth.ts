@@ -16,7 +16,6 @@ export function logout() {
     "/api/logout",
     {},
     {
-      skipAuthRefresh: true,
       skipUnauthorizedDialog: true,
       showError: false,
     },

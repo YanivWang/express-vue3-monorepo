@@ -13,7 +13,7 @@ const reqDefaults = {
 
 /**
  * 大文件分片上传 API（与 `rest-api` `/api/uploads/large/*` 对齐）。
- * 传入 `HttpRequest` 以便与 `@/api/http` 共享 Token、401 刷新等行为。
+ * 传入 `HttpRequest` 以便与 `@/api/http` 共享 Token 与统一错误处理。
  */
 export function createLargeFileUploadApi(client: HttpRequest) {
   return {

@@ -15,16 +15,6 @@ export type ApiSuccessJson<T extends Record<string, unknown> = Record<string, un
   msg: string;
 } & T;
 
-/**
- * @deprecated 历史命名；请使用 ApiSuccessJson / ApiFailJson。
- * 与 `@express-vue3-monorepo/request-core` 的 `nested-data` 模式或旧后端一致时为 `{ code, message, data }`
- */
-export interface ApiResponse<T = unknown> {
-  code: number;
-  message: string;
-  data: T;
-}
-
 /** 用户信息 */
 export interface UserInfo {
   id: number;
@@ -55,14 +45,6 @@ export interface RegisterParams {
  */
 export interface LoginResult {
   token: string;
-}
-
-/** @deprecated 旧版双 token 形态；rest-api 当前仅返回 `token` */
-export interface LegacyOAuthLoginResult {
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
-  tokenType: string;
 }
 
 /** 修改密码请求参数 */

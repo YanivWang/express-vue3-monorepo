@@ -15,9 +15,7 @@ export interface RequestConfig extends AxiosRequestConfig {
   showError?: boolean;
   /** 是否携带 Token，默认 true */
   withToken?: boolean;
-  /** 为 true 时 401 不触发自动刷新与重试（如登录、登出）；内置 refresh 使用独立 axios，不依赖本字段 */
-  skipAuthRefresh?: boolean;
-  /** 为 true 时 401 不调用 onUnauthorized（如应用启动拉取 /me，由业务侧静默清会话并跳转登录） */
+  /** 为 true 时 401 不调用 onUnauthorized（如登录、静默拉取 /me） */
   skipUnauthorizedDialog?: boolean;
   /** 请求重试次数（仅 5xx 生效） */
   retryCount?: number;
@@ -31,29 +29,14 @@ export interface RequestConfig extends AxiosRequestConfig {
   requestKey?: string;
 }
 
-/** 与 monorepo 内 apps/backend/rest-api 默认 JSON 形态对齐（success / fail） */
-export type ResponseStyle = "rest-api" | "nested-data";
-
 /**
- * rest-api：扁平载荷，`success(res, msg, data)` 展开为 `code` + `msg` + data 内字段。
+ * rest-api 扁平载荷：`success(res, msg, data)` → `{ code, msg, ...payload }`
  * 参见 `apps/backend/rest-api/src/utils/response.ts`
  */
 export type RestApiSuccessJson = Record<string, unknown> & {
   code: number;
   msg: string;
 };
-
-/**
- * 旧版或第三方后端：{ code, message, data } 嵌套结构（仍可经 `responseStyle: 'nested-data'` 使用）
- */
-export interface NestedResponseData<T = unknown> {
-  code: number;
-  message: string;
-  data: T;
-}
-
-/** @deprecated 请使用 NestedResponseData */
-export type ResponseData<T = unknown> = NestedResponseData<T>;
 
 /** HTTP 状态码（供核心逻辑/绑定层共享） */
 export const enum HttpCode {
@@ -82,9 +65,6 @@ export interface TokenProvider {
   getToken: () => string | undefined | null;
   setToken: (token: string) => void;
   removeToken: () => void;
-  getRefreshToken: () => string | undefined | null;
-  setRefreshToken: (token: string) => void;
-  removeRefreshToken: () => void;
 }
 
 /** Loading 钩子（由 UI 绑定层注入） */
@@ -100,21 +80,12 @@ export interface ErrorHookContext {
   response?: AxiosResponse;
 }
 
-/** 刷新 Token 成功后返回的数据结构（字段可扩展） */
-export interface RefreshTokenResult {
-  accessToken: string;
-  refreshToken?: string;
-  [key: string]: unknown;
-}
-
 /** 构造 HttpRequest 时可注入的钩子集合 */
 export interface RequestHooks {
   /** 请求错误（非 401 / 非 canceled）统一回调：UI 层可在此 toast 提示 */
   onError?: (ctx: ErrorHookContext) => void;
-  /** 401 无法刷新时回调：UI 层可在此弹窗、跳转登录 */
+  /** 401 回调：UI 层可在此弹窗、跳转登录 */
   onUnauthorized?: (ctx: ErrorHookContext) => void;
-  /** 刷新 Token：返回新的 accessToken / refreshToken；核心层保证只并发触发一次 */
-  onRefreshToken?: () => Promise<RefreshTokenResult>;
   /** 业务码不匹配时回调（非 HTTP 错误但 code !== successCode） */
   onBusinessError?: (ctx: ErrorHookContext) => void;
 }
@@ -129,14 +100,6 @@ export interface CreateHttpOptions {
   headers?: Record<string, string>;
   /** 业务成功码 */
   successCode?: number;
-  /**
-   * rest-api：`{ code, msg, ...payload }`（本仓库 express rest-api）
-   * nested-data：`{ code, message, data }`
-   * @default 'rest-api'
-   */
-  responseStyle?: ResponseStyle;
-  /** 刷新 Token 请求的路径（相对 baseURL），默认 '/auth/refresh' */
-  refreshPath?: string;
   /** Token 提供者，默认不注入即禁用自动 Token 注入 */
   tokenProvider?: TokenProvider;
   /** Loading 处理器 */

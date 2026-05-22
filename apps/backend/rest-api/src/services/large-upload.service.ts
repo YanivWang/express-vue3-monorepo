@@ -17,8 +17,8 @@ export const LARGE_CHUNKS_TEMP_SEGMENT = "chunks-temp";
 export const LARGE_FINAL_SEGMENT = "large";
 
 const UPLOAD_TTL_MS = 24 * 60 * 60 * 1000;
+const FILE_MD5_RE = /^[a-f0-9]{32}$/;
 
-/** 合并完成后仅存 `{ url,userId }`（放在 repo 根 `.data`，避免被 /uploads 静态暴露） */
 function doneMarkerPath(uploadId: string): string {
   return path.join(projectRoot, ".data", "large-upload-done", `${uploadId}.json`);
 }
@@ -31,21 +31,32 @@ function sessionPath(uploadId: string): string {
   return path.join(sessionsDir(), `${uploadId}.json`);
 }
 
-/**
- * Multer `destination` 为同步回调：用会话文件解析 `chunks-temp/<md5>/<uploadId>` 或 legacy `chunks-temp/<uploadId>`。
- */
-export function syncResolveLargeUploadChunkDir(uploadId: string): string {
-  try {
-    const raw = fsSync.readFileSync(sessionPath(uploadId), "utf8");
-    const j = JSON.parse(raw) as { fileMd5?: string | null };
-    const sessMd5 = j.fileMd5;
-    if (typeof sessMd5 === "string" && /^[a-fA-F0-9]{32}$/i.test(sessMd5)) {
-      return path.join(uploadsRoot, LARGE_CHUNKS_TEMP_SEGMENT, sessMd5.toLowerCase(), uploadId);
-    }
-  } catch {
-    /* 无会话或损坏：回退 legacy */
+function normalizeFileMd5(md5: string): string {
+  const lower = md5.toLowerCase();
+  if (!FILE_MD5_RE.test(lower)) {
+    throw createHttpError(400, "fileMd5 须为 32 位十六进制");
   }
-  return path.join(uploadsRoot, LARGE_CHUNKS_TEMP_SEGMENT, uploadId);
+  return lower;
+}
+
+function readSessionFileMd5(uploadId: string): string {
+  let raw: string;
+  try {
+    raw = fsSync.readFileSync(sessionPath(uploadId), "utf8");
+  } catch {
+    throw createHttpError(404, "上传任务不存在或会话已失效");
+  }
+  const j = JSON.parse(raw) as { fileMd5?: string };
+  if (typeof j.fileMd5 !== "string") {
+    throw createHttpError(500, "上传会话损坏");
+  }
+  return normalizeFileMd5(j.fileMd5);
+}
+
+/** Multer `destination` 同步回调：分片目录 `chunks-temp/<fileMd5>/<uploadId>/` */
+export function syncResolveLargeUploadChunkDir(uploadId: string): string {
+  const fileMd5 = readSessionFileMd5(uploadId);
+  return path.join(uploadsRoot, LARGE_CHUNKS_TEMP_SEGMENT, fileMd5, uploadId);
 }
 
 function hashIndexDir(): string {
@@ -69,12 +80,10 @@ export type LargeUploadMeta = {
   chunkSize: number;
   chunkTotal: number;
   mimeType?: string;
-  /** 全文件 MD5 hex（小写）；未传则为 legacy 任务 */
-  fileMd5?: string;
+  fileMd5: string;
   userId: number;
   createdAt: string;
   status: "uploading" | "merging" | "done" | "failed";
-  /** 合并完成后的公开 URL，例如 /uploads/large/… */
   publicUrl?: string;
 };
 
@@ -82,30 +91,24 @@ export type InitLargeUploadResult =
   | { instant: true; publicUrl: string; chunkTotal: 0; expiresAt: string }
   | { instant: false; uploadId: string; chunkTotal: number; expiresAt: string };
 
-function tempBaseDir(fileMd5: string | undefined, uploadId: string): string {
-  if (fileMd5) {
-    return path.join(uploadsRoot, LARGE_CHUNKS_TEMP_SEGMENT, fileMd5, uploadId);
-  }
-  return path.join(uploadsRoot, LARGE_CHUNKS_TEMP_SEGMENT, uploadId);
+function tempBaseDir(fileMd5: string, uploadId: string): string {
+  return path.join(uploadsRoot, LARGE_CHUNKS_TEMP_SEGMENT, fileMd5, uploadId);
 }
 
-async function readSession(uploadId: string): Promise<{ fileMd5: string | null } | null> {
+async function readSession(uploadId: string): Promise<{ fileMd5: string } | null> {
   try {
     const raw = await fs.readFile(sessionPath(uploadId), "utf8");
-    const j = JSON.parse(raw) as { fileMd5?: string | null };
-    if (j.fileMd5 == null) {
-      return { fileMd5: null };
-    }
-    return typeof j.fileMd5 === "string" ? { fileMd5: j.fileMd5.toLowerCase() } : { fileMd5: null };
+    const j = JSON.parse(raw) as { fileMd5?: string };
+    if (typeof j.fileMd5 !== "string") return null;
+    return { fileMd5: normalizeFileMd5(j.fileMd5) };
   } catch {
     return null;
   }
 }
 
-async function writeSession(uploadId: string, fileMd5: string | undefined): Promise<void> {
+async function writeSession(uploadId: string, fileMd5: string): Promise<void> {
   await fs.mkdir(sessionsDir(), { recursive: true });
-  const payload = fileMd5 != null ? { fileMd5 } : { fileMd5: null };
-  await fs.writeFile(sessionPath(uploadId), JSON.stringify(payload), "utf8");
+  await fs.writeFile(sessionPath(uploadId), JSON.stringify({ fileMd5 }), "utf8");
 }
 
 async function deleteSession(uploadId: string): Promise<void> {
@@ -114,10 +117,10 @@ async function deleteSession(uploadId: string): Promise<void> {
 
 async function resolveTempDir(uploadId: string): Promise<string> {
   const sess = await readSession(uploadId);
-  if (sess?.fileMd5) {
-    return tempBaseDir(sess.fileMd5, uploadId);
+  if (!sess) {
+    throw createHttpError(404, "上传任务不存在或会话已失效");
   }
-  return tempBaseDir(undefined, uploadId);
+  return tempBaseDir(sess.fileMd5, uploadId);
 }
 
 async function readGlobalHashRecord(md5: string): Promise<GlobalHashRecord | null> {
@@ -138,10 +141,6 @@ async function deleteGlobalHashRecord(md5: string): Promise<void> {
   await fs.unlink(hashIndexPath(md5)).catch(() => {});
 }
 
-/**
- * 将本站静态路径 `/uploads/...` 解析到 `uploadsRoot` 下绝对路径（防 `..` 越界）。
- * 与 `filePathToPublicUrl` 互逆。
- */
 function absPathFromPublicUploadUrl(publicUrl: string): string | null {
   const u = publicUrl.trim();
   if (!u.startsWith("/uploads/")) return null;
@@ -160,7 +159,6 @@ function absPathFromPublicUploadUrl(publicUrl: string): string | null {
   return resolved;
 }
 
-/** 秒传索引仍指向「存在且体积一致」的落地文件（删库只删 uploads 时索引会陈旧，须在此纠偏） */
 async function globalHashRecordPointsToLiveFile(rec: GlobalHashRecord): Promise<boolean> {
   const abs = absPathFromPublicUploadUrl(rec.url);
   if (!abs) return false;
@@ -197,7 +195,6 @@ function expectedPartSize(meta: LargeUploadMeta, index: number): number {
   return chunkSize;
 }
 
-/** 仅把「存在且字节数与 meta 一致」的分片视为已就绪（用于断点续传状态） */
 async function listValidReceivedPartIndices(meta: LargeUploadMeta, dir: string): Promise<number[]> {
   const re = /^part-(\d+)\.bin$/;
   let names: string[];
@@ -258,33 +255,32 @@ export async function initLargeUpload(
   body: LargeUploadInitBody,
   _userId: number,
 ): Promise<InitLargeUploadResult> {
+  const fileMd5 = body.fileMd5;
   const expiresAt = new Date(Date.now() + UPLOAD_TTL_MS).toISOString();
   const chunkTotal = Math.ceil(body.fileSize / body.chunkSize);
 
-  if (body.fileMd5) {
-    const rec = await readGlobalHashRecord(body.fileMd5);
-    if (rec && rec.fileSize === body.fileSize && typeof rec.url === "string") {
-      if (await globalHashRecordPointsToLiveFile(rec)) {
-        return { instant: true, publicUrl: rec.url, chunkTotal: 0, expiresAt };
-      }
-      await deleteGlobalHashRecord(body.fileMd5);
+  const rec = await readGlobalHashRecord(fileMd5);
+  if (rec && rec.fileSize === body.fileSize && typeof rec.url === "string") {
+    if (await globalHashRecordPointsToLiveFile(rec)) {
+      return { instant: true, publicUrl: rec.url, chunkTotal: 0, expiresAt };
     }
+    await deleteGlobalHashRecord(fileMd5);
   }
 
   const uploadId = randomUUID();
-  const base = tempBaseDir(body.fileMd5, uploadId);
+  const base = tempBaseDir(fileMd5, uploadId);
   await fs.mkdir(base, { recursive: true });
-  await writeSession(uploadId, body.fileMd5);
+  await writeSession(uploadId, fileMd5);
   const meta: LargeUploadMeta = {
     fileName: body.fileName,
     fileSize: body.fileSize,
     chunkSize: body.chunkSize,
     chunkTotal,
     mimeType: body.mimeType,
+    fileMd5,
     userId: _userId,
     createdAt: new Date().toISOString(),
     status: "uploading",
-    ...(body.fileMd5 ? { fileMd5: body.fileMd5 } : {}),
   };
   await writeMetaAt(base, meta);
 
@@ -345,7 +341,6 @@ async function md5OfFile(absPath: string): Promise<string> {
   return hash.digest("hex");
 }
 
-/** 校验并确认当前分片已由 multer 写入预期路径（尺寸与内容 MD5 一致） */
 export async function finalizeChunkWrite(
   uploadId: string,
   chunkIndex: number,
@@ -454,39 +449,31 @@ export async function mergeLargeUpload(uploadId: string, userId: number) {
   const writeStream = createWriteStream(finalTmp, { flags: "w" });
 
   try {
-    if (meta.fileMd5) {
-      const hash = createHash("md5");
-      for (let i = 0; i < meta.chunkTotal; i++) {
-        const partPath = path.join(dir, partFileName(i));
-        const rs = createReadStream(partPath);
-        for await (const raw of rs) {
-          if (!(Buffer.isBuffer(raw) || typeof raw === "string")) continue;
-          hash.update(raw);
-          const ok = writeStream.write(raw);
-          if (!ok) {
-            await new Promise<void>((resolve, reject) => {
-              writeStream.once("drain", resolve);
-              writeStream.once("error", reject);
-            });
-          }
+    const hash = createHash("md5");
+    for (let i = 0; i < meta.chunkTotal; i++) {
+      const partPath = path.join(dir, partFileName(i));
+      const rs = createReadStream(partPath);
+      for await (const raw of rs) {
+        if (!(Buffer.isBuffer(raw) || typeof raw === "string")) continue;
+        hash.update(raw);
+        const ok = writeStream.write(raw);
+        if (!ok) {
+          await new Promise<void>((resolve, reject) => {
+            writeStream.once("drain", resolve);
+            writeStream.once("error", reject);
+          });
         }
       }
-      writeStream.end();
-      await finished(writeStream);
+    }
+    writeStream.end();
+    await finished(writeStream);
 
-      const digest = hash.digest("hex");
-      if (digest !== meta.fileMd5) {
-        await fs.unlink(finalTmp).catch(() => {});
-        meta.status = "failed";
-        await writeMeta(uploadId, meta).catch(() => {});
-        throw createHttpError(500, "合并后 MD5 与声明不一致");
-      }
-    } else {
-      for (let i = 0; i < meta.chunkTotal; i++) {
-        const partPath = path.join(dir, partFileName(i));
-        await pipeline(createReadStream(partPath), writeStream, { end: i === meta.chunkTotal - 1 });
-      }
-      await finished(writeStream);
+    const digest = hash.digest("hex");
+    if (digest !== meta.fileMd5) {
+      await fs.unlink(finalTmp).catch(() => {});
+      meta.status = "failed";
+      await writeMeta(uploadId, meta).catch(() => {});
+      throw createHttpError(500, "合并后 MD5 与声明不一致");
     }
 
     const outStat = await fs.stat(finalTmp);
@@ -513,16 +500,14 @@ export async function mergeLargeUpload(uploadId: string, userId: number) {
     "utf8",
   );
 
-  if (meta.fileMd5) {
-    const existing = await readGlobalHashRecord(meta.fileMd5);
-    const firstUploaderUserId = existing?.firstUploaderUserId ?? userId;
-    await writeGlobalHashRecord(meta.fileMd5, {
-      fileSize: meta.fileSize,
-      url: publicUrl,
-      mergedAt: new Date().toISOString(),
-      firstUploaderUserId,
-    });
-  }
+  const existing = await readGlobalHashRecord(meta.fileMd5);
+  const firstUploaderUserId = existing?.firstUploaderUserId ?? userId;
+  await writeGlobalHashRecord(meta.fileMd5, {
+    fileSize: meta.fileSize,
+    url: publicUrl,
+    mergedAt: new Date().toISOString(),
+    firstUploaderUserId,
+  });
 
   await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
   await deleteSession(uploadId);

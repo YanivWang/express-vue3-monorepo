@@ -78,7 +78,6 @@ export function createH5Hooks(
       });
       isRedirectingToLogin = true;
       tokenProvider.removeToken();
-      tokenProvider.removeRefreshToken();
       await onLogout?.();
       if (redirectLogin) {
         await redirectLogin();

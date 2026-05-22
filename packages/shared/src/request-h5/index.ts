@@ -15,13 +15,9 @@ export interface CreateH5HttpOptions
   extends Omit<CreateHttpOptions, "tokenProvider" | "loading" | "hooks">, H5PresetOptions {
   /** Token 存储 key，默认 'access_token' */
   tokenKey?: string;
-  /** Refresh Token 存储 key，默认 'refresh_token' */
-  refreshTokenKey?: string;
   /** Token 存储有效期（天），默认 1 */
   tokenExpires?: number;
-  /** Refresh Token 存储有效期（天），默认 7 */
-  refreshExpires?: number;
-  /** 已创建好的 token storage 实例（传入后忽略 tokenKey/refreshTokenKey） */
+  /** 已创建好的 token storage 实例（传入后忽略 tokenKey） */
   tokenStorage?: TokenStorage;
   /** 覆盖/扩展默认钩子 */
   hooks?: Partial<CreateHttpOptions["hooks"]>;
@@ -31,16 +27,11 @@ export interface CreateH5HttpOptions
   loadingOptions?: Parameters<typeof createVantLoadingHandler>[0];
 }
 
-/**
- * 创建 H5 端 HttpRequest：集成 Vant 默认 UI 反馈。
- * 默认与 monorepo `rest-api` 的 `{ code, msg, ...payload }` 响应一致（见 `@express-vue3-monorepo/request-core` 的 `responseStyle`）。
- */
+/** 创建 H5 端 HttpRequest：集成 Vant 默认 UI 反馈，响应对齐 rest-api `{ code, msg, ... }`。 */
 export function createH5Http(options: CreateH5HttpOptions = {}): HttpRequest {
   const {
     tokenKey = "access_token",
-    refreshTokenKey = "refresh_token",
     tokenExpires = 1,
-    refreshExpires = 7,
     tokenStorage,
     loginPath,
     onLogout,
@@ -53,8 +44,7 @@ export function createH5Http(options: CreateH5HttpOptions = {}): HttpRequest {
     ...rest
   } = options;
 
-  const storage =
-    tokenStorage ?? createTokenStorage({ tokenKey, refreshTokenKey, tokenExpires, refreshExpires });
+  const storage = tokenStorage ?? createTokenStorage({ tokenKey, tokenExpires });
 
   const presetHooks = createH5Hooks(storage, {
     loginPath,
@@ -75,13 +65,9 @@ export function createH5Http(options: CreateH5HttpOptions = {}): HttpRequest {
 export type { TokenStorage } from "@express-vue3-monorepo/shared/utils";
 export type {
   RequestConfig,
-  ResponseData,
-  ResponseStyle,
-  NestedResponseData,
   RestApiSuccessJson,
   CreateHttpOptions,
   HttpRequest,
-  RefreshTokenResult,
   NormalizedError,
   TokenProvider,
   RequestHooks,

@@ -9,17 +9,19 @@
 
 ## 常用脚本
 
-- 后端：`pnpm rest-api:dev`、`pnpm rest-api:start`
+- 后端：`pnpm rest-api:dev`、`pnpm rest-api:dev:debug`、`pnpm rest-api:start`
 - 首个超级管理员（根目录已配置 `ADMIN_BOOTSTRAP_USERNAME` / `ADMIN_BOOTSTRAP_PASSWORD`，且 **`REDIS_URL` 等 env 齐备**）：`pnpm --filter @express-vue3-monorepo/rest-api exec tsx scripts/ensure-super-admin.ts`
 - 前端：`pnpm pc-portal:dev`（**5173**）、`pnpm pc-admin:dev`（**5174**）
 - 全仓库并行开发：`pnpm dev`
-- 数据库：`pnpm db:drop-create`、`pnpm db:dedupe-indexes`、`pnpm db:seed-categories`、`pnpm db:seed-post`（后两者见 README 推荐顺序）
-- 类型检查 / 质量：`pnpm typecheck`、`pnpm lint`、`pnpm lint:style`、`pnpm format:check`；提交前全套校验：`pnpm verify`（含 `pnpm test`，即 rest-api Vitest）
+- 数据库：`pnpm db:drop-create`、`pnpm db:dedupe-indexes`、`pnpm db:seed-categories`、`pnpm db:seed-post`（推荐顺序见 README「类目种子与合成帖子」）
+- 类型检查 / 质量：`pnpm typecheck`、`pnpm typecheck:packages`、`pnpm lint`、`pnpm lint:style`、`pnpm format:check`；提交前全套校验：`pnpm verify`（含 `pnpm test`，即 rest-api Vitest）
+- Docker：`pnpm docker:dev`、`pnpm docker:dev:down`、`pnpm docker:dev:debug`（详见 README「Docker 开发」）
 
 ## 文档
 
 - 首个超级管理员与合成脚本认证：[`docs/admin-bootstrap.md`](docs/admin-bootstrap.md)
 - 权限码与路由对照：[`docs/admin-permissions.md`](docs/admin-permissions.md)
+- pc-portal 富文本编辑器：[`docs/pc-portal-yaniv-editor.md`](docs/pc-portal-yaniv-editor.md)
 - 主说明：[`README.md`](README.md)
 
 ## 提交信息（Conventional Commits）
