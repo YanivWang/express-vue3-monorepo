@@ -19,13 +19,11 @@ export function toMinePostsListParams(
   return params;
 }
 
-/** parentId（一级）与 categoryId（叶子）互斥；关键字 q / keyword 与分类参数互斥，由服务端校验。 */
+/** parentId（一级）与 categoryId（叶子）互斥；关键字 q 与分类参数互斥，由服务端校验。 */
 export function toPostsListParams(q: ListPostsQuery): Record<string, number | string> {
   const page = q.page ?? 1;
   const limit = q.limit ?? 10;
-  const term = typeof q.q === "string" ? q.q.trim() : "";
-  const termAlt = typeof q.keyword === "string" ? q.keyword.trim() : "";
-  const search = term || termAlt;
+  const search = typeof q.q === "string" ? q.q.trim() : "";
 
   const params: Record<string, number | string> = { page, limit };
   if (search) {

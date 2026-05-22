@@ -5,15 +5,12 @@ import {
 } from "@express-vue3-monorepo/request-core";
 import { createTokenStorage, type TokenStorage } from "@express-vue3-monorepo/shared/utils";
 
-import { createVantLoadingHandler } from "./loading";
-import { createH5Hooks, type H5PresetOptions } from "./preset";
+import { createElLoadingHandler } from "./loading";
+import { createPcHooks, type PcPresetOptions } from "./preset";
 
-export * from "./preset";
-export * from "./loading";
-
-export interface CreateH5HttpOptions
-  extends Omit<CreateHttpOptions, "tokenProvider" | "loading" | "hooks">, H5PresetOptions {
-  /** Token 存储 key；各 app 应传入独立 key，默认仅作占位 */
+export interface CreatePcHttpOptions
+  extends Omit<CreateHttpOptions, "tokenProvider" | "loading" | "hooks">, PcPresetOptions {
+  /** Token 存储 key；各 app 应传入独立 key（如 `pc_portal_access_token`），默认仅作占位 */
   tokenKey?: string;
   /** Token 存储有效期（天）；JWT 签发 7d，各 app 通常设为 7 */
   tokenExpires?: number;
@@ -23,12 +20,12 @@ export interface CreateH5HttpOptions
   hooks?: Partial<CreateHttpOptions["hooks"]>;
   /** 是否启用 Loading 默认处理，默认 true */
   enableLoading?: boolean;
-  /** 自定义 Loading options */
-  loadingOptions?: Parameters<typeof createVantLoadingHandler>[0];
+  /** 自定义 Loading options（仅在 enableLoading=true 时生效） */
+  loadingOptions?: Parameters<typeof createElLoadingHandler>[0];
 }
 
-/** 创建 H5 端 HttpRequest：集成 Vant 默认 UI 反馈，响应对齐 rest-api `{ code, msg, ... }`。 */
-export function createH5Http(options: CreateH5HttpOptions = {}): HttpRequest {
+/** 创建 PC 端 HttpRequest：集成 Element Plus 默认 UI 反馈，响应对齐 rest-api `{ code, msg, ... }`。 */
+export function createPcHttp(options: CreatePcHttpOptions = {}): HttpRequest {
   const {
     tokenKey = "access_token",
     tokenExpires = 1,
@@ -37,7 +34,6 @@ export function createH5Http(options: CreateH5HttpOptions = {}): HttpRequest {
     onLogout,
     authDialog,
     errorDuration,
-    redirectLogin,
     hooks: userHooks,
     enableLoading = true,
     loadingOptions,
@@ -46,18 +42,12 @@ export function createH5Http(options: CreateH5HttpOptions = {}): HttpRequest {
 
   const storage = tokenStorage ?? createTokenStorage({ tokenKey, tokenExpires });
 
-  const presetHooks = createH5Hooks(storage, {
-    loginPath,
-    onLogout,
-    authDialog,
-    errorDuration,
-    redirectLogin,
-  });
+  const presetHooks = createPcHooks(storage, { loginPath, onLogout, authDialog, errorDuration });
 
   return createHttp({
     ...rest,
     tokenProvider: storage,
-    loading: enableLoading ? createVantLoadingHandler(loadingOptions) : undefined,
+    loading: enableLoading ? createElLoadingHandler(loadingOptions) : undefined,
     hooks: { ...presetHooks, ...userHooks },
   });
 }

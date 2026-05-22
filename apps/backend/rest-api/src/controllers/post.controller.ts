@@ -29,12 +29,12 @@ import type { Request, Response } from "express";
 
 export async function getPosts(req: Request, res: Response) {
   const { query } = getValidated<ValidatedListPostsSchema>(req);
-  const { page, limit, parentId, categoryId, q, keyword, sort } = query;
-  const searchTerm = (q ?? keyword ?? "").trim() || undefined;
+  const { page, limit, parentId, categoryId, q, sort } = query;
+  const searchTerm = q?.trim() || undefined;
   const { posts, total, totalPages } = await findPostsPagePublic(page, limit, {
     parentId,
     categoryId,
-    keyword: searchTerm,
+    q: searchTerm,
     sort,
   });
   const hasNext = totalPages > 0 && page < totalPages;

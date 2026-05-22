@@ -95,8 +95,8 @@ async function buildMyPostsCategoryWhere(
   return base;
 }
 
-function effectiveListSort(keywordTrimmed: boolean, sort: "latest" | "hot"): "latest" | "hot" {
-  if (keywordTrimmed) return "latest";
+function effectiveListSort(hasSearchQuery: boolean, sort: "latest" | "hot"): "latest" | "hot" {
+  if (hasSearchQuery) return "latest";
   return sort;
 }
 
@@ -183,17 +183,17 @@ export async function findPostsPagePublic(
   {
     parentId,
     categoryId,
-    keyword,
+    q,
     sort = "latest",
   }: {
     parentId?: number | null;
     categoryId?: number | null;
-    keyword?: string | null;
+    q?: string | null;
     sort?: "latest" | "hot";
   } = {},
 ) {
   const offset = (page - 1) * limit;
-  const kw = keyword?.trim();
+  const kw = q?.trim();
   const resolvedSort = effectiveListSort(Boolean(kw), sort);
   const order = listOrder(resolvedSort);
   if (kw) {

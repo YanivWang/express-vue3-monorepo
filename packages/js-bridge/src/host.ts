@@ -1,5 +1,5 @@
 /**
- * H5 运行宿主与 UA 检测（**`@express-vue3-monorepo/js-bridge`** 内单一真相；**`@express-vue3-monorepo/shared/enums`**、**`@express-vue3-monorepo/shared/utils`** 仅再导出）。
+ * H5 运行宿主与 UA 检测（`@express-vue3-monorepo/js-bridge` 内单一真相）。
  */
 
 /** H5 运行宿主 */

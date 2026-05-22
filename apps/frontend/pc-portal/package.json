@@ -12,7 +12,6 @@
   "dependencies": {
     "@ant-design/icons-vue": "^7.0.1",
     "@element-plus/icons-vue": "catalog:",
-    "@express-vue3-monorepo/request-core": "workspace:*",
     "@express-vue3-monorepo/shared": "workspace:*",
     "@tiptap/core": "^3.7.2",
     "@tiptap/extension-character-count": "^3.7.2",

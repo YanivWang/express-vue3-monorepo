@@ -1,7 +1,9 @@
+import type { LoginParams, LoginResult } from "@express-vue3-monorepo/shared/types";
+
 import { http } from "./http";
 
-export function login(payload: { username: string; password: string }) {
-  return http.post<{ token: string }>("/api/login", payload, { withToken: false });
+export function login(body: LoginParams) {
+  return http.post<LoginResult>("/api/login", body, { withToken: false });
 }
 
 export function logout() {

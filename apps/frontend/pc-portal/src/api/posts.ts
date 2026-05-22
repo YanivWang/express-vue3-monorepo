@@ -3,7 +3,7 @@ import { toMinePostsListParams, toPostsListParams } from "./query";
 
 import type { ListPostsQuery, PostItem, PostOneResult, PostsListResult } from "./types";
 
-/** 帖子列表：`q`/`keyword` 为全站公开搜索，与首页分类筛选互斥（见服务端校验）。 */
+/** 帖子列表：`q` 为全站公开搜索，与首页分类筛选互斥（见服务端校验）。 */
 export function fetchPostsList(q: ListPostsQuery) {
   return http.get<PostsListResult>("/api/posts", toPostsListParams(q));
 }

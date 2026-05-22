@@ -25,15 +25,12 @@ COPY apps/frontend/pc-portal/package.json apps/frontend/pc-portal/
 COPY apps/frontend/pc-admin/package.json apps/frontend/pc-admin/
 COPY packages/request-core/package.json packages/request-core/
 COPY packages/shared/package.json packages/shared/
-COPY packages/js-bridge/package.json packages/js-bridge/
-COPY packages/web-monitor/package.json packages/web-monitor/
 
 RUN pnpm install --frozen-lockfile --filter "@express-vue3-monorepo/pc-portal..."
 
 COPY apps/frontend/pc-portal apps/frontend/pc-portal
 COPY packages/request-core packages/request-core
 COPY packages/shared packages/shared
-COPY packages/js-bridge packages/js-bridge
 
 # 与同域反代一致：留空则浏览器请求相对路径 /api …
 ARG VITE_API_BASE_URL=

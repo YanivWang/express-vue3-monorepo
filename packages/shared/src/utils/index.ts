@@ -1,12 +1,5 @@
 /**
- * @express-vue3-monorepo/shared/utils
- *
- * 与 UI 无关的通用工具（两端共享）
+ * @express-vue3-monorepo/shared/utils — Token 存储等 UI 无关工具
  */
 
-export * from "./common";
 export * from "./storage";
-export * from "./echarts";
-export * from "./validate";
-export * from "./mask";
-export * from "./host";

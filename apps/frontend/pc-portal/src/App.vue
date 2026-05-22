@@ -1,18 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { computed } from "vue";
 import { RouterView, useRoute } from "vue-router";
 
 import AppShell from "@/components/AppShell.vue";
-import { useAuthStore } from "@/stores/auth";
 
 const route = useRoute();
 const useAppShell = computed(() => !route.meta.blankLayout);
-
-const auth = useAuthStore();
-
-onMounted(() => {
-  if (auth.isLoggedIn) void auth.fetchProfile();
-});
 </script>
 
 <template>
@@ -47,12 +40,5 @@ body {
   --el-font-family:
     -apple-system, blinkmacsystemfont, "SF UI Text", arial, "PingFang SC", "Hiragino Sans GB",
     "Microsoft YaHei", "微软雅黑", "WenQuanYi Micro Hei", sans-serif;
-}
-
-/* 富文本编辑页：禁止页面级滚动，高度交给 Yaniv Editor 内部 */
-html.editor-route-lock,
-html.editor-route-lock body {
-  height: 100%;
-  overflow: hidden;
 }
 </style>

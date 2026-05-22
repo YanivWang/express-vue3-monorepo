@@ -1668,9 +1668,9 @@ paths:
       tags: [文章]
       summary: 获取已发布文章列表（分页）
       description: |
-        可选 Bearer JWT：`optionalAuthMiddleware`；携带合法 JWT 时每条帖子附带 `myVote`、`myFavorited`。
+        可选 Bearer JWT：`optionalAuthMiddleware`；携带合法且未拉黑 JWT 时每条帖子附带 `myVote`、`myFavorited`（已 logout 拉黑 token 视为匿名）。
         `sort=latest`（默认）：按创建时间、`id` 降序；`sort=hot`：`commentCount + favoriteCount + likeCount` 降序。
-        关键字搜索（`q`/`keyword`）与分类参数互斥，且在搜索模式下强制按最新排序。
+        关键字搜索（`q`）与分类参数互斥，且在搜索模式下强制按最新排序。
         `parentId`/`categoryId`/`page`/`limit` 等与 `schema/post.schema.ts` 一致。
       security:
         - {}
@@ -1716,12 +1716,6 @@ paths:
           in: query
           required: false
           description: 全站标题/正文关键字；与 parentId/categoryId 互斥
-          schema:
-            type: string
-            maxLength: 200
-        - name: keyword
-          in: query
-          required: false
           schema:
             type: string
             maxLength: 200
@@ -1886,7 +1880,7 @@ paths:
       tags: [文章]
       summary: 按 id 获取文章详情
       description: |
-        支持可选 Bearer（`optionalAuthMiddleware`）；合法 JWT 时回填 `myVote`、`myFavorited`。
+        支持可选 Bearer（`optionalAuthMiddleware`）；携带合法且未拉黑 JWT 时回填 `myVote`、`myFavorited`（已 logout 拉黑 token 视为匿名）。
         **已发布**正文每次成功读取会对 `viewCount +1`，作者本人命中默认不累加 PV。
         仍仅 **已发布**文章可对匿名访客返回；未发布对外 404。
       security:

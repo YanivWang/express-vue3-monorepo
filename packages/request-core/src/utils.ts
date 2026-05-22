@@ -5,14 +5,13 @@ export function isRecord(data: unknown): data is Record<string, unknown> {
 }
 
 export function getRestApiMessage(data: Record<string, unknown>): string {
-  // 优先 `msg`（rest-api 标准字段）；`message` 为历史兼容回退
-  const m = data.msg ?? data.message;
+  const m = data.msg;
   return typeof m === "string" && m.length > 0 ? m : "请求失败";
 }
 
 /** 去掉 rest-api 元字段，剩余即为业务载荷 */
 export function stripRestApiEnvelope(data: Record<string, unknown>): Record<string, unknown> {
-  const { code: _code, msg: _msg, message: _message, ...rest } = data;
+  const { code: _code, msg: _msg, ...rest } = data;
   return rest;
 }
 

@@ -156,5 +156,4 @@ export interface ListPostsQuery {
   sort?: "latest" | "hot";
   /** 全站公开文章关键字（与服务端 GET /api/posts 的 q 对齐；不能与 parentId/categoryId 同时传） */
   q?: string;
-  keyword?: string;
 }

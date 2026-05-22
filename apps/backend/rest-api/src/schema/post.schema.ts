@@ -67,15 +67,15 @@ const sortQuerySchema = z.preprocess(
 const listPostsQuerySchema = listPostsBaseFields
   .extend({
     q: optionalSearchQuery,
-    keyword: optionalSearchQuery,
     sort: sortQuerySchema,
   })
+  .strict()
   .refine((q) => !(q.parentId != null && q.categoryId != null), {
     message: "parentId 与 categoryId 不能同时传递",
   })
   .refine(
     (q) => {
-      const term = (q.q ?? q.keyword)?.trim();
+      const term = q.q?.trim();
       if (!term) return true;
       return q.parentId == null && q.categoryId == null;
     },
@@ -85,7 +85,7 @@ const listPostsQuerySchema = listPostsBaseFields
     },
   )
   .transform((q) => {
-    const term = (q.q ?? q.keyword)?.trim();
+    const term = q.q?.trim();
     if (term && q.sort === "hot") {
       return { ...q, sort: "latest" as const };
     }

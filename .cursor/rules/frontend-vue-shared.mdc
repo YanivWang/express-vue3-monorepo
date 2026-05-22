@@ -1,6 +1,6 @@
 ---
 description: Vue 前端应用与 shared 包：技术栈、exports 子路径、样式与 lint
-globs: apps/frontend/**/*.{ts,vue,js,mjs}, packages/shared/**/*.{ts,vue,js,mjs}, apps/frontend/**/*.{css,scss}, packages/shared/**/*.{css,scss}
+globs: apps/frontend/**/*.{ts,vue,js,mjs}, packages/shared/**/*.ts, apps/frontend/**/*.{css,scss}
 alwaysApply: false
 ---
 
@@ -11,37 +11,34 @@ alwaysApply: false
 - **PC 门户**：`apps/frontend/pc-portal`（`@express-vue3-monorepo/pc-portal`）
 - **PC 管理后台**：`apps/frontend/pc-admin`（`@express-vue3-monorepo/pc-admin`）
 - 开发与构建以各 app 的 `package.json` `scripts` 为准；两应用的 `typecheck` 均为 **`vue-tsc --noEmit -p tsconfig.app.json`**，`dev` 为 **`vite`**。
-- **工作区依赖（以当前 `package.json` 为准）**：`pc-portal` 同时依赖 **`@express-vue3-monorepo/shared`** 与 **`@express-vue3-monorepo/request-core`**；`pc-admin` 依赖 **`@express-vue3-monorepo/shared`**（不单独声明 `request-core`）。后续若有变更以磁盘为准。
+- **工作区依赖**：两应用均依赖 **`@express-vue3-monorepo/shared`**；HTTP 经 shared 的 `request-pc` 间接使用 **`@express-vue3-monorepo/request-core`**。
 
 ## 技术栈（与根 catalog / 各包依赖一致）
 
 - **Vue 3**、**Vite**、**TypeScript**、**Pinia**、**Vue Router**、**Sass**。
-- **PC**：**Element Plus**、**@vueuse/core**（以 app 的 `dependencies` 为准）。
-- **H5 相关能力**在 **`@express-vue3-monorepo/shared`** 中通过 **`vant`**、**`vconsole`** 等 **peerDependencies** 预留（可选 peer）；具体页面在哪个 app 以代码为准。
+- **PC UI**：**Element Plus**、**@vueuse/core**（以 app 的 `dependencies` 为准）。
 
 ## `@express-vue3-monorepo/shared`
 
-- **职责**：types、utils、hooks、components、directives、locale、**request preset**（PC/H5 分流）等；`package.json` 的 `description` 说明 HTTP 默认与 `apps/backend/rest-api` 对齐。
-- **内部依赖**：`workspace:*` 依赖 **`@express-vue3-monorepo/request-core`**、**`@express-vue3-monorepo/js-bridge`**（见 `packages/shared/package.json`）。**`@express-vue3-monorepo/web-monitor`** 由应用直连，一般不经 shared 再导出。
-- **从 shared 导入**：只使用 **`package.json` → `exports` 声明的子路径**，禁止 deep-import 未导出路径。示例（非穷尽，完整列表以 `exports` 为准）：
-  - `@express-vue3-monorepo/shared/hooks-core`
-  - `@express-vue3-monorepo/shared/hooks-pc` / `@express-vue3-monorepo/shared/hooks-h5`
-  - `@express-vue3-monorepo/shared/request-pc` / `@express-vue3-monorepo/shared/request-h5`
-  - `@express-vue3-monorepo/shared/components-pc` / `@express-vue3-monorepo/shared/components-h5`
-  - `@express-vue3-monorepo/shared/utils`、`@express-vue3-monorepo/shared/types`、`@express-vue3-monorepo/shared/locale` 等
-- **HTTP 客户端**：行为与后端 **`{ code, msg, ... }`** 类响应约定对齐；封装优先 **`@express-vue3-monorepo/request-core`** + shared 内 preset，而不是在各 app 重复搭 axios。
+- **职责**：types、utils（Token 存储）、auth 会话工厂、`request-pc` preset；HTTP 与 `apps/backend/rest-api` 对齐。
+- **内部依赖**：`@express-vue3-monorepo/request-core`（见 `packages/shared/package.json`）。
+- **从 shared 导入**：只使用 **`package.json` → `exports` 声明的子路径**：
+  - `@express-vue3-monorepo/shared/types`
+  - `@express-vue3-monorepo/shared/utils`
+  - `@express-vue3-monorepo/shared/constants`
+  - `@express-vue3-monorepo/shared/auth`
+  - `@express-vue3-monorepo/shared/request-pc`
+- **HTTP 客户端**：行为与后端 **`{ code, msg, ... }`** 对齐；各 app 通过 **`createAppPcHttp`** 创建实例，勿重复搭 axios。
 
 ## 目录与复用
 
-- **PC 专用**：`components-pc`、`hooks-pc`、`directives-pc`、`request-pc` 等。
-- **H5 专用**：对应的 `*-h5` / `components-h5` 等。
-- 跨端通用逻辑优先 **`hooks-core`** 或 **`utils`**。
+- 跨 app 的 HTTP / 会话逻辑放 **shared**；业务页面、路由、RBAC 视图留各 app。
 
 ## 样式与质量
 
-- **Stylelint**：根脚本 `pnpm lint:style` → `stylelint '{apps/frontend,packages}/**/*.{css,scss,vue}'`。
-- **ESLint**：根目录 **`eslint.config.mjs`**（flat config）；提交前留意根 `package.json` 的 **lint-staged** 与 **`pnpm verify`**。
-- **Shared 单测**：`packages/shared` 内 `pnpm test` 为 Vitest（`vitest.config.ts`），与后端 Vitest 相互独立。
+- **Stylelint**：根脚本 `pnpm lint:style`。
+- **ESLint**：根目录 **`eslint.config.mjs`**；提交前 **`pnpm verify`**。
+- **Shared 类型检查**：`packages/shared` 内 `pnpm typecheck` 为 **`tsc --noEmit`**（纯 TS，无 `.vue`）。
 
 ## Vue SFC
 

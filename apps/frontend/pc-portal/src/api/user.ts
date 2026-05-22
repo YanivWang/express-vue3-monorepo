@@ -7,8 +7,10 @@ import type {
   UserProfileDetail,
 } from "./types";
 
-export function fetchCurrentUser() {
-  return http.get<CurrentUserResult>("/api/me");
+export function fetchCurrentUser(opts?: { silentUnauthorized?: boolean }) {
+  return http.get<CurrentUserResult>("/api/me", {
+    skipUnauthorizedDialog: opts?.silentUnauthorized === true,
+  });
 }
 
 export function fetchMyProfile() {
