@@ -788,6 +788,10 @@ $layout-max-width: 1360px;
   overflow: hidden;
 }
 
+.post-editor__body.yaniv-editor-host :deep(.yaniv-editor.document-layout) {
+  --ye-footer-bg: #{$surface};
+}
+
 .post-editor__sidebar {
   display: flex;
   flex-direction: column;
