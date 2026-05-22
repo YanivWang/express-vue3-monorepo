@@ -76,7 +76,10 @@ pnpm rest-api:dev
 pnpm pc-portal:dev
 ```
 
-登录后访问 **「写文章」** 或 `http://localhost:5173/mine/editor`。
+登录后访问 **「写文章」** 或编辑器路由：
+
+- 宿主 Vite：`http://localhost:5173/mine/editor`
+- Docker 网关：`http://127.0.0.1:2026/mine/editor`（`GATEWAY_HOST_PORT` 默认 2026）
 
 ---
 

@@ -13,9 +13,9 @@ export * from "./loading";
 
 export interface CreateH5HttpOptions
   extends Omit<CreateHttpOptions, "tokenProvider" | "loading" | "hooks">, H5PresetOptions {
-  /** Token 存储 key，默认 'access_token' */
+  /** Token 存储 key；各 app 应传入独立 key，默认仅作占位 */
   tokenKey?: string;
-  /** Token 存储有效期（天），默认 1 */
+  /** Token 存储有效期（天）；JWT 签发 7d，各 app 通常设为 7 */
   tokenExpires?: number;
   /** 已创建好的 token storage 实例（传入后忽略 tokenKey） */
   tokenStorage?: TokenStorage;

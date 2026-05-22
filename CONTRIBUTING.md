@@ -23,6 +23,7 @@
 - 权限码与路由对照：[`docs/admin-permissions.md`](docs/admin-permissions.md)
 - pc-portal 富文本编辑器：[`docs/pc-portal-yaniv-editor.md`](docs/pc-portal-yaniv-editor.md)
 - 主说明：[`README.md`](README.md)
+- **REST 接口变更须同步** [`docs/openapi.yaml`](docs/openapi.yaml)（paths、schema、`info.description` 与实现一致）
 
 ## 提交信息（Conventional Commits）
 

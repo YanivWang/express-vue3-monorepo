@@ -52,16 +52,12 @@ export interface UseAuthReturn<TLoginParams, TLoginResult, TProfile> {
  *   应用内封装，例如：`src/composables/useAuth.ts`
  *   export const useAuth = createUseAuth({
  *     loginStrategies: {
- *       form: (p) => http.post('/auth/login', p),
- *       wxMini: async () => {
- *         const code = await bridge.auth.login()
- *         return http.post('/auth/wx', { code: code.token })
- *       },
+ *       form: (p) => http.post('/api/login', p, { withToken: false }),
  *     },
  *     getToken: () => tokenStorage.get(),
  *     setToken: (t) => tokenStorage.set(t),
  *     clearToken: () => tokenStorage.clear(),
- *     fetchProfile: () => http.get('/user/profile'),
+ *     fetchProfile: () => http.get('/api/me'),
  *     onLoggedIn: () => router.replace('/home'),
  *   })
  */

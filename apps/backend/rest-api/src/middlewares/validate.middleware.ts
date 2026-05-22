@@ -3,9 +3,14 @@ import { createHttpError } from "./error.middleware.js";
 import type { NextFunction, Request, Response } from "express";
 import type * as z from "zod";
 
-type ParsedParts = { body?: unknown; query?: unknown; params?: unknown };
+type ParsedParts = {
+  body?: unknown;
+  query?: unknown;
+  params?: unknown;
+  headers?: unknown;
+};
 
-/** Zod 校验 body/query/params，成功后写入 `req.validated` */
+/** Zod 校验 body/query/params/headers，成功后写入 `req.validated` */
 export function validate<A extends ParsedParts>(schema: z.ZodType<A>) {
   return (req: Request, res: Response, next: NextFunction) => {
     const result = schema.safeParse({

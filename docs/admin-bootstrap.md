@@ -46,7 +46,7 @@ pnpm exec tsx scripts/ensure-super-admin.ts
 
 1. **`REST_API_IMPORT_TOKEN`**：管理员 JWT（Bearer）。
 2. **`REST_API_IMPORT_USERNAME`** + **`REST_API_IMPORT_PASSWORD`**：须**成对**非空。
-3. 否则使用根目录 **`.env.*`** 中的 **`ADMIN_BOOTSTRAP_USERNAME`** / **`ADMIN_BOOTSTRAP_PASSWORD`** 调用 **`POST /login`**。
+3. 否则使用根目录 **`.env.*`** 中的 **`ADMIN_BOOTSTRAP_USERNAME`** / **`ADMIN_BOOTSTRAP_PASSWORD`** 调用 **`POST /api/login`**（`REST_API_BASE` 已含 `/api` 后缀时等价于 `{REST_API_BASE}/login`）。
 
 `apps/backend/rest-api/scripts/synthetic-it.env` **只**会覆盖种子相关键（`REST_API_*`、`SYNTHETIC_*`、`DEDUPE_INDEXES*`），**不会**从该文件注入 **`ADMIN_BOOTSTRAP_*`**；超级管理员账号口令应只放在 monorepo 根 **`.env.*`**。
 

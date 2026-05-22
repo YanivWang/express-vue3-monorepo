@@ -19,7 +19,7 @@ alwaysApply: false
 
 ## 请求校验与类型
 
-- 使用 **`validate(schema)`**（`src/middlewares/validate.middleware.ts`）：对单次请求的 **`body` / `query` / `params`** 一起交给 Zod `safeParse`；成功则写入 **`req.validated`**，失败则 `next(createHttpError(400, …))`。
+- 使用 **`validate(schema)`**（`src/middlewares/validate.middleware.ts`）：对单次请求的 **`body` / `query` / `params` / `headers`** 一起交给 Zod `safeParse`；成功则写入 **`req.validated`**，失败则 `next(createHttpError(400, …))`。
 - **适用范围**：凡需要结构化、可类型推断的入参都应挂 `validate`，**不限于 POST/PUT**；例如 **`GET` 列表**也可对 `query` + `params` 校验（见 `src/routes/comment.routes.ts` 中 `listCommentsSchema`）。
 - **业务代码**：强类型数据读 **`req.validated`**，**不要**把 `req.body` 当作已校验数据（`body` 在 `src/types/express.d.ts` 中为 `unknown`）。
 - **Schema 形状**：Zod 类型应覆盖组合结构 `{ body?, query?, params? }`，与 `validate` 传入 `safeParse` 的对象一致。

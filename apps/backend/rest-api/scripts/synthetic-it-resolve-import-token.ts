@@ -1,7 +1,7 @@
 import { loginForAdminJwt } from "./synthetic-it-api-client.js";
 
 /**
- * 优先 `REST_API_IMPORT_TOKEN`；否则用账号密码调 `POST /login`。
+ * 优先 `REST_API_IMPORT_TOKEN`；否则用账号密码调 `POST /api/login`（`apiBase` 通常为 `…/api`，故实际请求 `{apiBase}/login`）。
  * 账号：`REST_API_IMPORT_USERNAME` + `REST_API_IMPORT_PASSWORD`（须成对非空）或 `ADMIN_BOOTSTRAP_*`（须成对非空，通常 `.env.development`）。
  */
 export async function resolveAdminImportToken(apiBase: string): Promise<string> {
@@ -34,7 +34,7 @@ export async function resolveAdminImportToken(apiBase: string): Promise<string> 
   }
 
   console.warn(
-    `[synthetic-it] 未设置 REST_API_IMPORT_TOKEN：正以用户 «${username}» 调用 POST /login（请确保其为管理员；本地可在 apps/backend/rest-api 执行 pnpm exec tsx scripts/ensure-super-admin.ts）`,
+    `[synthetic-it] 未设置 REST_API_IMPORT_TOKEN：正以用户 «${username}» 调用 POST /api/login（请确保其为管理员；本地可在 apps/backend/rest-api 执行 pnpm exec tsx scripts/ensure-super-admin.ts）`,
   );
   return loginForAdminJwt(apiBase, username, password);
 }

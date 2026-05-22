@@ -15,16 +15,15 @@ export type ApiSuccessJson<T extends Record<string, unknown> = Record<string, un
   msg: string;
 } & T;
 
-/** 用户信息 */
-export interface UserInfo {
+/** GET /api/me 返回的 `user`（与 docs/openapi.yaml `CurrentUserPayload` 对齐） */
+export interface CurrentUserProfile {
   id: number;
   username: string;
-  nickname: string;
-  avatar: string;
-  email: string;
-  phone: string;
-  roles: string[];
-  permissions: string[];
+  avatar: string | null;
+  nickname: string | null;
+  roleId?: number;
+  roleSlug?: string;
+  permissions?: string[];
 }
 
 /** 登录请求参数（rest-api：`schema/auth.schema.ts`） */
@@ -41,38 +40,13 @@ export interface RegisterParams {
 
 /**
  * 登录接口 `POST /api/login` 解包后的载荷（经 `HttpRequest` 去掉 code/msg 后）
- * 对应 `success(res, \"登录成功\", { token })`
+ * 对应 `success(res, "登录成功", { token })`
  */
 export interface LoginResult {
   token: string;
 }
 
-/** 修改密码请求参数 */
-export interface UpdatePasswordParams {
-  oldPassword: string;
-  newPassword: string;
-  confirmPassword: string;
-}
-
-/** 后端下发的菜单路由节点（UI 无关描述） */
-export interface MenuRoute {
-  id: number;
-  parentId: number;
-  name: string;
-  path: string;
-  component?: string;
-  redirect?: string;
-  meta: {
-    title: string;
-    icon?: string;
-    hidden?: boolean;
-    keepAlive?: boolean;
-    requiresAuth?: boolean;
-    permissions?: string[];
-    roles?: string[];
-    breadcrumb?: string;
-    affix?: boolean;
-    alwaysShow?: boolean;
-  };
-  children?: MenuRoute[];
+/** GET /api/me 解包后的载荷 */
+export interface CurrentUserResult {
+  user: CurrentUserProfile;
 }

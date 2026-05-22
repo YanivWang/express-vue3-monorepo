@@ -115,7 +115,7 @@ export interface TokenStorage {
 
 export interface CreateTokenStorageOptions {
   tokenKey: string;
-  /** token 默认有效天数，默认 1 */
+  /** token 默认有效天数；JWT 签发 7d 时各 app 通常传入 7 */
   tokenExpires?: number;
 }
 

@@ -11,8 +11,9 @@ export enum Language {
   EN_US = "en-US",
 }
 
-/** 本地存储 Key */
+/** 本地存储 Key（各 app 可自定义 token key，勿假设全局共用 `access_token`） */
 export enum StorageKey {
+  /** 仅作占位默认值；pc-portal / pc-admin 分别使用 `pc_portal_access_token`、`pc_admin_access_token` */
   TOKEN = "access_token",
   SIDEBAR = "sidebar_collapsed",
   THEME = "theme_mode",

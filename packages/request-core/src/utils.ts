@@ -5,6 +5,7 @@ export function isRecord(data: unknown): data is Record<string, unknown> {
 }
 
 export function getRestApiMessage(data: Record<string, unknown>): string {
+  // 优先 `msg`（rest-api 标准字段）；`message` 为历史兼容回退
   const m = data.msg ?? data.message;
   return typeof m === "string" && m.length > 0 ? m : "请求失败";
 }

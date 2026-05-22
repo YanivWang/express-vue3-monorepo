@@ -9,8 +9,8 @@ info:
     - 文档：`GET /openapi.yaml`（YAML 原文）、`GET /api-docs`（Swagger UI）；契约源文件为仓库根 `docs/openapi.yaml`，由 `src/swagger.ts` 加载。
     - 安全与传输：`helmet`（`/api-docs` 路径关闭 CSP 以便 Swagger UI）；`cors` 行为见 `src/env.ts`（生产须配置 `CORS_ORIGINS`）。较大 JSON 响应可能经 `compression.middleware.ts` 压缩（`Content-Encoding: gzip` 等）。
     - 追踪：`requestId.middleware.ts` 写入响应头 **`X-Request-Id`**；客户端可传入同名请求头透传（最长 128 字符）。
-    - 限流（`middlewares/rateLimit.middleware.ts`）：`/health`、`/ready` 与 **GET `/uploads/...` 静态** 在 `src/app.ts` 中先于全局限流挂载，故 **15 分钟窗口计数不作用于这些路径**；限流器内对 `/health`、`/ready` 的 `skip` 为兜底。其余进入全局限流的 API **15 分钟 / 最多 100 次**，超限 HTTP 429，`msg` 为「请求过于频繁，请稍后再试」。`POST /api/register`、`POST /api/login` 另挂载 **1 分钟 / 最多 60 次**。
-    - 认证：`POST /api/register`、`POST /api/login` 无需登录。注册/登录请求体校验见 `src/schema/auth.schema.ts`（用户名 trim 后长度 2～100；密码 6～100）；用户更新接口见 `src/schema/user.schema.ts`（username/password 规则与注册不同）。
+    - 限流（`middlewares/rateLimit.middleware.ts`）：`/health`、`/ready` 与 **GET `/uploads/...` 静态** 在 `src/app.ts` 中先于全局限流挂载，故 **15 分钟窗口计数不作用于这些路径**；限流器内对 `/health`、`/ready` 的 `skip` 为兜底。其余进入全局限流的 API **15 分钟 / 最多 10000 次**（开发期临时放宽，上线前请恢复合理阈值），超限 HTTP 429，`msg` 为「请求过于频繁，请稍后再试」。`POST /api/register`、`POST /api/login` 另挂载 **1 分钟 / 最多 60 次**。
+    - 认证：`POST /api/register`、`POST /api/login` 无需登录；**`POST /api/logout`** 需 Bearer，将 JWT `jti` 写入 Redis 黑名单至过期。注册/登录请求体校验见 `src/schema/auth.schema.ts`（用户名 trim 后长度 2～100；密码 6～100）。当前用户资料见 **`GET /api/me`**、**`GET/PATCH /api/me/profile`**（`src/schema/user.schema.ts` 中 `getMeSchema` 等）。
     - 用户：`src/routes/user.routes.ts`：**`GET /api/me`**（需 Bearer）返回轻量资料、**`nickname`**（扩展表）与 **`permissions`** RBAC 快照；**`GET/PATCH /api/me/profile`** 为当前用户扩展资料（`UserProfiles` 全量 / 部分更新 upsert）。注册用户/职员的运维请走 **`/api/admin/portal-users`**、**`/api/admin/staff`**。
     - 分类：`GET /api/categories` 公开；**`POST /api/categories`** 创建二级叶子须在 **Bearer** 下且具备 **`admin.categories.write`**。返回两级树，节点含 `id`、`name`、`parentId`、`sortOrder`，根的 `children` 为二级叶子。文章创建时 `categoryId` 必须为二级叶子 id；`GET /api/posts` 可选 `parentId`（一级 id）或 `categoryId`（叶子 id），二者不得同传。一级分类与 PATCH/DELETE 见 **`/api/admin/categories/...`**。
     - 上传：**`POST /api/uploads`** 与 **`POST /api/uploads/profiles`** 均需 Bearer；`multipart/form-data` 字段名 **`files`**；类型 jpeg/png/gif/webp。
@@ -49,9 +49,7 @@ tags:
   - name: 探针
     description: 存活 / 就绪检查（在 app 中先于全局限流挂载，不经限流计数）
   - name: 认证
-    description: 注册与登录（无需 Bearer）
-  - name: 用户
-    description: 用户列表与单条查询、更新、删除（需 Bearer JWT）
+    description: 注册、登录与登出（登出需 Bearer JWT）
   - name: 文章
     description: 文章列表、详情、我的文章与增删改（部分接口需 Bearer JWT）
   - name: 分类
@@ -71,7 +69,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: "登录接口返回的 JWT；请求头 Authorization 为「Bearer」+ 空格 + token。过期或未携带返回 401。"
+      description: "登录接口返回的 JWT；请求头 Authorization 为「Bearer」+ 空格 + token。过期、未携带或已登出黑名单返回 401。"
 
   schemas:
     MsgBody:
@@ -226,30 +224,6 @@ components:
           description: trim，长度 6～100 字符
           minLength: 6
           maxLength: 100
-    UserItem:
-      type: object
-      description: Sequelize 用户行序列化结果；当前实现未剔除 password 字段
-      properties:
-        id:
-          type: integer
-        username:
-          type: string
-        password:
-          type: string
-          description: bcrypt 哈希（接口当前会一并返回）
-        avatar:
-          type: string
-          nullable: true
-          description: 头像 URL 或路径
-        roleId:
-          type: integer
-          description: RBAC 角色 id（必填）
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
     HealthLiveness:
       type: object
       required: [status]
@@ -294,95 +268,6 @@ components:
         message:
           type: string
           example: 依赖不可用：mysql、redis
-    UsersListPagination:
-      type: object
-      description: 与 `user.controller#getUsers` 返回的 `pagination` 字段一致
-      required: [page, limit, total, totalPages, hasNext]
-      properties:
-        page:
-          type: integer
-          description: 当前页码（从 1 开始）
-          minimum: 1
-          example: 1
-        limit:
-          type: integer
-          description: 每页条数（最大 100，与 Zod schema 一致）
-          minimum: 1
-          maximum: 100
-          example: 10
-        total:
-          type: integer
-          description: 用户总条数
-          minimum: 0
-        totalPages:
-          type: integer
-          description: 总页数；无数据时为 0
-          minimum: 0
-        hasNext:
-          type: boolean
-          description: 是否还有下一页
-    UsersListSuccess:
-      allOf:
-        - $ref: "#/components/schemas/MsgBody"
-        - type: object
-          required: [users, pagination]
-          properties:
-            code:
-              example: 200
-            msg:
-              example: 获取用户列表成功
-            users:
-              type: array
-              items:
-                $ref: "#/components/schemas/UserItem"
-            pagination:
-              $ref: "#/components/schemas/UsersListPagination"
-    UserOneSuccess:
-      allOf:
-        - $ref: "#/components/schemas/MsgBody"
-        - type: object
-          required: [user]
-          properties:
-            code:
-              example: 200
-            msg:
-              example: 获取用户成功
-            user:
-              $ref: "#/components/schemas/UserItem"
-    UpdateUserBody:
-      type: object
-      description: 与 `schema/user.schema.ts` 中 `userBodySchema` 一致（非注册 credential 规则）
-      required: [username, password]
-      properties:
-        username:
-          type: string
-          description: 新用户名；trim，非空，最多 100 字符
-          minLength: 1
-          maxLength: 100
-        password:
-          type: string
-          description: 明文新密码；trim，非空，最多 100 字符；服务端 bcrypt 后写入
-          minLength: 1
-          maxLength: 100
-    UpdateUserSuccess:
-      allOf:
-        - $ref: "#/components/schemas/MsgBody"
-        - type: object
-          properties:
-            code:
-              example: 200
-            msg:
-              example: 更新用户成功
-    DeleteUserSuccess:
-      allOf:
-        - $ref: "#/components/schemas/MsgBody"
-        - type: object
-          properties:
-            code:
-              example: 200
-            msg:
-              example: 删除用户成功
-
     PostAuthor:
       type: object
       description: 文章关联作者；与 `services/post.service.ts` 中 `authorAttributes` 一致
@@ -792,7 +677,7 @@ components:
 
     CurrentUserPayload:
       type: object
-      description: "`user.controller.ts` → `getMe` 合并 RBAC 快照后的 `data.user`（轻量；`nickname` 来自 `UserProfiles`，无资料行则为 null）"
+      description: "`user.controller.ts` → `getMe` 合并 RBAC 快照后的响应体顶层 `user`（轻量；`nickname` 来自 `UserProfiles`，无资料行则为 null）"
       required: [id, username, avatar, nickname]
       properties:
         id:
@@ -950,9 +835,65 @@ components:
             users:
               type: array
               items:
-                type: object
+                $ref: "#/components/schemas/AdminStaffUserRow"
             pagination:
               $ref: "#/components/schemas/PostsListPagination"
+
+    AdminStaffUserRow:
+      type: object
+      description: 管理端职员/后台账号行（不含 password）
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        avatar:
+          type: string
+          nullable: true
+        roleId:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        role:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+            slug:
+              type: string
+            name:
+              type: string
+
+    AdminStaffCreateSuccess:
+      allOf:
+        - $ref: "#/components/schemas/MsgBody"
+        - type: object
+          required: [user]
+          properties:
+            code:
+              example: 200
+            msg:
+              example: 创建后台账号成功
+            user:
+              $ref: "#/components/schemas/AdminStaffUserRow"
+
+    AdminStaffPatchSuccess:
+      allOf:
+        - $ref: "#/components/schemas/MsgBody"
+        - type: object
+          required: [user]
+          properties:
+            code:
+              example: 200
+            msg:
+              example: 更新职员成功
+            user:
+              $ref: "#/components/schemas/AdminStaffUserRow"
 
     AdminCommentsListSuccess:
       allOf:
@@ -1162,12 +1103,51 @@ paths:
               schema:
                 $ref: "#/components/schemas/MsgBody"
 
+  /api/logout:
+    post:
+      tags: [认证]
+      summary: 退出登录
+      description: |
+        需在请求头携带 Bearer JWT。服务端将 JWT 的 `jti` 写入 Redis 黑名单直至原 token 过期；
+        黑名单内 token 再次请求受保护接口时返回 401。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 退出成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/MsgBody"
+                  - type: object
+                    properties:
+                      code:
+                        example: 200
+                      msg:
+                        example: 退出登录成功
+        "401":
+          description: 未携带、无效 JWT，或 payload 缺少 jti/exp
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+              example:
+                code: 401
+                msg: 无效登录凭证
+        "500":
+          description: 服务端异常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+
   /api/me:
     get:
       tags: [当前用户]
       summary: 获取当前登录用户资料与 RBAC 权限快照
       description: |
-        需在请求头携带 Bearer JWT。成功时 `data.user` 含公开资料（`id`、`username`、`avatar`）、**`nickname`**（来自 UserProfiles，无则为 null）及 **`roleId`**、**`roleSlug`**、**`permissions`**（当前角色被授予的权限码）。
+        需在请求头携带 Bearer JWT。成功时响应体顶层 **`user`** 含公开资料（`id`、`username`、`avatar`）、**`nickname`**（来自 UserProfiles，无则为 null）及 **`roleId`**、**`roleSlug`**、**`permissions`**（当前角色被授予的权限码）。
         菜单与按钮显隐应以后端返回的 `permissions` 为准；JWT 内 `roleId`/`roleSlug` 仅为载荷提示。
       security:
         - bearerAuth: []
@@ -2935,11 +2915,11 @@ paths:
                   minimum: 1
       responses:
         "200":
-          description: 创建成功；`data.user` 为新行
+          description: 创建成功；响应体顶层 `user` 为新行（不含 password）
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MsgBody"
+                $ref: "#/components/schemas/AdminStaffCreateSuccess"
         "400":
           description: 校验失败或非 super_admin 越权指派等
           content:
@@ -3004,11 +2984,11 @@ paths:
                   minimum: 1
       responses:
         "200":
-          description: 成功
+          description: 成功；响应体顶层 `user` 为更新后的行（不含 password）
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MsgBody"
+                $ref: "#/components/schemas/AdminStaffPatchSuccess"
         "400":
           description: 校验失败
           content:
