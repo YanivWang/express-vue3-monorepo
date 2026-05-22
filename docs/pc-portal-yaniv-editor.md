@@ -67,10 +67,14 @@ flowchart LR
 
 yaniv-editor 的 **peerDependencies** 要求宿主安装 Ant Design Vue；pc-portal 须在 `dependencies` 中显式声明（当前为 `ant-design-vue@^4.2.6`、`@ant-design/icons-vue@^7.0.1`），并在 `main.ts` 全局 `app.use(Antd)`，否则编辑器工具栏组件无法渲染。
 
+**开发联调（推荐）**：`pc-portal` 的 [`vite.config.ts`](../apps/frontend/pc-portal/vite.config.ts) 在 dev 模式下会把 `@yanivjs/yaniv-editor` **alias 到 file: 指向目录的 `dist/`**，并排除 Vite 预构建，避免 `pnpm install` 快照导致改动不生效。Docker 开发栈通过环境变量 `YANIV_EDITOR_HOST_PATH` 指向挂载目录（与 compose 一致）。
+
 ```bash
-cd /path/to/yaniv-editor && pnpm build
-cd /path/to/express-vue3-monorepo && pnpm install
+cd /path/to/yaniv-editor && pnpm build   # 改完编辑器源码后执行
+cd /path/to/express-vue3-monorepo && pnpm pc-portal:dev
 ```
+
+生产构建仍走 `file:` 依赖解析，无需额外配置。若 dev 仍看到旧行为，删除 `apps/frontend/pc-portal/node_modules/.vite` 后重启 dev。
 
 ### 启动联调
 

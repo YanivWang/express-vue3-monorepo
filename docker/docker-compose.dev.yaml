@@ -101,6 +101,7 @@ services:
       # 浏览器入口为网关时，WebSocket HMR 需走宿主可见端口（默认与 GATEWAY_HOST_PORT 一致）
       VITE_DEV_HMR_CLIENT_PORT: ${GATEWAY_HOST_PORT:-2026}
       CHOKIDAR_USEPOLLING: "1"
+      YANIV_EDITOR_HOST_PATH: /frontEnd/pixelBloomSpace/tiptapCases/yaniv-editor
     volumes:
       - ..:/app
       - app_node_modules:/app/node_modules
