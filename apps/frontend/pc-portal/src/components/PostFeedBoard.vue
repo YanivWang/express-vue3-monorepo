@@ -36,6 +36,9 @@ function onCardClick(ev: MouseEvent, id: number) {
 <template>
   <div v-loading="loading" class="feed-wrap">
     <div class="feed-board">
+      <div v-if="$slots.toolbar" class="feed-board__toolbar">
+        <slot name="toolbar" />
+      </div>
       <el-empty
         v-if="!loading && posts.length === 0"
         class="feed-empty"
@@ -53,7 +56,7 @@ function onCardClick(ev: MouseEvent, id: number) {
         <div class="feed-card__inner">
           <div class="feed-card__main">
             <h2 class="feed-card__title">{{ p.title }}</h2>
-            <p v-if="cardAbstract(p)" class="feed-card__abstract">{{ cardAbstract(p) }}</p>
+            <p class="feed-card__abstract">{{ cardAbstract(p) }}</p>
             <div class="feed-card__meta">
               <el-avatar class="feed-card__avatar" :size="22" :src="p.author?.avatar ?? undefined">
                 {{ authorInitial(p) }}
@@ -119,6 +122,11 @@ $line: #f0f0f0;
   border: 1px solid rgb(0 0 0 / 4%);
   border-radius: 8px;
   box-shadow: 0 2px 8px rgb(0 0 0 / 3%);
+}
+
+.feed-board__toolbar {
+  padding: 14px 20px;
+  border-bottom: 1px solid $line;
 }
 
 .feed-empty {
@@ -188,11 +196,12 @@ $line: #f0f0f0;
 
 .feed-card__abstract {
   display: -webkit-box;
+  min-height: calc(1.75em * 3);
   max-height: none;
   margin: 0 0 14px;
   overflow: hidden;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
   font-size: 13px;
   line-height: 1.75;
   color: $muted;

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ElMessage } from "element-plus";
 import { reactive, ref } from "vue";
-import { RouterLink, useRoute, useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 
+import AuthFormLayout from "@/components/AuthFormLayout.vue";
 import { useAuthStore } from "@/stores/auth";
 
 const auth = useAuthStore();
@@ -27,46 +28,33 @@ async function submit() {
 </script>
 
 <template>
-  <div class="panel">
-    <h1>注册</h1>
-    <el-form label-position="top" class="form" @submit.prevent="submit">
-      <el-form-item label="用户名">
-        <el-input v-model="form.username" autocomplete="username" />
-      </el-form-item>
-      <el-form-item label="密码">
-        <el-input v-model="form.password" type="password" autocomplete="new-password" />
-      </el-form-item>
-      <el-button type="primary" native-type="submit" :loading="loading" class="btn">注册</el-button>
-      <RouterLink class="link" to="/login">已有账号？登录</RouterLink>
-    </el-form>
-  </div>
+  <AuthFormLayout
+    title="创建账号"
+    subtitle="注册后即可参与社区互动与内容创作"
+    submit-label="注册"
+    switch-hint="已有账号？"
+    switch-label="去登录"
+    :switch-to="{ path: '/login', query: route.query }"
+    :loading="loading"
+    @submit="submit"
+  >
+    <el-form-item label="用户名">
+      <el-input
+        v-model="form.username"
+        placeholder="设置你的用户名"
+        autocomplete="username"
+        size="large"
+      />
+    </el-form-item>
+    <el-form-item label="密码">
+      <el-input
+        v-model="form.password"
+        type="password"
+        placeholder="设置登录密码"
+        autocomplete="new-password"
+        show-password
+        size="large"
+      />
+    </el-form-item>
+  </AuthFormLayout>
 </template>
-
-<style scoped lang="scss">
-.panel {
-  max-width: 400px;
-  padding: 28px 28px 36px;
-  margin: 40px auto;
-  background: #fff;
-  border: 1px solid #eee;
-  border-radius: 4px;
-}
-
-h1 {
-  margin: 0 0 20px;
-  font-size: 18px;
-}
-
-.btn {
-  width: 100%;
-  margin-top: 8px;
-}
-
-.link {
-  display: block;
-  margin-top: 16px;
-  font-size: 14px;
-  color: var(--el-color-primary);
-  text-align: center;
-}
-</style>

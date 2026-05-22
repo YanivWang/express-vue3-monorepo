@@ -157,22 +157,6 @@ function goPost(id: number) {
     </aside>
 
     <div class="feed-wrap">
-      <div class="home-sort" role="tablist" aria-label="列表排序">
-        <RouterLink
-          class="home-sort__link"
-          :class="{ 'home-sort__link--active': feedSort === 'latest' }"
-          :to="{ path: '/', query: mergedQuery({ sort: undefined }) }"
-        >
-          最新
-        </RouterLink>
-        <RouterLink
-          class="home-sort__link"
-          :class="{ 'home-sort__link--active': feedSort === 'hot' }"
-          :to="{ path: '/', query: mergedQuery({ sort: 'hot' }) }"
-        >
-          热门
-        </RouterLink>
-      </div>
       <PostFeedBoard
         :posts="posts"
         :loading="loading"
@@ -181,7 +165,26 @@ function goPost(id: number) {
         empty-description="暂无文章"
         @select-post="goPost"
         @page-change="(pn: number) => (page = pn)"
-      />
+      >
+        <template #toolbar>
+          <div class="home-sort" role="tablist" aria-label="列表排序">
+            <RouterLink
+              class="home-sort__link"
+              :class="{ 'home-sort__link--active': feedSort === 'latest' }"
+              :to="{ path: '/', query: mergedQuery({ sort: undefined }) }"
+            >
+              最新
+            </RouterLink>
+            <RouterLink
+              class="home-sort__link"
+              :class="{ 'home-sort__link--active': feedSort === 'hot' }"
+              :to="{ path: '/', query: mergedQuery({ sort: 'hot' }) }"
+            >
+              热门
+            </RouterLink>
+          </div>
+        </template>
+      </PostFeedBoard>
     </div>
   </div>
 </template>
@@ -197,7 +200,7 @@ $line: #f0f0f0;
 
 .home--with-side {
   display: flex;
-  gap: 28px;
+  gap: 16px;
   align-items: flex-start;
 }
 
@@ -275,7 +278,6 @@ $line: #f0f0f0;
 .home-sort {
   display: flex;
   gap: 10px;
-  padding: 12px 0 16px;
 }
 
 .home-sort__link {
@@ -283,8 +285,8 @@ $line: #f0f0f0;
   font-size: 14px;
   color: #666;
   text-decoration: none;
-  background: #fff;
-  border: 1px solid rgb(0 0 0 / 8%);
+  background: #fafafa;
+  border: 1px solid rgb(0 0 0 / 6%);
   border-radius: 20px;
   transition:
     color 0.15s ease,
@@ -300,7 +302,7 @@ $line: #f0f0f0;
 .home-sort__link--active {
   font-weight: 600;
   color: $brand;
+  background: rgb(234 111 90 / 8%);
   border-color: rgb(234 111 90 / 45%);
-  box-shadow: 0 2px 6px rgb(234 111 90 / 12%);
 }
 </style>

@@ -1,9 +1,17 @@
 <script setup lang="ts">
-import katex from "katex";
+import {
+  YanivEditor,
+  type EditorAppearance,
+  type EditorColorMode,
+  type EditorMode,
+  type EditorPreset,
+  type FeatureConfig,
+} from "@yanivjs/yaniv-editor";
+import "@yanivjs/yaniv-editor/style.css";
 import "katex/dist/katex.min.css";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { storeToRefs } from "pinia";
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import * as commentsApi from "@/api/comments";
@@ -17,6 +25,13 @@ import {
 import type { CommentReplyItem, CommentThreadItem, PostItem } from "@/api/types";
 import { useAuthStore } from "@/stores/auth";
 import { sanitizePostBodyHtml } from "@/utils/post-content-sanitize";
+import { parseEditorContent } from "@/utils/postEditorCover";
+
+const EDITOR_MODE: EditorMode = "preview";
+const EDITOR_PRESET: EditorPreset = "full";
+const EDITOR_APPEARANCE: EditorAppearance = "default";
+const EDITOR_COLOR_MODE: EditorColorMode = "light";
+const EDITOR_FEATURES: FeatureConfig = { ai: false };
 
 const route = useRoute();
 const router = useRouter();
@@ -244,34 +259,11 @@ const canEditPost = computed(() => {
   return post.value.authorId === claims.value.id;
 });
 
-const postBodyRef = ref<HTMLElement | null>(null);
-
 const postBodyHtml = computed(() => {
   const raw = post.value?.content;
-  if (raw == null || raw === "") return "";
-  return sanitizePostBodyHtml(raw);
-});
-
-function renderPostBodyMath() {
-  const root = postBodyRef.value;
-  if (!root) return;
-  root.querySelectorAll('[data-type="math"]').forEach((node) => {
-    const el = node as HTMLElement;
-    const latex = el.getAttribute("data-latex");
-    if (!latex || el.dataset.rendered === "1") return;
-    const display = el.getAttribute("data-block") === "true";
-    try {
-      katex.render(latex, el, { throwOnError: false, displayMode: display });
-      el.dataset.rendered = "1";
-    } catch {
-      /* 渲染失败保留 data-latex 供调试 */
-    }
-  });
-}
-
-watch(postBodyHtml, async () => {
-  await nextTick();
-  renderPostBodyMath();
+  if (raw == null || raw === "") return "<p></p>";
+  const { bodyHtml } = parseEditorContent(raw);
+  return sanitizePostBodyHtml(bodyHtml) || "<p></p>";
 });
 
 function goBackList() {
@@ -423,8 +415,19 @@ watch(isLoggedIn, (loggedIn) => {
         </div>
 
         <div class="body">
-          <!-- eslint-disable-next-line vue/no-v-html -- sanitized in post-content-sanitize -->
-          <div ref="postBodyRef" class="rich-text" v-html="postBodyHtml" />
+          <section class="post-body yaniv-editor-host">
+            <YanivEditor
+              v-if="!loading"
+              :key="postId"
+              :mode="EDITOR_MODE"
+              :preset="EDITOR_PRESET"
+              :appearance="EDITOR_APPEARANCE"
+              :color-mode="EDITOR_COLOR_MODE"
+              :features="EDITOR_FEATURES"
+              locale="zh-CN"
+              :initial-content="postBodyHtml"
+            />
+          </section>
         </div>
 
         <p class="disclaimer">本文观点仅代表作者本人，本站仅提供信息存储空间服务。</p>
@@ -665,8 +668,8 @@ $bg-soft: #fafafa;
 .detail-page {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
-  gap: 20px 28px;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 16px;
   align-items: start;
   min-height: 320px;
 
@@ -797,136 +800,47 @@ $bg-soft: #fafafa;
   margin-bottom: 28px;
 }
 
-.rich-text {
-  font-size: 16px;
-  line-height: 1.85;
-  color: #2f2f2f;
-  overflow-wrap: break-word;
-}
-
-.rich-text :deep(p) {
-  margin: 0 0 14px;
-
-  &:last-child {
-    margin-bottom: 0;
-  }
-}
-
-.rich-text :deep(h2) {
-  font-size: 24px;
-}
-
-.rich-text :deep(h3) {
-  font-size: 22px;
-}
-
-.rich-text :deep(h4) {
-  font-size: 18px;
-}
-
-.rich-text :deep(h2),
-.rich-text :deep(h3),
-.rich-text :deep(h4) {
-  margin: 1.35em 0 0.55em;
-  font-weight: 700;
-  color: $text;
-
-  &:first-child {
-    margin-top: 0;
-  }
-}
-
-.rich-text :deep(ul),
-.rich-text :deep(ol) {
-  padding-left: 1.35em;
-  margin: 0 0 14px;
-}
-
-.rich-text :deep(blockquote) {
-  padding-left: 12px;
-  margin: 0 0 14px;
-  color: #666;
-  border-left: 4px solid #e8e8e8;
-}
-
-.rich-text :deep(pre),
-.rich-text :deep(code) {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-}
-
-.rich-text :deep(:not(pre) code) {
-  font-size: 13px;
-}
-
-.rich-text :deep(pre) {
-  padding: 12px;
-  margin: 0 0 14px;
-  overflow-x: auto;
-  font-size: 13px;
-  line-height: 1.55;
-  background: $bg-soft;
-  border-radius: 6px;
-}
-
-.rich-text :deep(img) {
-  max-width: 100%;
+.post-body.yaniv-editor-host {
   height: auto;
-  vertical-align: middle;
+  min-height: 0;
+  overflow: visible;
 }
 
-.rich-text :deep(video) {
-  display: block;
-  max-width: 100%;
+.post-body.yaniv-editor-host :deep(.yaniv-editor.document-layout) {
   height: auto;
-  margin: 0 0 14px;
-  border-radius: 6px;
+  min-height: 0;
+  overflow: visible;
+  background: transparent;
 }
 
-.rich-text :deep(table) {
-  width: 100%;
-  margin: 0 0 14px;
-  border-collapse: collapse;
+.post-body.yaniv-editor-host :deep(.yaniv-editor__workspace) {
+  overflow: visible;
 }
 
-.rich-text :deep(th),
-.rich-text :deep(td) {
-  padding: 8px 10px;
-  border: 1px solid #e8e8e8;
+.post-body.yaniv-editor-host :deep(.document-container) {
+  padding: 0;
+  overflow: visible;
 }
 
-.rich-text :deep(th) {
-  font-weight: 600;
-  background: $bg-soft;
+.post-body.yaniv-editor-host :deep(.document-pages) {
+  transform: none !important;
 }
 
-.rich-text :deep(ul[data-type="taskList"]) {
-  padding-left: 0;
-  list-style: none;
+.post-body.yaniv-editor-host :deep(.continuous-pages) {
+  max-width: none;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
 }
 
-.rich-text :deep(li[data-type="taskItem"]) {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-  margin-bottom: 6px;
-}
-
-.rich-text :deep(.math-node) {
-  margin: 0 2px;
-}
-
-.rich-text :deep(.math-block) {
-  display: block;
-  margin: 12px 0;
-  overflow-x: auto;
-}
-
-.rich-text :deep(a) {
-  color: #3194d0;
-
-  &:hover {
-    text-decoration: underline;
-  }
+/* stylelint-disable-next-line selector-class-pattern -- Tiptap ProseMirror root */
+.post-body.yaniv-editor-host :deep(.document-content .ProseMirror) {
+  min-height: 0;
+  padding: 0;
+  background: transparent;
 }
 
 .disclaimer {
@@ -1219,7 +1133,7 @@ $bg-soft: #fafafa;
 
 .sidebar {
   position: sticky;
-  top: 88px;
+  top: 76px;
 }
 
 .rec-card {

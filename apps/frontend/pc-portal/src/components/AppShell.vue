@@ -260,7 +260,13 @@ async function onLogout() {
         </nav>
       </div>
     </header>
-    <main class="main">
+    <main
+      class="main"
+      :class="{
+        'main--detail': route.name === 'post-detail',
+        'main--auth': route.name === 'login' || route.name === 'register',
+      }"
+    >
       <slot />
     </main>
   </div>
@@ -268,6 +274,8 @@ async function onLogout() {
 
 <style scoped lang="scss">
 .app-shell {
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
   color: #333;
   background: #f6f7f9;
@@ -285,9 +293,8 @@ async function onLogout() {
   box-sizing: border-box;
   display: flex;
   align-items: center;
-  max-width: 1200px;
+  max-width: 1030px;
   min-height: 58px;
-  padding: 0 24px;
   margin: 0 auto;
 }
 
@@ -511,6 +518,7 @@ async function onLogout() {
 
 .action-link {
   padding: 6px 10px;
+  padding-right: 0;
   font-family: inherit;
   font-size: 14px;
   font-weight: 400;
@@ -634,8 +642,27 @@ async function onLogout() {
 }
 
 .main {
-  max-width: 1000px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1030px;
   padding: 24px 16px 48px;
+  padding-top: 16px;
+  padding-right: 0;
+  padding-left: 0;
   margin: 0 auto;
+
+  &--detail {
+    max-width: 1030px;
+  }
+
+  &--auth {
+    // display: flex;
+    // flex: 1;
+    flex-direction: column;
+
+    // min-height: calc(100vh - 58px);
+    padding-top: 100px;
+    padding-bottom: 24px;
+  }
 }
 </style>

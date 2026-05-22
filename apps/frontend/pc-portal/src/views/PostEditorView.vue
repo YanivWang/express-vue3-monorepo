@@ -9,16 +9,30 @@ import {
 } from "@yanivjs/yaniv-editor";
 import "@yanivjs/yaniv-editor/style.css";
 import "katex/dist/katex.min.css";
-import { ElMessage } from "element-plus";
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { ElMessage, ElMessageBox } from "element-plus";
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
+import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
 
 import { fetchCategories } from "@/api/categories";
 import { createPost, fetchPostForEditor, updatePost } from "@/api/posts";
 import type { CategoryTreeNode, PostItem } from "@/api/types";
+import { uploadImages } from "@/api/uploads";
+import {
+  mergeCoverIntoContent,
+  parseEditorContent,
+  POST_COVER_ACCEPT,
+  validateCoverFile,
+} from "@/utils/postEditorCover";
+import {
+  clearPostEditorDraft,
+  formatDraftSavedAt,
+  readPostEditorDraft,
+  writePostEditorDraft,
+} from "@/utils/postEditorDraft";
 import { usePostMediaUpload } from "@/utils/usePostMediaUpload";
 
 const EDITOR_ROUTE_LOCK_CLASS = "editor-route-lock";
+const AUTOSAVE_DEBOUNCE_MS = 2000;
 
 const EDITOR_MODE: EditorMode = "edit";
 const EDITOR_PRESET: EditorPreset = "full";
@@ -32,8 +46,14 @@ const router = useRouter();
 const categories = ref<CategoryTreeNode[]>([]);
 const loading = ref(false);
 const saving = ref(false);
+const coverUploading = ref(false);
 const editorRef = ref<InstanceType<typeof YanivEditor> | null>(null);
 const editorInitialContent = ref("<p></p>");
+const coverUrl = ref<string | null>(null);
+const coverInputRef = ref<HTMLInputElement | null>(null);
+const draftSavedAt = ref<number | null>(null);
+const dirty = ref(false);
+const initialSnapshot = ref("");
 
 const form = reactive({
   title: "",
@@ -50,6 +70,18 @@ const editId = computed(() => {
   return Number.isFinite(n) ? n : null;
 });
 
+const pageTitle = computed(() => (editId.value != null ? "编辑帖子" : "写帖子"));
+
+const saveButtonLabel = computed(() => {
+  if (form.published) return editId.value != null ? "保存并发布" : "发布";
+  return "保存草稿";
+});
+
+const autosaveHintText = computed(() => {
+  if (draftSavedAt.value == null) return "";
+  return `草稿已自动保存于 ${formatDraftSavedAt(draftSavedAt.value)}`;
+});
+
 const leafOptions = computed(() => {
   const out: { label: string; value: number }[] = [];
   for (const root of categories.value) {
@@ -60,6 +92,8 @@ const leafOptions = computed(() => {
   return out;
 });
 
+let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
+
 function lockEditorRouteScroll() {
   document.documentElement.classList.add(EDITOR_ROUTE_LOCK_CLASS);
 }
@@ -68,16 +102,121 @@ function unlockEditorRouteScroll() {
   document.documentElement.classList.remove(EDITOR_ROUTE_LOCK_CLASS);
 }
 
+function takeSnapshot(): string {
+  return JSON.stringify({
+    title: form.title,
+    categoryId: form.categoryId,
+    published: form.published,
+    coverUrl: coverUrl.value,
+    contentHtml: editorRef.value?.getHTML() ?? editorInitialContent.value,
+  });
+}
+
+function markDirty() {
+  if (loading.value) return;
+  dirty.value = takeSnapshot() !== initialSnapshot.value;
+}
+
+function resetDirtyBaseline() {
+  initialSnapshot.value = takeSnapshot();
+  dirty.value = false;
+}
+
 async function hydrateCategories() {
   const { categories: tree } = await fetchCategories();
   categories.value = tree;
 }
 
 function applyPost(p: PostItem) {
+  const { coverUrl: cover, bodyHtml } = parseEditorContent(p.content ?? "");
   form.title = p.title;
   form.categoryId = p.categoryId;
   form.published = p.published;
-  editorInitialContent.value = p.content?.trim() || "<p></p>";
+  coverUrl.value = cover;
+  editorInitialContent.value = bodyHtml;
+}
+
+function applyDraft(draft: ReturnType<typeof readPostEditorDraft>) {
+  if (draft == null) return;
+  form.title = draft.title;
+  form.categoryId = draft.categoryId;
+  form.published = draft.published;
+  coverUrl.value = draft.coverUrl;
+  editorInitialContent.value = draft.contentHtml?.trim() || "<p></p>";
+  draftSavedAt.value = draft.savedAt;
+}
+
+function scheduleAutosave() {
+  if (autosaveTimer != null) clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(() => {
+    autosaveTimer = null;
+    persistDraft();
+  }, AUTOSAVE_DEBOUNCE_MS);
+}
+
+function persistDraft() {
+  if (loading.value || saving.value) return;
+  const contentHtml = editorRef.value?.getHTML() ?? editorInitialContent.value;
+  const savedAt = Date.now();
+  writePostEditorDraft(editId.value, {
+    title: form.title,
+    categoryId: form.categoryId,
+    published: form.published,
+    coverUrl: coverUrl.value,
+    contentHtml,
+    savedAt,
+  });
+  draftSavedAt.value = savedAt;
+  markDirty();
+}
+
+async function processCoverFile(file: File) {
+  const err = validateCoverFile(file);
+  if (err != null) {
+    ElMessage.warning(err);
+    return;
+  }
+  coverUploading.value = true;
+  try {
+    const { urls } = await uploadImages([file]);
+    const url = urls[0];
+    if (url == null || url === "") throw new Error("上传失败");
+    coverUrl.value = url;
+    markDirty();
+    scheduleAutosave();
+    ElMessage.success("封面上传成功");
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : "封面上传失败");
+  } finally {
+    coverUploading.value = false;
+  }
+}
+
+function onCoverInputChange(ev: Event) {
+  const input = ev.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";
+  if (file != null) void processCoverFile(file);
+}
+
+function openCoverPicker() {
+  coverInputRef.value?.click();
+}
+
+function onCoverDrop(ev: DragEvent) {
+  ev.preventDefault();
+  const file = ev.dataTransfer?.files?.[0];
+  if (file != null) void processCoverFile(file);
+}
+
+function onCoverDragOver(ev: DragEvent) {
+  ev.preventDefault();
+}
+
+function removeCover() {
+  coverUrl.value = null;
+  markDirty();
+  scheduleAutosave();
 }
 
 onMounted(async () => {
@@ -88,18 +227,46 @@ onMounted(async () => {
     if (editId.value != null) {
       const p = await fetchPostForEditor(editId.value);
       applyPost(p);
+      const local = readPostEditorDraft(editId.value);
+      if (local != null && local.savedAt > new Date(p.updatedAt).getTime()) {
+        applyDraft(local);
+        ElMessage.info("已恢复本地草稿");
+      }
+    } else {
+      const local = readPostEditorDraft(null);
+      if (local != null) {
+        applyDraft(local);
+        ElMessage.info("已恢复本地草稿");
+      }
     }
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : "加载失败");
     await router.push({ name: "mine" });
   } finally {
     loading.value = false;
+    await nextTick();
+    resetDirtyBaseline();
   }
+});
+
+watch(editorRef, async (ed) => {
+  if (ed == null || loading.value) return;
+  await nextTick();
+  resetDirtyBaseline();
 });
 
 onBeforeUnmount(() => {
   unlockEditorRouteScroll();
+  if (autosaveTimer != null) clearTimeout(autosaveTimer);
 });
+
+watch(
+  () => [form.title, form.categoryId, form.published, coverUrl.value] as const,
+  () => {
+    markDirty();
+    scheduleAutosave();
+  },
+);
 
 function getEditorContentHtml(): string {
   return editorRef.value?.getHTML()?.trim() ?? "";
@@ -109,8 +276,13 @@ function getEditorPlainText(): string {
   return editorRef.value?.getText()?.trim() ?? "";
 }
 
+function onEditorUpdate() {
+  markDirty();
+  scheduleAutosave();
+}
+
 async function save() {
-  const content = getEditorContentHtml();
+  const bodyHtml = getEditorContentHtml();
   const plain = getEditorPlainText();
   if (!form.title.trim() || !plain) {
     ElMessage.warning("标题与正文不能为空");
@@ -120,6 +292,7 @@ async function save() {
     ElMessage.warning("请选择分类（须为二级叶子）");
     return;
   }
+  const content = mergeCoverIntoContent(bodyHtml, coverUrl.value, form.title.trim());
   saving.value = true;
   try {
     const payload = {
@@ -135,15 +308,37 @@ async function save() {
       await updatePost(editId.value, payload);
       ElMessage.success("已保存");
     }
+    clearPostEditorDraft(editId.value);
+    dirty.value = false;
     await router.push({ name: "mine" });
   } finally {
     saving.value = false;
   }
 }
 
-function cancelEdit() {
+async function confirmDiscardIfDirty(): Promise<boolean> {
+  if (!dirty.value) return true;
+  try {
+    await ElMessageBox.confirm("有未保存的修改，确定离开？", "提示", {
+      type: "warning",
+      confirmButtonText: "离开",
+      cancelButtonText: "继续编辑",
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function cancelEdit() {
+  if (!(await confirmDiscardIfDirty())) return;
   void router.push({ name: "mine" });
 }
+
+onBeforeRouteLeave(async () => {
+  if (saving.value) return true;
+  return confirmDiscardIfDirty();
+});
 </script>
 
 <template>
@@ -152,7 +347,7 @@ function cancelEdit() {
       <div class="post-editor-layout__main">
         <header class="editor-head">
           <div class="editor-head__meta">
-            <h1 class="editor-head__title">写帖子</h1>
+            <h1 class="editor-head__title">{{ pageTitle }}</h1>
             <p class="editor-head__sub">分享你的知识与见解，让更多开发者受益</p>
           </div>
           <button type="button" class="editor-head__back" @click="cancelEdit">← 返回列表</button>
@@ -183,6 +378,7 @@ function cancelEdit() {
             :initial-content="editorInitialContent"
             :upload-image="handleUploadImage"
             :upload-video="handleUploadVideo"
+            @update="onEditorUpdate"
           />
         </section>
       </div>
@@ -193,7 +389,38 @@ function cancelEdit() {
 
           <div class="side-panel__section">
             <h3 class="side-card-title">封面图</h3>
-            <button class="cover-upload-placeholder" type="button">点击或拖拽上传封面图</button>
+            <input
+              ref="coverInputRef"
+              type="file"
+              class="cover-file-input"
+              :accept="POST_COVER_ACCEPT"
+              @change="onCoverInputChange"
+            />
+            <div
+              v-if="coverUrl"
+              class="cover-preview"
+              @dragover="onCoverDragOver"
+              @drop="onCoverDrop"
+            >
+              <img class="cover-preview__img" :src="coverUrl" alt="封面预览" />
+              <div class="cover-preview__actions">
+                <el-button size="small" :loading="coverUploading" @click="openCoverPicker">
+                  更换
+                </el-button>
+                <el-button size="small" type="danger" plain @click="removeCover">移除</el-button>
+              </div>
+            </div>
+            <button
+              v-else
+              type="button"
+              class="cover-upload-placeholder"
+              :disabled="coverUploading"
+              @click="openCoverPicker"
+              @dragover="onCoverDragOver"
+              @drop="onCoverDrop"
+            >
+              {{ coverUploading ? "上传中…" : "点击或拖拽上传封面图" }}
+            </button>
             <p class="side-card-hint">建议尺寸 1200x630，JPG/PNG 格式，大小不超过 5MB</p>
           </div>
 
@@ -241,10 +468,10 @@ function cancelEdit() {
               :loading="saving"
               @click="save"
             >
-              保存并发布
+              {{ saveButtonLabel }}
             </el-button>
           </div>
-          <p class="autosave-hint">内容已自动保存</p>
+          <p v-if="autosaveHintText" class="autosave-hint">{{ autosaveHintText }}</p>
         </section>
       </aside>
     </div>
@@ -394,7 +621,6 @@ $shadow-soft: none;
   background: #fafbfd;
 }
 
-/* Yaniv 编辑器实际底栏容器（库内类名） */
 .editor-card--body.yaniv-editor-host :deep(.footer-nav-container),
 .editor-card--body.yaniv-editor-host :deep(.footer-nav),
 .editor-card--body.yaniv-editor-host :deep(.footer-nav__inner) {
@@ -406,7 +632,6 @@ $shadow-soft: none;
   color: #7f8a9d !important;
 }
 
-/* 直达 zoom 底栏（最终兜底覆盖） */
 .editor-card--body.yaniv-editor-host :deep(.zoom-controls--bottom) {
   background: #ffffff !important;
   border-top: 1px solid $stroke !important;
@@ -422,7 +647,6 @@ $shadow-soft: none;
   border-color: $stroke !important;
 }
 
-/* 去掉 zoom-controls 基类在底栏场景下的额外分隔线，只留一条顶部分隔 */
 .editor-card--body.yaniv-editor-host :deep(.zoom-controls.zoom-controls--bottom) {
   border-bottom: 0 !important;
 }
@@ -479,6 +703,10 @@ $shadow-soft: none;
   display: none;
 }
 
+.cover-file-input {
+  display: none;
+}
+
 .cover-upload-placeholder {
   width: 100%;
   min-height: 128px;
@@ -488,6 +716,31 @@ $shadow-soft: none;
   background: $surface-soft;
   border: 1px dashed #dce3ef;
   border-radius: $radius-md;
+
+  &:disabled {
+    cursor: wait;
+    opacity: 0.7;
+  }
+}
+
+.cover-preview {
+  overflow: hidden;
+  border: 1px solid $stroke;
+  border-radius: $radius-md;
+}
+
+.cover-preview__img {
+  display: block;
+  width: 100%;
+  max-height: 160px;
+  object-fit: cover;
+}
+
+.cover-preview__actions {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  background: $surface-soft;
 }
 
 .side-card-hint {
@@ -598,12 +851,29 @@ $shadow-soft: none;
 }
 
 @media (width < 920px) {
+  .post-editor-page {
+    height: auto;
+    min-height: 100dvh;
+    overflow: auto;
+  }
+
   .post-editor-layout {
     grid-template-columns: 1fr;
+    height: auto;
+    min-height: 0;
+  }
+
+  .post-editor-layout__main {
+    min-height: 60vh;
   }
 
   .post-editor-layout__side {
-    display: none;
+    display: block;
+    margin-top: 0;
+  }
+
+  .side-panel {
+    position: static;
   }
 }
 </style>
