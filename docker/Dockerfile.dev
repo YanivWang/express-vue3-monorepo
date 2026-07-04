@@ -23,8 +23,8 @@ COPY packages/shared/package.json packages/shared/
 COPY packages/request-core/package.json packages/request-core/
 COPY packages/js-bridge/package.json packages/js-bridge/
 COPY packages/web-monitor/package.json packages/web-monitor/
-# pc-portal 的 @yanivjs/yaniv-editor 为 monorepo 外 file: 依赖，构建阶段不安装 pc-portal 子图（与 docker/Dockerfile 一致）
-RUN pnpm install --frozen-lockfile --filter @express-vue3-monorepo/rest-api
+# 预装工作区依赖，运行时 Compose 挂载源码后可复用 app_node_modules 卷。
+RUN pnpm install --frozen-lockfile
 
 ENV NODE_ENV=development
 ENV PORT=3000

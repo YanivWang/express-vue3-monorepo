@@ -40,7 +40,7 @@
     "@tiptap/starter-kit": "^3.7.2",
     "@tiptap/vue-3": "^3.7.2",
     "@vueuse/core": "catalog:",
-    "@yanivjs/yaniv-editor": "file:../../../../../../../frontEnd/pixelBloomSpace/tiptapCases/yaniv-editor",
+    "@yanivjs/yaniv-editor": "^0.1.1",
     "ant-design-vue": "^4.2.6",
     "docx": "^9.5.1",
     "dompurify": "^3.4.2",

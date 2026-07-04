@@ -1,6 +1,6 @@
 # pc-portal 富文本编辑器接入（Yaniv Editor）
 
-本文说明本仓库 **pc-portal** 如何接入 [`@yanivjs/yaniv-editor`](https://github.com/YanivWang/yaniv-editor) v0.1.0+（Vue 3 + Tiptap 3），用于帖子新建/编辑与发布。
+本文说明本仓库 **pc-portal** 如何接入 [`@yanivjs/yaniv-editor`](https://www.npmjs.com/package/@yanivjs/yaniv-editor) v0.1.1+（Vue 3 + Tiptap 3），用于帖子新建/编辑与发布。
 
 正文以 **HTML 字符串** 存储与展示；封面以专用段落嵌入正文（`data-post-cover`）；图片/视频嵌入正文 HTML。
 
@@ -11,7 +11,7 @@
 | 项             | 说明                                                                                                              |
 | -------------- | ----------------------------------------------------------------------------------------------------------------- |
 | **接入应用**   | `apps/frontend/pc-portal`                                                                                         |
-| **编辑器包**   | `@yanivjs/yaniv-editor`（`pnpm file:` 本地链接，见该包 `package.json`）                                           |
+| **编辑器包**   | `@yanivjs/yaniv-editor`（npm 包，当前声明为 `^0.1.1`）                                                            |
 | **发布页组件** | `PostEditorView.vue`                                                                                              |
 | **路由**       | `/mine/editor`（新建）、`/mine/editor/:id`（编辑）                                                                |
 | **页面布局**   | `meta.blankLayout: true` — 无站点顶栏，全视口沉浸式                                                               |
@@ -49,8 +49,7 @@ flowchart LR
 
 ## 接入清单（Checklist）
 
-- [ ] yaniv-editor 源码已 `pnpm build` 产出 `dist/`
-- [ ] `apps/frontend/pc-portal/package.json` 中 `file:` 路径在本机有效，`pnpm install` 无报错
+- [ ] `apps/frontend/pc-portal/package.json` 已声明 `@yanivjs/yaniv-editor@^0.1.1`，`pnpm install` 无报错
 - [ ] `package.json` 已声明 **`ant-design-vue`**、**`@ant-design/icons-vue`**（满足 yaniv-editor peer，勿仅依赖间接解析）
 - [ ] [`main.ts`](../apps/frontend/pc-portal/src/main.ts) 注册 **Ant Design Vue** 并引入 `ant-design-vue/dist/reset.css`（在 `app.mount` 之前）
 - [ ] 发布页引入 `@yanivjs/yaniv-editor/style.css` 与 `katex/dist/katex.min.css`
@@ -61,20 +60,13 @@ flowchart LR
 
 ---
 
-## 本地依赖与构建
+## 依赖与构建
 
-`@yanivjs/yaniv-editor` 通过 **`apps/frontend/pc-portal/package.json`** 的 `file:` 字段链接到本机 yaniv-editor 源码目录（路径因开发者机器而异，勿写死到文档）。
+`@yanivjs/yaniv-editor` 通过 **`apps/frontend/pc-portal/package.json`** 从 npm 安装，当前版本范围为 `^0.1.1`。
 
 yaniv-editor 的 **peerDependencies** 要求宿主安装 Ant Design Vue；pc-portal 须在 `dependencies` 中显式声明（当前为 `ant-design-vue@^4.2.6`、`@ant-design/icons-vue@^7.0.1`），并在 `main.ts` 全局 `app.use(Antd)`，否则编辑器工具栏组件无法渲染。
 
-**开发联调（推荐）**：`pc-portal` 的 [`vite.config.ts`](../apps/frontend/pc-portal/vite.config.ts) 在 dev 模式下会把 `@yanivjs/yaniv-editor` **alias 到 file: 指向目录的 `dist/`**，并排除 Vite 预构建，避免 `pnpm install` 快照导致改动不生效。Docker 开发栈通过环境变量 `YANIV_EDITOR_HOST_PATH` 指向挂载目录（与 compose 一致）。
-
-```bash
-cd /path/to/yaniv-editor && pnpm build   # 改完编辑器源码后执行
-cd /path/to/express-vue3-monorepo && pnpm pc-portal:dev
-```
-
-生产构建仍走 `file:` 依赖解析，无需额外配置。若 dev 仍看到旧行为，删除 `apps/frontend/pc-portal/node_modules/.vite` 后重启 dev。
+Vite 与 Docker 开发环境都按普通 npm 依赖解析该包，无需额外挂载 yaniv-editor 源码目录。若升级版本后 dev 仍看到旧行为，删除 `apps/frontend/pc-portal/node_modules/.vite` 后重启 dev。
 
 ### 启动联调
 
@@ -257,5 +249,5 @@ app.mount("#app");
 
 ## 相关文档
 
-- yaniv-editor：`docs/guide/getting-started.md`、`docs/api/yaniv-editor.md`
+- [yaniv-editor npm 包](https://www.npmjs.com/package/@yanivjs/yaniv-editor)
 - [OpenAPI 契约](./openapi.yaml)
