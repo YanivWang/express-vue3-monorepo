@@ -38,6 +38,10 @@ pnpm exec tsx scripts/ensure-super-admin.ts
 
 表结构由 `sequelize.sync` 与模型对齐（见 `apps/backend/rest-api/src/db.ts`）；开发阶段模型变更后推荐 **`pnpm db:drop-create`** 再启动。仅删库脚本见 `apps/backend/rest-api/scripts/reset-db.ts`。
 
+## pc-admin 登录说明
+
+管理端（`apps/frontend/pc-admin`）启动时同样调用 `GET /api/me` 拉取 **`permissions`**。除有效 JWT 外，账号须具备**至少一项** `admin.*` 权限（`hasStaffEntry`），否则路由守卫跳转 **`/403`**。首个 **`super_admin`** 自动拥有全部 18 项权限码，可直接进入各管理页面。模板角色 **`moderator`** 为职员身份但初始无权限绑定，须在「角色管理 → 权限矩阵」中显式勾选后再使用对应功能。
+
 ## synthetic-it / `pnpm db:seed-post` 中的管理员认证
 
 **`pnpm db:seed-post` 不包含类目种子**；灌帖前须已通过 **`pnpm db:seed-categories`**（或管理端）写入 synthetic-it 所需的 IT 分类树，否则接口会因缺少类目而失败。

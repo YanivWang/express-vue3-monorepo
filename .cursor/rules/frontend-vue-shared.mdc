@@ -8,15 +8,18 @@ alwaysApply: false
 
 ## 应用
 
-- **PC 门户**：`apps/frontend/pc-portal`（`@express-vue3-monorepo/pc-portal`）
-- **PC 管理后台**：`apps/frontend/pc-admin`（`@express-vue3-monorepo/pc-admin`）
+- **PC 门户**：`apps/frontend/pc-portal`（`@express-vue3-monorepo/pc-portal`）；Vite **5173**；Token 键 **`pc_portal_access_token`**
+- **PC 管理后台**：`apps/frontend/pc-admin`（`@express-vue3-monorepo/pc-admin`）；Vite **5174**；Token 键 **`pc_admin_access_token`**；网关子路径 **`VITE_ADMIN_BASE=/pc-admin/`**（Compose / 生产）
 - 开发与构建以各 app 的 `package.json` `scripts` 为准；两应用的 `typecheck` 均为 **`vue-tsc --noEmit -p tsconfig.app.json`**，`dev` 为 **`vite`**。
 - **工作区依赖**：两应用均依赖 **`@express-vue3-monorepo/shared`**；HTTP 经 shared 的 `request-pc` 间接使用 **`@express-vue3-monorepo/request-core`**。
+- **pc-admin 权限**：`main.ts` 启动时 `bootstrapSession()`；路由守卫用 `hasStaffEntry`（须任一 `admin.*`）与 `meta.permissions`（`hasAnyPermission`，OR）。详见 `docs/admin-permissions.md`。
 
 ## 技术栈（与根 catalog / 各包依赖一致）
 
 - **Vue 3**、**Vite**、**TypeScript**、**Pinia**、**Vue Router**、**Sass**。
 - **PC UI**：**Element Plus**、**@vueuse/core**（以 app 的 `dependencies` 为准）。
+- **pc-portal** 另依赖 **`@yanivjs/yaniv-editor`**、**Ant Design Vue**（editor peer）、**`@tiptap/*`** 等；见 `docs/pc-portal-yaniv-editor.md`。
+- **pc-admin** 另依赖 **nprogress**（路由进度条）。
 
 ## `@express-vue3-monorepo/shared`
 

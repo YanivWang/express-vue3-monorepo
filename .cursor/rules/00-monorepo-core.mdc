@@ -13,8 +13,8 @@ alwaysApply: true
 - `apps/frontend/pc-admin` → `@express-vue3-monorepo/pc-admin`
 - `packages/shared` → `@express-vue3-monorepo/shared`
 - `packages/request-core` → `@express-vue3-monorepo/request-core`
-- `packages/js-bridge` → `@express-vue3-monorepo/js-bridge`
-- `packages/web-monitor` → `@express-vue3-monorepo/web-monitor`
+- `packages/js-bridge` → `@express-vue3-monorepo/js-bridge`（前端 app **尚未接入**）
+- `packages/web-monitor` → `@express-vue3-monorepo/web-monitor`（前端 app **尚未接入**）
 
 ## 环境与包管理
 
@@ -28,11 +28,11 @@ alwaysApply: true
 - **单应用开发**：`pnpm rest-api:dev`、`pnpm pc-portal:dev`、`pnpm pc-admin:dev`（等价于对对应包执行 `pnpm --filter <包名> dev`）。
 - **类型检查**：`pnpm typecheck`（各 workspace 包并行执行各自的 `typecheck` 脚本）；纯 TS 库的 solution 构图：`pnpm typecheck:solution`（根 `tsconfig.json` 的 `references` + `tsc -b`）。
 - **质量门禁**：`pnpm verify` → 依次为 `typecheck` → `lint`（全仓 ESLint）→ `lint:style`（Stylelint）→ `format:check`（Prettier）→ `test:all`。
-- **测试**：根目录 `pnpm test` 与 `pnpm test:all` 均仅跑 `@express-vue3-monorepo/rest-api` 的 Vitest。
+- **测试**：根目录 `pnpm test` 与 `pnpm test:all` 均仅跑 `@express-vue3-monorepo/rest-api` 的 Vitest；`js-bridge` 包内另有 Vitest。
 
 ## TypeScript 构图说明（避免误判）
 
-- 根目录 `tsconfig.json` 的 **`references` 仅包含** `packages/request-core`、`packages/js-bridge`、`packages/web-monitor` 的 `tsconfig.build.json`（见文件内注释）。**`rest-api`、`shared`、前端 app 不参与**根 `tsc -b`，各自用包内脚本（如 `tsc --noEmit`、`vue-tsc`）检查。
+- 根目录 `tsconfig.json` 的 **`references` 仅包含** `packages/request-core`、`packages/js-bridge`、`packages/web-monitor` 的 `tsconfig.build.json`（见文件内注释）。**`rest-api`、`shared`、前端 app 不参与**根 `tsc -b`；`shared` 为纯 TS，包内 `tsc --noEmit`。
 
 ## 修改范围与产物
 

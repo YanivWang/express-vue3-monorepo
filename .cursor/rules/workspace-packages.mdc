@@ -6,13 +6,13 @@ alwaysApply: false
 
 # Workspace 库：`packages/request-core`、`packages/js-bridge`、`packages/web-monitor`
 
-`packages/*` 当前为四个目录：**`shared`** 与本文所述三库。四者均以 **TypeScript** 为类型检查主线；其中 **`shared`** 还包含 **`.vue` / 样式** 等，类型检查走 **`vue-tsc`** 等**包内**脚本，**不参与**仓库根目录 `tsconfig.json` 的 **`references`**。**本文档仅约束**被根 `tsc -b` 引用、且由 **`pnpm typecheck:solution`** 构图的三库。
+`packages/*` 当前为四个目录：**`shared`** 与本文所述三库。四者均以 **TypeScript** 为类型检查主线；**`shared`** 为纯 TS（无 `.vue`），`pnpm typecheck` 为 **`tsc --noEmit`**，**不参与**根 `tsconfig.json` 的 **`references`**。**本文档仅约束**被根 `tsc -b` 引用、且由 **`pnpm typecheck:solution`** 构图的三库。
 
 ## 各包定位（摘自各包 `package.json` 的 `description`）
 
 - **request-core**：UI-free HTTP client core（axios + 注入式 hooks）；默认响应形态对齐 apps/backend/rest-api `{ code, msg, ...payload }`。
-- **js-bridge**：多宿主 H5 Bridge（浏览器 / 小程序 / App WebView）。
-- **web-monitor**：Web Vitals 与客户端错误上报（Vue App 接入）。
+- **js-bridge**：多宿主 H5 Bridge（浏览器 / 小程序 / App WebView）；**当前 pc-portal / pc-admin 未引用**。
+- **web-monitor**：Web Vitals 与客户端错误上报（Vue App 可选接入）；**当前 pc-portal / pc-admin 未引用**。
 
 **request-core 补充说明**：实践中主要由 **`@express-vue3-monorepo/shared`** 与部分应用直接依赖（以各 `package.json` 为准）；**对其导出 API 的变更需谨慎**，避免连带破坏上下游。
 

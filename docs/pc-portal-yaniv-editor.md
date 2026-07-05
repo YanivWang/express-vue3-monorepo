@@ -65,7 +65,9 @@ flowchart LR
 
 yaniv-editor 的 **peerDependencies** 要求宿主安装 Ant Design Vue；pc-portal 须在 `dependencies` 中显式声明（当前为 `ant-design-vue@^4.2.6`、`@ant-design/icons-vue@^7.0.1`）。自 **v0.1.2** 起，库内部通过 `src/shared/antd.ts` 在各 UI 组件内按需局部注册 Ant Design Vue 组件，宿主 **无需** 在 `main.ts` 执行 `app.use(Antd)` 或引入 `ant-design-vue/dist/reset.css`。
 
-Vite 与 Docker 开发环境都按普通 npm 依赖解析该包，无需额外挂载 yaniv-editor 源码目录。若升级版本后 dev 仍看到旧行为，删除 `apps/frontend/pc-portal/node_modules/.vite` 后重启 dev。
+宿主 **`package.json` 亦直接声明** 大量 `@tiptap/*`（Tiptap 3.x，yaniv-editor 底层）、`katex`、`dompurify`、`spark-md5`（大文件 MD5）、`docx` / `mammoth` / `file-saver`（导入导出）等；升级 yaniv-editor 后若 dev 仍见旧行为，删除 `apps/frontend/pc-portal/node_modules/.vite` 后重启 dev。
+
+Vite 与 Docker 开发环境都按普通 npm 依赖解析该包，无需额外挂载 yaniv-editor 源码目录。
 
 ### 启动联调
 
@@ -201,6 +203,8 @@ app.mount("#app");
 | 顶栏「写文章」       | `editor-new`                 | `/mine/editor`     |
 | 我的文章 → 新建/编辑 | `editor-new` / `editor-edit` | 同上               |
 | 详情页 → 编辑        | `editor-edit`                | `/mine/editor/:id` |
+
+其它 pc-portal 路由（与编辑器无关）：`/` 首页、`/search` 搜索、`/posts/:id` 详情、`/demo/category-feed` 分类 Feed UI 演示（blankLayout，本地 demo 数据，无需登录）、`/test/big-file-upload` 大文件分片演示（须登录）。
 
 ---
 

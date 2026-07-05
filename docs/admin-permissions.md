@@ -1,8 +1,31 @@
 # 权限码—路由—业务对照（唯一清单）
 
-> 权威清单与实现一致：`apps/backend/rest-api/src/rbac/permission-codes.ts` 中的 `PERMISSION_CODES`。
+> 权威清单与实现一致：`apps/backend/rest-api/src/rbac/permission-codes.ts` 中的 `PERMISSION_CODES`（共 **18** 项）。
 
 > 超级管理员（`super_admin`）在库中绑定以下 **全部** code，`rbac.service` 亦按 slug 视为拥有全部权限码。其他角色必须显式勾选；默认拒绝（deny-by-default）。
+
+## pc-admin 前端路由与侧栏
+
+实现见 `apps/frontend/pc-admin/src/router/index.ts` 与 `views/layout/AdminLayout.vue`。路由守卫逻辑：
+
+1. 未登录 → `/login`
+2. 已登录但 `permissions` 中**无**任一 `admin.*` 前缀 → `/403`（`hasStaffEntry`）
+3. 路由 `meta.permissions` 与侧栏 `can([...])` 使用 **`hasAnyPermission`（OR）**：满足所列权限**之一**即可
+
+| 侧栏 / 页面           | 路由 path       | `meta.permissions`                                        |
+| --------------------- | --------------- | --------------------------------------------------------- |
+| 帖子管理              | `/posts`        | `admin.posts.read`                                        |
+| 分类管理              | `/categories`   | `admin.categories.write` **或** `admin.categories.delete` |
+| 注册用户              | `/portal-users` | `admin.portal_users.read`                                 |
+| 评论管理              | `/comments`     | `admin.comments.read`                                     |
+| 系统管理 → 角色管理   | `/system/roles` | `admin.roles.manage`                                      |
+| 系统管理 → 管理员账号 | `/system/staff` | `admin.staff.read`                                        |
+
+页内按钮（编辑帖子、删除、权限矩阵勾选等）另按具体权限码控制；危险权限标识见 `apps/frontend/pc-admin/src/utils/permissions.ts` 的 `isDangerousPermission()`。
+
+---
+
+## REST API 权限码对照
 
 | 权限码                       | 路由 / 触发场景                                                                                   | Service 或行为说明                                                                                  |
 | ---------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
