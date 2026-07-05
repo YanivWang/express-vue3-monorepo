@@ -1,6 +1,6 @@
 # pc-portal 富文本编辑器接入（Yaniv Editor）
 
-本文说明本仓库 **pc-portal** 如何接入 [`@yanivjs/yaniv-editor`](https://www.npmjs.com/package/@yanivjs/yaniv-editor) v0.1.1+（Vue 3 + Tiptap 3），用于帖子新建/编辑与发布。
+本文说明本仓库 **pc-portal** 如何接入 [`@yanivjs/yaniv-editor`](https://www.npmjs.com/package/@yanivjs/yaniv-editor) v0.1.2+（Vue 3 + Tiptap 3），用于帖子新建/编辑与发布。
 
 正文以 **HTML 字符串** 存储与展示；封面以专用段落嵌入正文（`data-post-cover`）；图片/视频嵌入正文 HTML。
 
@@ -8,18 +8,18 @@
 
 ## 概览
 
-| 项             | 说明                                                                                                              |
-| -------------- | ----------------------------------------------------------------------------------------------------------------- |
-| **接入应用**   | `apps/frontend/pc-portal`                                                                                         |
-| **编辑器包**   | `@yanivjs/yaniv-editor`（npm 包，当前声明为 `^0.1.1`）                                                            |
-| **发布页组件** | `PostEditorView.vue`                                                                                              |
-| **路由**       | `/mine/editor`（新建）、`/mine/editor/:id`（编辑）                                                                |
-| **页面布局**   | `meta.blankLayout: true` — 无站点顶栏，全视口沉浸式                                                               |
-| **UI 框架**    | 站点壳层 **Element Plus**；**yaniv-editor 工具栏** 依赖 **Ant Design Vue**（peer，须安装并在 `main.ts` 全局注册） |
-| **正文存储**   | HTML 字符串，入库前由 `rest-api` 白名单净化                                                                       |
-| **封面**       | 保存前 `mergeCoverIntoContent` 写入 `<p data-post-cover="1">…</p>`                                                |
-| **本地草稿**   | `localStorage`，键 `pc_portal_post_editor_draft:{id\|new}`                                                        |
-| **详情展示**   | `PostDetailView` + DOMPurify 二次净化 + KaTeX 渲染数学公式                                                        |
+| 项             | 说明                                                                                                                             |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| **接入应用**   | `apps/frontend/pc-portal`                                                                                                        |
+| **编辑器包**   | `@yanivjs/yaniv-editor`（npm 包，当前声明为 `^0.1.2`）                                                                           |
+| **发布页组件** | `PostEditorView.vue`                                                                                                             |
+| **路由**       | `/mine/editor`（新建）、`/mine/editor/:id`（编辑）                                                                               |
+| **页面布局**   | `meta.blankLayout: true` — 无站点顶栏，全视口沉浸式                                                                              |
+| **UI 框架**    | 站点壳层 **Element Plus**；**yaniv-editor 工具栏** 依赖 **Ant Design Vue**（peer，宿主安装 peer 即可，**无需** `app.use(Antd)`） |
+| **正文存储**   | HTML 字符串，入库前由 `rest-api` 白名单净化                                                                                      |
+| **封面**       | 保存前 `mergeCoverIntoContent` 写入 `<p data-post-cover="1">…</p>`                                                               |
+| **本地草稿**   | `localStorage`，键 `pc_portal_post_editor_draft:{id\|new}`                                                                       |
+| **详情展示**   | `PostDetailView` + DOMPurify 二次净化 + KaTeX 渲染数学公式                                                                       |
 
 ```mermaid
 flowchart LR
@@ -49,9 +49,8 @@ flowchart LR
 
 ## 接入清单（Checklist）
 
-- [ ] `apps/frontend/pc-portal/package.json` 已声明 `@yanivjs/yaniv-editor@^0.1.1`，`pnpm install` 无报错
-- [ ] `package.json` 已声明 **`ant-design-vue`**、**`@ant-design/icons-vue`**（满足 yaniv-editor peer，勿仅依赖间接解析）
-- [ ] [`main.ts`](../apps/frontend/pc-portal/src/main.ts) 注册 **Ant Design Vue** 并引入 `ant-design-vue/dist/reset.css`（在 `app.mount` 之前）
+- [ ] `apps/frontend/pc-portal/package.json` 已声明 `@yanivjs/yaniv-editor@^0.1.2`，`pnpm install` 无报错
+- [ ] `package.json` 已声明 **`ant-design-vue`**、**`@ant-design/icons-vue`**（满足 yaniv-editor peer，勿仅依赖间接解析；**无需**在 `main.ts` 全局注册）
 - [ ] 发布页引入 `@yanivjs/yaniv-editor/style.css` 与 `katex/dist/katex.min.css`
 - [ ] 路由 meta 含 `blankLayout: true`
 - [ ] 宿主容器遵循 `.yaniv-editor-host` 高度契约
@@ -62,9 +61,9 @@ flowchart LR
 
 ## 依赖与构建
 
-`@yanivjs/yaniv-editor` 通过 **`apps/frontend/pc-portal/package.json`** 从 npm 安装，当前版本范围为 `^0.1.1`。
+`@yanivjs/yaniv-editor` 通过 **`apps/frontend/pc-portal/package.json`** 从 npm 安装，当前版本范围为 `^0.1.2`。
 
-yaniv-editor 的 **peerDependencies** 要求宿主安装 Ant Design Vue；pc-portal 须在 `dependencies` 中显式声明（当前为 `ant-design-vue@^4.2.6`、`@ant-design/icons-vue@^7.0.1`），并在 `main.ts` 全局 `app.use(Antd)`，否则编辑器工具栏组件无法渲染。
+yaniv-editor 的 **peerDependencies** 要求宿主安装 Ant Design Vue；pc-portal 须在 `dependencies` 中显式声明（当前为 `ant-design-vue@^4.2.6`、`@ant-design/icons-vue@^7.0.1`）。自 **v0.1.2** 起，库内部通过 `src/shared/antd.ts` 在各 UI 组件内按需局部注册 Ant Design Vue 组件，宿主 **无需** 在 `main.ts` 执行 `app.use(Antd)` 或引入 `ant-design-vue/dist/reset.css`。
 
 Vite 与 Docker 开发环境都按普通 npm 依赖解析该包，无需额外挂载 yaniv-editor 源码目录。若升级版本后 dev 仍看到旧行为，删除 `apps/frontend/pc-portal/node_modules/.vite` 后重启 dev。
 
@@ -84,11 +83,9 @@ pnpm pc-portal:dev
 
 ## 应用启动配置（main.ts）
 
-pc-portal 同时使用 Element Plus（站点 UI）与 Ant Design Vue（yaniv-editor）。启动时先恢复登录会话，再注册 UI 库：
+pc-portal 站点壳层使用 Element Plus；yaniv-editor 的 Ant Design Vue 组件由库内局部注册，**不在** `main.ts` 全局挂载。启动时先恢复登录会话，再注册 Element Plus：
 
 ```ts
-import Antd from "ant-design-vue";
-import "ant-design-vue/dist/reset.css";
 import ElementPlus from "element-plus";
 import zhCn from "element-plus/es/locale/lang/zh-cn";
 // ...
@@ -97,7 +94,6 @@ const app = createApp(App);
 app.use(createPinia());
 app.use(router);
 await useAuthStore().bootstrapSession();
-app.use(Antd); // yaniv-editor 工具栏依赖
 app.use(ElementPlus, { locale: zhCn });
 app.mount("#app");
 ```
@@ -227,7 +223,7 @@ app.mount("#app");
 
 ### 工具栏布局异常
 
-未安装或未全局注册 Ant Design Vue → 确认 `package.json` 含 `ant-design-vue` / `@ant-design/icons-vue`，且 `main.ts` 已 `app.use(Antd)` 并引入 `ant-design-vue/dist/reset.css`。
+未安装 yaniv-editor 的 Ant Design Vue peer 依赖 → 确认 `package.json` 含 `ant-design-vue` / `@ant-design/icons-vue`，且 `@yanivjs/yaniv-editor` 为 **v0.1.2+**（旧版 v0.1.1 及更早才需要在 `main.ts` 全局 `app.use(Antd)`）。确认发布页已引入 `@yanivjs/yaniv-editor/style.css`。
 
 ### 画布区域塌陷
 
