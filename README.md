@@ -87,7 +87,7 @@ _评论发表、字数限制、时间正/倒序；支持回复与删除；同页
 
 ![pc-portal 写文章](docs/pc-portal-screenshots/article-editor.png)
 
-_Yaniv Editor 富文本（`/mine/editor`）：标题 + 正文 HTML、分类选择、正文内图片/视频上传；支持草稿/立即发布。接入说明见 [`docs/pc-portal-yaniv-editor.md`](docs/pc-portal-yaniv-editor.md)。_
+_Yaniv Editor（`@yanivjs/yaniv-editor@^0.1.3`）：`/mine/editor` 写文章（edit + 本地草稿/发布），`/posts/:id` 详情以 preview 同组件渲染；正文 HTML 入库。接入说明见 [`docs/pc-portal-yaniv-editor.md`](docs/pc-portal-yaniv-editor.md)。_
 
 ### 我的文章
 
@@ -352,7 +352,7 @@ express-vue3-monorepo/
 | 目录                      | `package.json` name                   | 主要用途                                                               |
 | ------------------------- | ------------------------------------- | ---------------------------------------------------------------------- |
 | `apps/backend/rest-api`   | `@express-vue3-monorepo/rest-api`     | Express REST API；引用 shared 的 `LARGE_UPLOAD_MAX_FILE_BYTES`         |
-| `apps/frontend/pc-portal` | `@express-vue3-monorepo/pc-portal`    | PC 门户（Yaniv Editor、大文件上传演示等）                              |
+| `apps/frontend/pc-portal` | `@express-vue3-monorepo/pc-portal`    | PC 门户（Yaniv Editor 写文章/详情 preview、大文件上传演示等）          |
 | `apps/frontend/pc-admin`  | `@express-vue3-monorepo/pc-admin`     | 管理后台（RBAC 路由守卫、Docker 网关 `/pc-admin/`）                    |
 | `packages/shared`         | `@express-vue3-monorepo/shared`       | 类型、Token 存储、`createSessionAuthActions`、`createAppPcHttp`        |
 | `packages/request-core`   | `@express-vue3-monorepo/request-core` | UI 无关 HTTP 核心（axios + rest-api 响应解包）                         |

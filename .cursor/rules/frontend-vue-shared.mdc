@@ -18,7 +18,7 @@ alwaysApply: false
 
 - **Vue 3**、**Vite**、**TypeScript**、**Pinia**、**Vue Router**、**Sass**。
 - **PC UI**：**Element Plus**、**@vueuse/core**（以 app 的 `dependencies` 为准）。
-- **pc-portal** 另依赖 **`@yanivjs/yaniv-editor`**、**Ant Design Vue**（editor peer）、**`@tiptap/*`** 等；见 `docs/pc-portal-yaniv-editor.md`。
+- **pc-portal** 另依赖 **`@yanivjs/yaniv-editor@^0.1.3`**（npm）及其 peer（**Ant Design Vue**、**`linkifyjs`**、**`@tiptap/*`**、`katex` 等）；发布页 `mode=edit`、详情页 `mode=preview`；**无需** `app.use(Antd)`。见 `docs/pc-portal-yaniv-editor.md`。
 - **pc-admin** 另依赖 **nprogress**（路由进度条）。
 
 ## `@express-vue3-monorepo/shared`
