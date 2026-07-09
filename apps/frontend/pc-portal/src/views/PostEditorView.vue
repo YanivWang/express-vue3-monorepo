@@ -466,7 +466,6 @@ onBeforeRouteLeave(async () => {
               :upload-image="handleUploadImage"
               :upload-video="handleUploadVideo"
               @update="onEditorUpdate"
-              @update:content="onEditorUpdate"
             />
           </section>
         </article>

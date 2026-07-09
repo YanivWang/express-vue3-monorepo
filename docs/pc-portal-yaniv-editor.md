@@ -1,8 +1,8 @@
 # pc-portal 富文本编辑器接入（Yaniv Editor）
 
-本文说明本仓库 **pc-portal** 如何接入 [`@yanivjs/yaniv-editor`](https://www.npmjs.com/package/@yanivjs/yaniv-editor) v0.1.2+（Vue 3 + Tiptap 3），用于帖子新建/编辑与发布。
+本文说明本仓库 **pc-portal** 如何接入 [`@yanivjs/yaniv-editor`](https://www.npmjs.com/package/@yanivjs/yaniv-editor) v0.1.3+（Vue 3 + Tiptap 3），用于帖子新建/编辑与发布。
 
-正文以 **HTML 字符串** 存储与展示；封面以专用段落嵌入正文（`data-post-cover`）；图片/视频嵌入正文 HTML。
+正文以 **HTML 字符串** 存储与展示；封面以专用段落嵌入正文（`data-post-cover`）；图片/视频嵌入正文 HTML。Full Editor 运行时内容协议为 ProseMirror JSON（`@update`），宿主通过 `getHTML()` 读写入库 HTML。
 
 ---
 
@@ -11,7 +11,7 @@
 | 项             | 说明                                                                                                                             |
 | -------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | **接入应用**   | `apps/frontend/pc-portal`                                                                                                        |
-| **编辑器包**   | `@yanivjs/yaniv-editor`（npm 包，当前声明为 `^0.1.2`）                                                                           |
+| **编辑器包**   | `@yanivjs/yaniv-editor`（npm 包，当前声明为 `^0.1.3`）                                                                           |
 | **发布页组件** | `PostEditorView.vue`                                                                                                             |
 | **路由**       | `/mine/editor`（新建）、`/mine/editor/:id`（编辑）                                                                               |
 | **页面布局**   | `meta.blankLayout: true` — 无站点顶栏，全视口沉浸式                                                                              |
@@ -49,21 +49,24 @@ flowchart LR
 
 ## 接入清单（Checklist）
 
-- [ ] `apps/frontend/pc-portal/package.json` 已声明 `@yanivjs/yaniv-editor@^0.1.2`，`pnpm install` 无报错
-- [ ] `package.json` 已声明 **`ant-design-vue`**、**`@ant-design/icons-vue`**（满足 yaniv-editor peer，勿仅依赖间接解析；**无需**在 `main.ts` 全局注册）
+- [ ] `apps/frontend/pc-portal/package.json` 已声明 `@yanivjs/yaniv-editor@^0.1.3`，`pnpm install` 无报错
+- [ ] `package.json` 已声明 **`ant-design-vue`**、**`@ant-design/icons-vue`**、**`linkifyjs`**（满足 yaniv-editor peer，勿仅依赖间接解析；**无需**在 `main.ts` 全局注册 Antd）
 - [ ] 发布页引入 `@yanivjs/yaniv-editor/style.css` 与 `katex/dist/katex.min.css`
 - [ ] 路由 meta 含 `blankLayout: true`
 - [ ] 宿主容器遵循 `.yaniv-editor-host` 高度契约
 - [ ] `YanivEditor` 使用 `v-if="!loading"`，避免 `initial-content` 与 Session 初始化竞态
+- [ ] Full Editor 仅监听 `@update`（JSON）；保存用 `getHTML()`；**不要**监听 `@update:content`（那是 Inline 入口）
 - [ ] 后端 `rest-api` 与前台 `pc-portal` 均已启动
 
 ---
 
 ## 依赖与构建
 
-`@yanivjs/yaniv-editor` 通过 **`apps/frontend/pc-portal/package.json`** 从 npm 安装，当前版本范围为 `^0.1.2`。
+`@yanivjs/yaniv-editor` 通过 **`apps/frontend/pc-portal/package.json`** 从 npm 安装，当前版本范围为 `^0.1.3`。
 
-yaniv-editor 的 **peerDependencies** 要求宿主安装 Ant Design Vue；pc-portal 须在 `dependencies` 中显式声明（当前为 `ant-design-vue@^4.2.6`、`@ant-design/icons-vue@^7.0.1`）。自 **v0.1.2** 起，库内部通过 `src/shared/antd.ts` 在各 UI 组件内按需局部注册 Ant Design Vue 组件，宿主 **无需** 在 `main.ts` 执行 `app.use(Antd)` 或引入 `ant-design-vue/dist/reset.css`。
+yaniv-editor 的 **peerDependencies** 要求宿主安装 Ant Design Vue 与 `linkifyjs` 等；pc-portal 须在 `dependencies` 中显式声明（当前为 `ant-design-vue@^4.2.6`、`@ant-design/icons-vue@^7.0.1`、`linkifyjs@^4.3.3`）。自 **v0.1.2** 起，库内部通过 `src/shared/antd.ts` 在各 UI 组件内按需局部注册 Ant Design Vue 组件，宿主 **无需** 在 `main.ts` 执行 `app.use(Antd)` 或引入 `ant-design-vue/dist/reset.css`。
+
+自 **v0.1.3** 起，编辑器浮层统一挂载在 `.yaniv-editor__overlay-portal`（不挂 `document.body`），可通过 `:z-index-base`（默认 `1000`）协商与宿主 Modal 的层级；详见上游 [Z-Index 与浮层](https://yanivwang.github.io/yaniv-editor/guide/z-index.html)。
 
 宿主 **`package.json` 亦直接声明** 大量 `@tiptap/*`（Tiptap 3.x，yaniv-editor 底层）、`katex`、`dompurify`、`spark-md5`（大文件 MD5）、`docx` / `mammoth` / `file-saver`（导入导出）等；升级 yaniv-editor 后若 dev 仍见旧行为，删除 `apps/frontend/pc-portal/node_modules/.vite` 后重启 dev。
 
@@ -112,6 +115,7 @@ app.mount("#app");
 | Preset     | `preset`                    | `"full"`                |
 | Appearance | `appearance` + `color-mode` | `"default"` + `"light"` |
 | Overrides  | `features`                  | `{ ai: false }`         |
+| Overlay    | `z-index-base`              | 未传，使用库默认 `1000` |
 
 [`PostEditorView.vue`](../apps/frontend/pc-portal/src/views/PostEditorView.vue)：
 
@@ -128,18 +132,22 @@ app.mount("#app");
   :initial-content="editorInitialContent"
   :upload-image="handleUploadImage"
   :upload-video="handleUploadVideo"
+  @update="onEditorUpdate"
 />
 ```
 
 ### 读写约定
 
-| 操作     | 方式                                                                 |
-| -------- | -------------------------------------------------------------------- |
-| 加载正文 | `:initial-content` 传 HTML；编辑态经 `parseEditorContent` 剥离封面块 |
-| 保存正文 | `mergeCoverIntoContent(getHTML(), coverUrl, title)` 后提交           |
-| 空校验   | `isPostEditorBodyEmpty(html, plain)`（含图片/表格等非文本块）        |
-| 延迟挂载 | `v-if="!loading"`                                                    |
-| 模式切换 | `:mode` prop（禁止 `editor.setEditable()`）                          |
+| 操作     | 方式                                                                  |
+| -------- | --------------------------------------------------------------------- |
+| 加载正文 | `:initial-content` 传 HTML；编辑态经 `parseEditorContent` 剥离封面块  |
+| 内容变更 | Full Editor `@update` 抛出 **JSONContent**；宿主侧仅作脏标记/草稿触发 |
+| 保存正文 | `mergeCoverIntoContent(getHTML(), coverUrl, title)` 后提交            |
+| 空校验   | `isPostEditorBodyEmpty(html, plain)`（含图片/表格等非文本块）         |
+| 延迟挂载 | `v-if="!loading"`                                                     |
+| 模式切换 | `:mode` prop（禁止 `editor.setEditable()`）                           |
+
+> Inline 形态（`@yanivjs/yaniv-editor/inline` + `v-model:content` / `@update:content`）本仓库帖子页未使用。
 
 ---
 
@@ -245,9 +253,14 @@ app.mount("#app");
 
 确认使用 `isPostEditorBodyEmpty`，勿仅用 `getText().trim()`。
 
+### 浮层被宿主 UI 挡住 / 层级错乱
+
+v0.1.3 起浮层挂在编辑器内 overlay portal。默认 `zIndexBase=1000`；宿主全局 Modal 若需盖住编辑器全部浮层，z-index 应高于 **1100**（`base + 100`），或调整 `:z-index-base`。
+
 ---
 
 ## 相关文档
 
 - [yaniv-editor npm 包](https://www.npmjs.com/package/@yanivjs/yaniv-editor)
+- [yaniv-editor 在线文档](https://yanivwang.github.io/yaniv-editor/)
 - [OpenAPI 契约](./openapi.yaml)
