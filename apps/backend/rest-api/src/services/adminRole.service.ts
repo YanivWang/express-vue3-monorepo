@@ -47,6 +47,24 @@ function assertNonSystem(role: Model) {
   }
 }
 
+/**
+ * 两个内置角色的权限绑定不接受外部写入：
+ * - `user` 是所有注册用户的默认角色，任何 `admin.*` 绑定都会让全站前台用户拿到后台入口（`hasStaffEntry`）。
+ * - `super_admin` 由 `rbac.service` 按 slug 直接视为拥有全部权限码，绑定表改了也不生效，
+ *   且会在下次启动被 `bootstrapRbacIfNeeded()` 重新同步回全量——放行只会让管理端显示与实际不符。
+ *
+ * 需要可配置权限的后台角色请新建自定义角色（`POST /api/admin/roles`）。
+ */
+function assertPermissionsAssignable(role: Model) {
+  const slug = String(role.get("slug"));
+  if (slug === ROLE_SLUG_USER) {
+    throw createHttpError(400, "注册用户角色不可绑定后台权限，请新建自定义角色");
+  }
+  if (slug === ROLE_SLUG_SUPER_ADMIN) {
+    throw createHttpError(400, "超级管理员恒定拥有全部权限，无需也不可修改其权限绑定");
+  }
+}
+
 export async function createCustomRole(payload: {
   name: unknown;
   slug: unknown;
@@ -118,6 +136,7 @@ export async function updateRoleById(
   }
 
   if (payload.permissionCodes !== undefined) {
+    assertPermissionsAssignable(row);
     if (!Array.isArray(payload.permissionCodes)) {
       throw createHttpError(400, "permissionCodes 须为字符串数组");
     }
