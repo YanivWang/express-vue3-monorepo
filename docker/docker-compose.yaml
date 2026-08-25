@@ -69,6 +69,7 @@ services:
         condition: service_started
 
 volumes:
+  # MySQL 生产环境数据卷
   mysql_data:
-    # MySQL 生产环境数据卷
-    redis_data: # Redis 生产环境数据卷
+  # Redis 生产环境数据卷
+  redis_data:
