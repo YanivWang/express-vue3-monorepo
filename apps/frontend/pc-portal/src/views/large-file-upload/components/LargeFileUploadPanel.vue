@@ -2,7 +2,12 @@
 import { ElMessage } from "element-plus";
 import { computed, shallowRef } from "vue";
 
-import { useLargeFileUpload } from "../composables/useLargeFileUpload";
+import {
+  LARGE_UPLOAD_DEFAULT_CHUNK_BYTES,
+  LARGE_UPLOAD_DEFAULT_CONCURRENCY,
+  LARGE_UPLOAD_DEFAULT_MAX_RETRIES,
+  useLargeFileUpload,
+} from "../composables/useLargeFileUpload";
 
 function formatDuration(ms: number): string {
   if (ms >= 1000) {
@@ -13,12 +18,18 @@ function formatDuration(ms: number): string {
 
 const props = withDefaults(
   defineProps<{
-    /** 分片大小（字节），默认 5MB，须在后端 1MB～8MB 范围内 */
+    /** 分片大小（字节），须在后端 1MB～8MB 范围内 */
     chunkSize?: number;
+    /** 分片 HTTP 并发数 */
     concurrency?: number;
+    /** 单片失败重试次数 */
     maxRetries?: number;
   }>(),
-  {},
+  {
+    chunkSize: LARGE_UPLOAD_DEFAULT_CHUNK_BYTES,
+    concurrency: LARGE_UPLOAD_DEFAULT_CONCURRENCY,
+    maxRetries: LARGE_UPLOAD_DEFAULT_MAX_RETRIES,
+  },
 );
 
 const emit = defineEmits<{

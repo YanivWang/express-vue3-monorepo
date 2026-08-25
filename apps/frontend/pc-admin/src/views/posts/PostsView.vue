@@ -2,7 +2,7 @@
 import { Delete, Edit, Search } from "@element-plus/icons-vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { computed, onMounted, reactive, ref } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { useRouter } from "vue-router";
 
 import { fetchCategories } from "@/api/categories";
 import { fetchPortalUsers } from "@/api/portalUsers";
@@ -31,7 +31,6 @@ function flattenLeaves(nodes: CategoryTreeNode[], prefix = ""): { label: string;
 
 const auth = useAuthStore();
 const router = useRouter();
-const route = useRoute();
 const loading = ref(false);
 const rows = ref<PostItem[]>([]);
 const pagination = reactive({ page: 1, limit: 10, total: 0, totalPages: 0, hasNext: false });
@@ -144,7 +143,7 @@ async function rm(row: PostItem) {
 }
 
 function gotoComments(pid: number) {
-  router.push({ path: "/comments", query: { postId: String(pid) } });
+  void router.push({ path: "/comments", query: { postId: String(pid) } });
 }
 
 onMounted(async () => {
@@ -152,11 +151,15 @@ onMounted(async () => {
   await reloadList().catch(() => undefined);
 });
 
-function onPublishedQuick(row: PostItem, published: boolean) {
-  httpPutPost(row.id, { published }).then(async () => {
-    await reloadList();
+async function onPublishedQuick(row: PostItem, published: boolean) {
+  try {
+    await httpPutPost(row.id, { published });
     ElMessage.success("已更新发布状态");
-  });
+  } catch {
+    /* 错误提示由 http 层统一弹出，这里只需保证下面的 reload 一定执行 */
+  }
+  // 成功时刷新计数与排序；失败时让 el-switch 回到服务端真实的 published 值
+  await reloadList();
 }
 </script>
 

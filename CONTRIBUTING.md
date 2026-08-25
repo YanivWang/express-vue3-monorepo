@@ -19,7 +19,7 @@
   - **`pnpm typecheck:solution`**：根 `tsc -b`，**仅** `request-core` / `js-bridge` / `web-monitor`
   - **`pnpm typecheck:packages`**：仅 `packages/**` 并行 typecheck
   - `pnpm lint`、`pnpm lint:style`、`pnpm format:check`
-  - 提交前全套校验：`pnpm verify`（含 `pnpm test`，即 rest-api Vitest）
+  - 提交前全套校验：`pnpm verify`（含 `pnpm test`，即 rest-api 的 Vitest 单测 + `scripts/test-env.ts` 环境冒烟）
 - Docker：`pnpm docker:dev`、`pnpm docker:dev:down`、`pnpm docker:dev:debug`（详见 README「Docker 开发」）
 - **js-bridge 包内测试**（不在根 `pnpm test` 范围内）：`pnpm --filter @express-vue3-monorepo/js-bridge test`
 
@@ -30,7 +30,7 @@
 | pc-portal | `apps/frontend/pc-portal/.env.development` | `VITE_API_BASE_URL`、`VITE_DEV_PROXY_TARGET`、`VITE_DEV_HMR_CLIENT_PORT`；示例见 [`.env.example`](apps/frontend/pc-portal/.env.example) |
 | pc-admin  | `apps/frontend/pc-admin/.env.development`  | 同上；网关/生产子路径另设 **`VITE_ADMIN_BASE=/pc-admin/`**（Compose 与生产镜像已注入）                                                  |
 
-两 app 经 `@express-vue3-monorepo/shared` 的 `createAppPcHttp` 发请求；Token 键分别为 **`pc_portal_access_token`**、**`pc_admin_access_token`**。
+两 app 经 `@express-vue3-monorepo/shared` 的 `createAppPcHttp` 发请求；JWT 存于同名 **Cookie**（js-cookie，默认 7 天）：**`pc_portal_access_token`**、**`pc_admin_access_token`**。
 
 ## 文档
 

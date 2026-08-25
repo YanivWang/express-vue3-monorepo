@@ -4,14 +4,18 @@
  *
  * - 仅用 mysql2 + env，不调用 `connectDatabase()`，避免在未清理前先 alter 扩索引。
  * - 按表分组：`ALTER TABLE t DROP INDEX i1, DROP INDEX i2, ...`
- * - `DEDUPE_INDEXES_DRY_RUN=1`：仅打印将删除的索引，不执行 DROP。
+ * - `DEDUPE_INDEXES_DRY_RUN=1`（或 `true`）：仅打印将删除的索引，不执行 DROP。
+ *
+ * 判定「重复」的分组键为 (表名, 是否 UNIQUE, 有序列名序列)：
+ * 唯一性不同则**不**视为重复（同列的 UNIQUE 与普通索引都会保留）。
  *
  * 保留规则（同组内选一个 keeper）：
  * 1. 单列时优先保留 INDEX_NAME === 列名；
  * 2. 优先保留 INDEX_NAME 不以 `_数字` 结尾的名称（跳过 slug_3 等 sequelize 尾缀形式）；
- * 3. 否则按字典序最小。
+ * 3. 若全部都带 `_数字` 尾缀且前缀一致，保留数字最小的那个；
+ * 4. 否则按字典序最小。
  *
- * FULLTEXT / SPATIAL 等非 BTREE 索引不参与比对与删除。
+ * `PRIMARY` 恒不参与；FULLTEXT / SPATIAL 等非 BTREE 索引也不参与比对与删除。
  */
 import path from "node:path";
 import { fileURLToPath } from "node:url";

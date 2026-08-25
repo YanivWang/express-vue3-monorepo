@@ -2,7 +2,10 @@
 node_modules/
 .pnpm-store/
 
-# 环境变量：默认忽略 .env.*；显式取消忽略可提交的开发模板
+# 环境变量：默认忽略 .env.*，仅放行下面两个。
+# .env.example      —— 空值模板
+# .env.development  —— 带示例口令、可直接跑的开发配置；口令公开可见，共享环境须替换，
+#                      本地私有覆盖请写 .env.development.local（仍被忽略）
 .env
 .env.*
 !.env.example

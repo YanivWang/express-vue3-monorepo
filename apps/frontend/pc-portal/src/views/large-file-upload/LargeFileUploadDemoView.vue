@@ -9,7 +9,6 @@ import { LARGE_UPLOAD_MAX_FILE_MB } from "@express-vue3-monorepo/shared/constant
 
 import LargeFileUploadPanel from "./components/LargeFileUploadPanel.vue";
 
-
 /** 本页内存中的成功记录；刷新即清空；最新在前 */
 type SuccessRecord = {
   url: string;

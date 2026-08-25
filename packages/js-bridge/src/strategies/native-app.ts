@@ -10,10 +10,10 @@ import type { BridgeAbility, BridgeStrategy } from "../types";
  *
  * 设计：
  *   - 调用约定：window.__nativeBridge__.call(method, payload) → Promise<result>
- *     或通过 iOS webkit.messageHandlers / Android prompt / addJavascriptInterface
- *   - 我们做统一抽象：优先使用 `window.__nativeBridge__` 注入的 call；
- *     若无则 fallback 到 iOS webkit / Android 原生接口；再无则抛 BridgeError
- *   - native 侧回调通过 window.__nativeBridgeCallback__(callId, result, err) 返回
+ *   - 统一抽象：优先使用 `window.__nativeBridge__` 注入的 call；若无则依次 fallback 到
+ *     iOS `webkit.messageHandlers.nativeBridge.postMessage`、Android `AndroidBridge.call`
+ *     （addJavascriptInterface 注入）；再无则抛 BridgeError（code `NO_CHANNEL`）
+ *   - 走 fallback 通道时，native 侧回调 window.__nativeBridgeCallback__(callId, result, err) 兑现 Promise
  *
  * 业务侧只需在 native 中注入 window.__nativeBridge__，不需要关心策略内部。
  */

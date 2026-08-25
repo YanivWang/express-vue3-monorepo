@@ -16,7 +16,6 @@ import type {
   TokenProvider,
   LoadingHandler,
   RequestHooks,
-  NormalizedError,
 } from "./types";
 import type { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from "axios";
 

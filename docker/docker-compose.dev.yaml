@@ -14,8 +14,9 @@
 #   - logs/pc-admin-dev.log    pc-admin（Vite）标准输出与错误（tee 追加）
 #   - logs/mysql/error.log    mysqld 错误日志（docker/mysql-dev.cnf）
 #
-# MySQL：仅在容器内运行；rest-api 通过 Compose 注入的 DB_HOST=mysql 连接。默认不映射 3306 到宿主；
-# 若要用宿主上的 GUI 客户端连库，或宿主本机跑 pnpm rest-api:dev 且连同一实例，请取消注释下方 ports。
+# MySQL / Redis：容器间由 rest-api 经 Compose 注入的 DB_HOST=mysql、REDIS_URL=redis://…@redis:6379 连接。
+# 本文件默认把 MySQL 3306、Redis 6379 映射到宿主，便于宿主 GUI 客户端连库，或宿主本机跑
+# pnpm rest-api:dev 连同一实例（此时 .env.development 里 DB_HOST 设为 127.0.0.1）；不需要暴露时注释掉对应 ports。
 
 name: express-vue3-monorepo-dev
 

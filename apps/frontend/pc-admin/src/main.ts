@@ -1,6 +1,6 @@
 import ElementPlus from "element-plus";
 import zhCn from "element-plus/es/locale/lang/zh-cn";
-import { createApp } from "vue";
+import { createApp, type Component } from "vue";
 
 import "element-plus/dist/index.css";
 
@@ -11,7 +11,8 @@ import router from "./router";
 import { useAuthStore } from "./stores/auth";
 import pinia from "./stores/pinia";
 
-const app = createApp(App);
+// ESLint 的类型程序无法解析 .vue SFC 的具体类型（只有 vue-tsc 能），显式标注根组件类型（与 pc-portal 一致）
+const app = createApp(App as Component);
 
 app.use(pinia);
 app.use(router);

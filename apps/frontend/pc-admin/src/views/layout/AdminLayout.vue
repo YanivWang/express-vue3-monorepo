@@ -25,7 +25,7 @@ const showSystemMenu = computed(
 
 async function signOut() {
   await auth.logout();
-  router.push("/login");
+  await router.push("/login");
 }
 </script>
 

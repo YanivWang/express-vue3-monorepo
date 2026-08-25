@@ -34,7 +34,7 @@ async function reload() {
   loading.value = true;
   try {
     const { categories } = await fetchCategories();
-    tree.value = (categories ?? []);
+    tree.value = categories ?? [];
   } finally {
     loading.value = false;
   }
@@ -102,7 +102,11 @@ onMounted(reload);
 <template>
   <div>
     <el-space style="margin-bottom: 12px">
-      <el-button v-if="canWriteCat()" type="primary" @click="((rootDlg.open = true), (rootDlg.name = ''))">
+      <el-button
+        v-if="canWriteCat()"
+        type="primary"
+        @click="((rootDlg.open = true), (rootDlg.name = ''))"
+      >
         新建一级分类
       </el-button>
     </el-space>
@@ -121,11 +125,20 @@ onMounted(reload);
       <el-table-column label="操作" width="340">
         <template #default="{ row }">
           <el-space>
-            <el-button v-if="canWriteCat() && !isLeaf(row)" link type="primary" @click="openLeaf(row)">
+            <el-button
+              v-if="canWriteCat() && !isLeaf(row)"
+              link
+              type="primary"
+              @click="openLeaf(row)"
+            >
               新建二级
             </el-button>
-            <el-button v-if="canWriteCat()" link type="primary" @click="openEdit(row)">编辑</el-button>
-            <el-button v-if="canDeleteCat()" link type="danger" @click="remove(row)">删除</el-button>
+            <el-button v-if="canWriteCat()" link type="primary" @click="openEdit(row)"
+              >编辑</el-button
+            >
+            <el-button v-if="canDeleteCat()" link type="danger" @click="remove(row)"
+              >删除</el-button
+            >
           </el-space>
         </template>
       </el-table-column>
@@ -133,16 +146,20 @@ onMounted(reload);
 
     <el-dialog v-model="rootDlg.open" title="新建一级分类" width="420px">
       <el-input v-model="rootDlg.name" placeholder="名称" />
-      <el-input-number v-model="rootDlg.sortOrder" style="margin-top: 12px; width: 100%" />
+      <el-input-number v-model="rootDlg.sortOrder" class="cat-dlg__sort" />
       <template #footer>
         <el-button @click="rootDlg.open = false">取消</el-button>
         <el-button type="primary" @click="submitRoot">保存</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="leafDlg.open" :title="`在「${leafDlg.parentName}」下新建二级`" width="420px">
+    <el-dialog
+      v-model="leafDlg.open"
+      :title="`在「${leafDlg.parentName}」下新建二级`"
+      width="420px"
+    >
       <el-input v-model="leafDlg.name" placeholder="名称" />
-      <el-input-number v-model="leafDlg.sortOrder" style="margin-top: 12px; width: 100%" />
+      <el-input-number v-model="leafDlg.sortOrder" class="cat-dlg__sort" />
       <template #footer>
         <el-button @click="leafDlg.open = false">取消</el-button>
         <el-button type="primary" @click="submitLeaf">保存</el-button>
@@ -151,7 +168,7 @@ onMounted(reload);
 
     <el-dialog v-model="editDlg.open" title="编辑分类" width="420px">
       <el-input v-model="editDlg.name" />
-      <el-input-number v-model="editDlg.sortOrder" style="margin-top: 12px; width: 100%" />
+      <el-input-number v-model="editDlg.sortOrder" class="cat-dlg__sort" />
       <template #footer>
         <el-button @click="editDlg.open = false">取消</el-button>
         <el-button type="primary" @click="submitEdit">保存</el-button>
@@ -159,3 +176,11 @@ onMounted(reload);
     </el-dialog>
   </div>
 </template>
+
+<style scoped lang="scss">
+/* 三个分类弹窗里的「排序」输入框共用：与名称输入框拉开间距并撑满弹窗宽度 */
+.cat-dlg__sort {
+  width: 100%;
+  margin-top: 12px;
+}
+</style>

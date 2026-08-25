@@ -9,3 +9,7 @@ pnpm-lock.yaml
 logs
 uploads
 .pnpm-store
+
+# 运行时/工具产生的本地目录（均未纳入版本控制，不应参与 format:check 门禁）
+.data
+.claude

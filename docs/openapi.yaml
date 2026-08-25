@@ -18,7 +18,7 @@ info:
       - **头像等用户资料图**：`/api/uploads/profiles`，**单次仅 1 张**，**单张最大 8MB**，落盘 **`uploads/profiles/<年>/<月>/`**，URL **`/uploads/profiles/…`**（可写入 `User.avatar` 等）。
       - **大文件分片（单文件最大 1GB，与 `packages/shared` 常量一致）**：`POST /api/uploads/large/init`（**必填** `fileMd5`）→ `PUT .../chunks/{chunkIndex}`（表单字段 **`chunk`**，请求头 **`X-Chunk-Md5`**）→ `POST .../merge`；`GET .../status` 查询断点；`DELETE ...` 取消任务。分片目录 **`uploads/chunks-temp/<fileMd5>/<uploadId>/`**；成品 URL 形如 **`/uploads/large/...`**，任务 TTL **24h**（过期 `410`）。
       - 静态访问 **`GET /uploads/...`**（不走 API 全局限流）。
-    - 文章：正文为 HTML 字符串，配图/视频须嵌入正文（`<img>` / `<video>` 的 `src` 须为本站 **`/uploads/...`**，入库前经 `content-safety.ts` 净化）。`GET /api/posts` 公开分页（仅 `published: true`）；`GET /api/posts/{id}` 未挂载可选 JWT，`findPostByIdPublic` 的访问者恒为匿名，**未发布文章对任意客户端（含作者）均返回 404**；`POST /api/posts/{postId}/comments` 校验文章时传入**当前登录用户 id**，故 **作者仍可对本人的未发布文章发表评论**（与详情 GET 行为不一致，以 controller/service 为准）。`GET /api/posts/mine/list` 及创建/更新/删除需 Bearer；更新/删除在 **RBAC** 下为 **作者本人** 或具备 **`admin.posts.write`** / **`admin.posts.delete`** 等权限（见 `post.service.ts`）。
+    - 文章：正文为 HTML 字符串，配图/视频须嵌入正文（`<img>` / `<video>` 的 `src` 须为本站 **`/uploads/...`**，入库前经 `content-safety.ts` 净化）。`GET /api/posts` 公开分页（仅 `published: true`）；`GET /api/posts/{id}` 挂载 `optionalAuthMiddleware`，`findPostByIdPublic` 会把当前登录用户 id 作为访问者传入，**未发布文章仅作者本人可读，其余客户端（含匿名）一律 404**；`POST /api/posts/{postId}/comments` 同样以当前登录用户 id 校验文章，故 **作者可对本人的未发布文章发表评论**（与详情 GET 口径一致）。`GET /api/posts/mine/list` 及创建/更新/删除需 Bearer；更新/删除在 **RBAC** 下为 **作者本人** 或具备 **`admin.posts.write`** / **`admin.posts.delete`** 等权限（见 `post.service.ts`）。
     - 内容与敏感词：发帖（`POST /api/posts`、`PUT /api/posts/{id}` 涉及 `title`/`content`）、发评（`POST .../comments`）在 **`400`** 可返回固定 **`msg`**「包含敏感言论，请删除敏感言论再试试？」（见 `utils/content-safety.ts`）；**先敏感词校验，再服务端 XSS 净化后入库**。
     - **管理端**：`/api/admin/...` 路由均须 Bearer；按细粒度 **`requirePermission`** 校验，`403` 为权限不足。**`GET /api/admin/posts`** 等见 paths 小节。
     - 评论：`GET /api/posts/{postId}/comments` 挂载 `optionalAuthMiddleware`；`POST` 发评与 `DELETE` 删评需 Bearer；删除限评论作者、文章作者或具备 **`admin.comments.delete`**（及等价 RBAC）的账号。
@@ -1882,7 +1882,7 @@ paths:
       description: |
         支持可选 Bearer（`optionalAuthMiddleware`）；携带合法且未拉黑 JWT 时回填 `myVote`、`myFavorited`（已 logout 拉黑 token 视为匿名）。
         **已发布**正文每次成功读取会对 `viewCount +1`，作者本人命中默认不累加 PV。
-        仍仅 **已发布**文章可对匿名访客返回；未发布对外 404。
+        **未发布**文章仅 **作者本人**（携带其 JWT）可读，其余客户端（含匿名）返回 404。
       security:
         - {}
         - bearerAuth: []
@@ -1928,7 +1928,7 @@ paths:
       summary: 更新文章（部分字段）
       description: |
         需在请求头携带 Bearer JWT。请求体与 `schema/post.schema.ts` 中 `updatePostSchema`（`postBodySchema` 的全部字段可选，另可选 `categoryId`）一致，至少提供一个字段；否则 400「没有要更新的字段」。
-        若为 **他人的未发布草稿**，须具备 **`admin.posts.write`**；公开规则见 `post.service.ts` `canEdit`。
+        若为 **他人的文章**（含未发布草稿），须具备 **`admin.posts.write`**；判定见 `post.service.ts` 的 `canUpdatePost`。
         **`title` / `content`** 更新时同样走敏感词 + XSS 净化。
       security:
         - bearerAuth: []
@@ -3193,7 +3193,12 @@ paths:
     patch:
       tags: [管理端]
       summary: 更新角色或权限绑定
-      description: 需 Bearer；**`admin.roles.manage`**。可传 `permissionCodes` 全量覆盖绑定。
+      description: |
+        需 Bearer；**`admin.roles.manage`**。可传 `permissionCodes` **全量覆盖**该角色的权限绑定。
+        **内置角色 `user` 与 `super_admin` 拒绝权限绑定写入**（返回 `400`，见 `adminRole.service` 的 `assertPermissionsAssignable`）：
+        `user` 是全体注册用户的默认角色，绑上 `admin.*` 会让前台用户拿到后台入口；`super_admin` 由 `rbac.service` 按 slug 恒定视为拥有全部权限码，改绑定表不生效。
+        需要可配置权限的后台角色请用 `POST /api/admin/roles` 新建自定义角色。
+        仅传 `name` / `isStaff` 时不受此限制。
       security:
         - bearerAuth: []
       parameters:
@@ -3228,7 +3233,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/MsgBody"
         "400":
-          description: 校验失败
+          description: |
+            校验失败：没有要更新的字段、`permissionCodes` 非字符串数组、存在无效权限码，
+            或对内置 `user` / `super_admin` 角色写入权限绑定（`assertPermissionsAssignable`）。
           content:
             application/json:
               schema:

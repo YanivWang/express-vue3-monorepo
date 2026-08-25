@@ -1,4 +1,4 @@
-/** 与 db.ts 默认种子「IT技术」下叶子分类 name 完全一致 */
+/** 与 `scripts/it-category-seed.json`（`pnpm db:seed-categories` 写入）中「IT技术」下的叶子分类 name 完全一致 */
 import { STATIC_EXTRA_POSTS_BY_PREFIX } from "./synthetic-it-data-static-extra-posts.js";
 
 export type SyntheticBundle = {

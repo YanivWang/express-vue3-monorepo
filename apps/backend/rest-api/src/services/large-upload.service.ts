@@ -2,7 +2,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import fsSync, { createReadStream, createWriteStream } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { finished, pipeline } from "node:stream/promises";
+import { finished } from "node:stream/promises";
 
 import { filePathToPublicUrl, uploadsRoot } from "../config/upload.config.js";
 import { createHttpError } from "../middlewares/error.middleware.js";

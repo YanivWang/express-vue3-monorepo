@@ -143,15 +143,17 @@ app.mount("#app");
 
 [`PostEditorView.vue`](../apps/frontend/pc-portal/src/views/PostEditorView.vue)：
 
+组件属性在 `<script setup>` 中以常量声明后绑定（`EDITOR_MODE = "edit"`、`EDITOR_PRESET = "full"`、`EDITOR_APPEARANCE = "default"`、`EDITOR_COLOR_MODE = "light"`、`EDITOR_FEATURES = { ai: false }`），发布页与详情页共用同一组取值：
+
 ```vue
 <YanivEditor
   v-if="!loading"
   ref="editorRef"
-  mode="edit"
-  preset="full"
-  appearance="default"
-  color-mode="light"
-  :features="{ ai: false }"
+  :mode="EDITOR_MODE"
+  :preset="EDITOR_PRESET"
+  :appearance="EDITOR_APPEARANCE"
+  :color-mode="EDITOR_COLOR_MODE"
+  :features="EDITOR_FEATURES"
   locale="zh-CN"
   :initial-content="editorInitialContent"
   :upload-image="handleUploadImage"
@@ -168,15 +170,17 @@ app.mount("#app");
 <YanivEditor
   v-if="!loading"
   :key="postId"
-  mode="preview"
-  preset="full"
-  appearance="default"
-  color-mode="light"
-  :features="{ ai: false }"
+  :mode="EDITOR_MODE"
+  :preset="EDITOR_PRESET"
+  :appearance="EDITOR_APPEARANCE"
+  :color-mode="EDITOR_COLOR_MODE"
+  :features="EDITOR_FEATURES"
   locale="zh-CN"
   :initial-content="postBodyHtml"
 />
 ```
+
+（详情页的 `EDITOR_MODE` 为 `"preview"`，其余常量与发布页取值相同。）
 
 ### 读写约定
 
@@ -256,7 +260,19 @@ app.mount("#app");
 | 详情页 → 编辑        | `editor-edit`                | `/mine/editor/:id` | 作者本人                       |
 | 帖子详情             | `post-detail`                | `/posts/:id`       | preview 渲染正文               |
 
-其它 pc-portal 路由（与编辑器无关）：`/` 首页、`/search` 搜索、`/demo/category-feed` 分类 Feed UI 演示（blankLayout，本地 demo，无需登录）、`/test/big-file-upload` 大文件分片演示（须登录）。
+其它 pc-portal 路由（与编辑器无关，完整清单见 [`router/index.ts`](../apps/frontend/pc-portal/src/router/index.ts)）：
+
+| path                    | name                 | 说明                                                       |
+| ----------------------- | -------------------- | ---------------------------------------------------------- |
+| `/`                     | `home`               | 首页                                                       |
+| `/search`               | `search`             | 搜索                                                       |
+| `/login` · `/register`  | `login` · `register` | `guestOnly`：已登录会被重定向到 `/`                        |
+| `/mine`                 | `mine`               | 我的文章，`requiresAuth`                                   |
+| `/favorites`            | `favorites`          | 我的收藏，`requiresAuth`                                   |
+| `/mine/profile`         | `profile`            | 个人资料，`requiresAuth`                                   |
+| `/mine/profile/edit`    | `profile-edit`       | 编辑资料，`requiresAuth`                                   |
+| `/demo/category-feed`   | `category-feed-demo` | 分类 Feed UI 演示，`blankLayout`，本地 demo 数据、无需登录 |
+| `/test/big-file-upload` | `big-file-upload`    | 大文件分片演示，`requiresAuth`                             |
 
 ---
 

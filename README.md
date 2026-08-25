@@ -213,7 +213,7 @@ pnpm pc-portal:dev
 pnpm pc-admin:dev
 ```
 
-在仓库根创建 **`.env.development`**（及按需 **`.env.development.local`**）。加载顺序与 `APP_ENV` / `NODE_ENV` 约束见 `apps/backend/rest-api/src/env.ts`。至少配置：
+仓库根**已跟踪提交**一份 **`.env.development`**（`.gitignore` 中以 `!.env.development` 放行），可直接跑起来；**其中的口令是公开可见的示例值，仅供一次性本地试跑**，请在任何共享环境中先行替换，或改用不入库的 **`.env.development.local`** 覆盖。加载顺序与 `APP_ENV` / `NODE_ENV` 约束见 `apps/backend/rest-api/src/env.ts`。至少需要下列变量：
 
 | 变量                                                   | 说明                                                                                                                                                                                                                            |
 | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -221,7 +221,7 @@ pnpm pc-admin:dev
 | `REDIS_URL`                                            | 必填；例如 `redis://:密码@127.0.0.1:6379`。Docker Compose 开发栈中 **`REDIS_URL`** 常由 [`docker-compose.base.yaml`](docker/docker-compose.base.yaml) 注入（`REDIS_PASSWORD` 来自 `.env.development`）；宿主直连 Redis 时须自填 |
 | `REDIS_PASSWORD`                                       | 使用 **`pnpm docker:*`** 时须在 `.env.development` 配置（供 **redis** 容器 `requirepass` 与拼接 **`REDIS_URL`**）；仅用宿主服务、`REDIS_URL` 已含口令时可不单独使用本变量                                                       |
 | `DB_HOST`、`DB_USER`、`DB_PWD`、`DB_NAME`              | 必填；`DB_PORT` 缺省 3306                                                                                                                                                                                                       |
-| `ADMIN_BOOTSTRAP_USERNAME`、`ADMIN_BOOTSTRAP_PASSWORD` | 首个 `super_admin` 及合成链路默认登录依赖；**代码内无默认账号**                                                                                                                                                                 |
+| `ADMIN_BOOTSTRAP_USERNAME`、`ADMIN_BOOTSTRAP_PASSWORD` | 首个 `super_admin` 及合成链路默认登录依赖；**源码内无硬编码账号**，但仓库跟踪的 `.env.development` 已带一组示例口令，**共享环境务必替换**                                                                                       |
 | `DB_SYNC_ALTER`                                        | 可选；development 下 Sequelize 默认 `sync({ alter: true })`；设为 **`0`** 时仅建缺表、不 alter                                                                                                                                  |
 
 若仅在 **宿主** 调试后端进程，可先 **`pnpm docker:dev`** 保持 **MySQL / Redis**，[`docker/docker-compose.dev.yaml`](docker/docker-compose.dev.yaml) 默认映射 **`3306:3306`** 与 **`6379:6379`** 到宿主；`.env.development` 设 **`DB_HOST=127.0.0.1`**，并配置 **`REDIS_URL`**（口令与 compose 中 **`REDIS_PASSWORD`**、本机 Redis 一致），再执行 **`pnpm rest-api:dev`**。不需要暴露端口时可自行注释对应 `ports`。
@@ -235,7 +235,7 @@ pnpm pc-admin:dev
 | `VITE_DEV_HMR_CLIENT_PORT` | Docker 网关模式下 HMR WebSocket 端口，通常与 **`GATEWAY_HOST_PORT`**（默认 **2026**）一致；Compose 开发栈会注入                      |
 | `VITE_ADMIN_BASE`          | **仅 pc-admin**：生产/网关子路径 base，Compose 与生产镜像为 **`/pc-admin/`**；宿主单独 `pnpm pc-admin:dev` 时可不设（默认 `/`）      |
 
-两前端 app 的 JWT 分别存于 **`pc_portal_access_token`**、**`pc_admin_access_token`**（`shared` 的 `createAppPcHttp`）；管理端 dev 端口 **5174**，门户 **5173**。
+两前端 app 的 JWT 分别存于同名 **Cookie**：**`pc_portal_access_token`**、**`pc_admin_access_token`**（`shared` 的 `createAppPcHttp` → `createTokenStorage`，底层为 js-cookie，默认有效期 **7 天**）；管理端 dev 端口 **5174**，门户 **5173**。
 
 ### 首个超级管理员（bootstrap）
 
@@ -245,25 +245,25 @@ pnpm pc-admin:dev
 
 ## 常用命令
 
-| 功能                                                       | 命令                                                                                       |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| 并行对所有含 `dev` 的包执行 dev                            | `pnpm dev`                                                                                 |
-| 宿主运行后端                                               | `pnpm rest-api:dev` / `pnpm rest-api:dev:debug` / `pnpm rest-api:start`                    |
-| 宿主运行前端                                               | `pnpm pc-portal:dev` / `pnpm pc-admin:dev`                                                 |
-| 删库并重建 MySQL 库（`DROP DATABASE` + `CREATE`）          | `pnpm db:drop-create`（或 filter 同包 `db:drop-create`）                                   |
-| 仅 MySQL 索引去重（脚本，无 HTTP）                         | `pnpm db:dedupe-indexes`                                                                   |
-| 写入 IT 示例类目（会 `connectDatabase`；仅空类目表时写入） | `pnpm db:seed-categories`                                                                  |
-| 幂等创建/更新超级管理员                                    | `pnpm --filter @express-vue3-monorepo/rest-api exec tsx scripts/ensure-super-admin.ts`     |
-| 测试                                                       | `pnpm test`（`pnpm test:all` 与之同义，均仅 rest-api Vitest）                              |
-| 类型检查（全仓权威入口）                                   | `pnpm typecheck`                                                                           |
-| 纯 TS workspace 包的 `tsc -b` 构图                         | `pnpm typecheck:solution`                                                                  |
-| 仅 packages 并行 typecheck                                 | `pnpm typecheck:packages`                                                                  |
-| Lint / 样式 / 格式                                         | `pnpm lint` · `pnpm lint:style` · `pnpm format`（及对应 `:fix` / `:check`）                |
-| 提交前全套校验                                             | `pnpm verify`                                                                              |
-| Docker 开发栈                                              | `pnpm docker:dev` / `pnpm docker:dev:down` / `pnpm docker:dev:debug`                       |
-| 容器内 pnpm                                                | `pnpm docker:install` / `pnpm docker:pnpm`                                                 |
-| Docker 测试 / 生产                                         | `pnpm docker:test` / `pnpm docker:prod`                                                    |
-| **索引去重 + 清帖 + 合成灌帖（HTTP，不含类目）**           | `pnpm db:seed-post`（须 **API 已启动** 且已 **`pnpm db:seed-categories`** 或已有等价类目） |
+| 功能                                                       | 命令                                                                                                           |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| 并行对所有含 `dev` 的包执行 dev                            | `pnpm dev`                                                                                                     |
+| 宿主运行后端                                               | `pnpm rest-api:dev` / `pnpm rest-api:dev:debug` / `pnpm rest-api:start`                                        |
+| 宿主运行前端                                               | `pnpm pc-portal:dev` / `pnpm pc-admin:dev`                                                                     |
+| 删库并重建 MySQL 库（`DROP DATABASE` + `CREATE`）          | `pnpm db:drop-create`（或 filter 同包 `db:drop-create`）                                                       |
+| 仅 MySQL 索引去重（脚本，无 HTTP）                         | `pnpm db:dedupe-indexes`                                                                                       |
+| 写入 IT 示例类目（会 `connectDatabase`；仅空类目表时写入） | `pnpm db:seed-categories`                                                                                      |
+| 幂等创建/更新超级管理员                                    | `pnpm --filter @express-vue3-monorepo/rest-api exec tsx scripts/ensure-super-admin.ts`                         |
+| 测试                                                       | `pnpm test`（`pnpm test:all` 与之同义；均只跑 rest-api 的 `test`，即 Vitest + `scripts/test-env.ts` 环境冒烟） |
+| 类型检查（全仓权威入口）                                   | `pnpm typecheck`                                                                                               |
+| 纯 TS workspace 包的 `tsc -b` 构图                         | `pnpm typecheck:solution`                                                                                      |
+| 仅 packages 并行 typecheck                                 | `pnpm typecheck:packages`                                                                                      |
+| Lint / 样式 / 格式                                         | `pnpm lint` · `pnpm lint:style` · `pnpm format`（及对应 `:fix` / `:check`）                                    |
+| 提交前全套校验                                             | `pnpm verify`                                                                                                  |
+| Docker 开发栈                                              | `pnpm docker:dev` / `pnpm docker:dev:down` / `pnpm docker:dev:debug`                                           |
+| 容器内 pnpm                                                | `pnpm docker:install` / `pnpm docker:pnpm`                                                                     |
+| Docker 测试 / 生产                                         | `pnpm docker:test` / `pnpm docker:prod`                                                                        |
+| **索引去重 + 清帖 + 合成灌帖（HTTP，不含类目）**           | `pnpm db:seed-post`（须 **API 已启动** 且已 **`pnpm db:seed-categories`** 或已有等价类目）                     |
 
 `prepare` 会安装 Husky；未执行过 `pnpm install` 则无 Git 钩子。
 
@@ -310,6 +310,7 @@ express-vue3-monorepo/
 │   │       │   ├── middlewares/
 │   │       │   ├── models/
 │   │       │   ├── rbac/
+│   │       │   ├── redis.ts
 │   │       │   ├── routes/
 │   │       │   ├── schema/
 │   │       │   ├── server.ts
@@ -421,7 +422,7 @@ pnpm docker:dev
 
 ### Docker 测试 / 生产
 
-需 **`.env.test`** / **`.env.production`**。结构与开发类似：网关暴露宿端口，**Gateway + pc-portal 生产镜像**（容器内 nginx 托管 SPA）。
+需 **`.env.test`** / **`.env.production`**。结构与开发类似：网关暴露宿主端口，**pc-portal 与 pc-admin 各自构建生产镜像**（容器内 nginx 托管 SPA，见 [`Dockerfile.pc-portal`](docker/Dockerfile.pc-portal)、[`Dockerfile.pc-admin`](docker/Dockerfile.pc-admin)）；两者均使用 [`gateway.prod.docker.conf`](docker/nginx/gateway.prod.docker.conf)，其中 **`/pc-admin/`** 前缀会被网关 `rewrite` 剥离后转发到 pc-admin 容器根路径。
 
 ```bash
 pnpm docker:test
@@ -439,7 +440,10 @@ pnpm docker:prod
 ## npm 镜像与安全
 
 - 根 [`.npmrc`](.npmrc) 若配置了镜像，CI 海外环境可按需指定 registry。
-- **勿提交**含密钥的 `.env.*`；必填项见 `apps/backend/rest-api/src/env.ts`（含 **`REDIS_URL`**）。若历史泄露，须在目标环境**轮换**密钥。首个后台账号见 [`docs/admin-bootstrap.md`](docs/admin-bootstrap.md)。
+- `.gitignore` 默认忽略 `.env.*`，但**显式放行了 `.env.example` 与 `.env.development`**——后者带有可直接使用的开发口令（`JWT_SECRET`、`ADMIN_BOOTSTRAP_PASSWORD`、`DB_PWD`、`MYSQL_ROOT_PASSWORD`、`REDIS_PASSWORD`）。**这是为「clone 即可跑」做的取舍，不是安全实践**：`.env.test` / `.env.production` 仍被忽略，切勿比照办理。
+- 本地私有覆盖请写入 **`.env.development.local`**（已忽略）；密钥一旦进入 Git 历史，删文件不等于撤销，须在目标环境**轮换**。
+- `apps/backend/rest-api/scripts/synthetic-it.env` 同样被跟踪，其 **`SYNTHETIC_PEXELS_API_KEY` 目前填有真实 Key**；自建部署请清空并改用不入库的 `synthetic-it.env.local`。
+- 必填项见 `apps/backend/rest-api/src/env.ts`（含 **`REDIS_URL`**）。首个后台账号见 [`docs/admin-bootstrap.md`](docs/admin-bootstrap.md)。
 
 ---
 

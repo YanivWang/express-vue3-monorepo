@@ -14,7 +14,7 @@ alwaysApply: false
 - **js-bridge**：多宿主 H5 Bridge（浏览器 / 小程序 / App WebView）；**当前 pc-portal / pc-admin 未引用**。
 - **web-monitor**：Web Vitals 与客户端错误上报（Vue App 可选接入）；**当前 pc-portal / pc-admin 未引用**。
 
-**request-core 补充说明**：实践中主要由 **`@express-vue3-monorepo/shared`** 与部分应用直接依赖（以各 `package.json` 为准）；**对其导出 API 的变更需谨慎**，避免连带破坏上下游。
+**request-core 补充说明**：当前**唯一**的直接依赖方是 **`@express-vue3-monorepo/shared`**（`packages/shared/src/request-pc/*`）；前端 app 只经 shared 的 `createAppPcHttp` 间接使用，**未在自己的 `package.json` 里声明该依赖**。因此改动其导出 API 会经 shared 波及两个 app，**需谨慎**。
 
 ## TypeScript 与根 `tsc -b`
 

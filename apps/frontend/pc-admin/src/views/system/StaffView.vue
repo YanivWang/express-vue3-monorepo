@@ -18,12 +18,23 @@ const auth = useAuthStore();
 
 const loading = ref(false);
 const rows = ref<StaffRow[]>([]);
-const pagination = reactive<Pagination>({ page: 1, limit: 10, total: 0, totalPages: 0, hasNext: false });
+const pagination = reactive<Pagination>({
+  page: 1,
+  limit: 10,
+  total: 0,
+  totalPages: 0,
+  hasNext: false,
+});
 const q = ref("");
 
 const roles = ref<{ id: number; name: string; slug: string }[]>([]);
 
-const createDlg = reactive({ open: false, username: "", password: "", roleId: undefined as number | undefined });
+const createDlg = reactive({
+  open: false,
+  username: "",
+  password: "",
+  roleId: undefined as number | undefined,
+});
 const patchDlg = reactive({
   open: false,
   row: null as StaffRow | null,
@@ -35,7 +46,9 @@ const patchDlg = reactive({
 const canInvite = computed(() => hasAnyPermission(auth.permissions, ["admin.staff.invite"]));
 const canWrite = computed(() => hasAnyPermission(auth.permissions, ["admin.staff.write"]));
 const canAssign = computed(() => hasAnyPermission(auth.permissions, ["admin.staff.assign_role"]));
-const canResetPw = computed(() => hasAnyPermission(auth.permissions, ["admin.staff.reset_password"]));
+const canResetPw = computed(() =>
+  hasAnyPermission(auth.permissions, ["admin.staff.reset_password"]),
+);
 const canDeleteStaff = computed(() => hasAnyPermission(auth.permissions, ["admin.staff.delete"]));
 
 async function loadRoles() {
@@ -46,7 +59,11 @@ async function loadRoles() {
 async function loadStaff() {
   loading.value = true;
   try {
-    const res = await fetchStaffList({ page: pagination.page, limit: pagination.limit, q: q.value.trim() });
+    const res = await fetchStaffList({
+      page: pagination.page,
+      limit: pagination.limit,
+      q: q.value.trim(),
+    });
     rows.value = res.users;
     Object.assign(pagination, res.pagination);
   } finally {
@@ -109,10 +126,20 @@ onMounted(async () => {
 <template>
   <div>
     <el-space wrap style="margin-bottom: 12px">
-      <el-button v-if="canInvite" type="primary" @click="((createDlg.open = true), (createDlg.roleId = undefined))">
+      <el-button
+        v-if="canInvite"
+        type="primary"
+        @click="((createDlg.open = true), (createDlg.roleId = undefined))"
+      >
         新建后台账号
       </el-button>
-      <el-input v-model="q" clearable placeholder="搜索用户名" style="width: 220px" @keyup.enter="loadStaff" />
+      <el-input
+        v-model="q"
+        clearable
+        placeholder="搜索用户名"
+        style="width: 220px"
+        @keyup.enter="loadStaff"
+      />
       <el-button @click="loadStaff">查询</el-button>
     </el-space>
     <el-table v-loading="loading" :data="rows" stripe>
@@ -124,7 +151,12 @@ onMounted(async () => {
       <el-table-column label="操作" width="300">
         <template #default="{ row }">
           <el-space>
-            <el-button v-if="canWrite || canAssign || canResetPw" link type="primary" @click="openPatch(row as StaffRow)">
+            <el-button
+              v-if="canWrite || canAssign || canResetPw"
+              link
+              type="primary"
+              @click="openPatch(row as StaffRow)"
+            >
               修改
             </el-button>
             <el-button
@@ -152,10 +184,17 @@ onMounted(async () => {
     <el-dialog v-model="createDlg.open" title="新建后台账号">
       <el-form label-width="92px">
         <el-form-item label="用户名"><el-input v-model="createDlg.username" /></el-form-item>
-        <el-form-item label="密码"><el-input v-model="createDlg.password" type="password" /></el-form-item>
+        <el-form-item label="密码"
+          ><el-input v-model="createDlg.password" type="password"
+        /></el-form-item>
         <el-form-item label="角色">
           <el-select v-model="createDlg.roleId" placeholder="请选择" filterable style="width: 100%">
-            <el-option v-for="r in roles" :key="r.id" :label="`${r.name} (${r.slug})`" :value="r.id" />
+            <el-option
+              v-for="r in roles"
+              :key="r.id"
+              :label="`${r.name} (${r.slug})`"
+              :value="r.id"
+            />
           </el-select>
         </el-form-item>
       </el-form>
@@ -175,7 +214,12 @@ onMounted(async () => {
         </el-form-item>
         <el-form-item v-if="canAssign" label="角色">
           <el-select v-model="patchDlg.roleId" filterable style="width: 100%">
-            <el-option v-for="r in roles" :key="r.id" :label="`${r.name} (${r.slug})`" :value="r.id" />
+            <el-option
+              v-for="r in roles"
+              :key="r.id"
+              :label="`${r.name} (${r.slug})`"
+              :value="r.id"
+            />
           </el-select>
         </el-form-item>
       </el-form>

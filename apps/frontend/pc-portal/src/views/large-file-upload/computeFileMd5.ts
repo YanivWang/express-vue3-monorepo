@@ -97,7 +97,10 @@ export async function computeFileMd5(
 
     worker.onerror = (ev) => {
       if (settled) return;
-      settle(() => reject(ev.error ?? new Error(ev.message)));
+      // ErrorEvent.error 是 any，可能不是 Error；统一归一化，保证下游 `e instanceof Error` 能拿到真实原因
+      const raw: unknown = ev.error;
+      const err = raw instanceof Error ? raw : new Error(ev.message || "MD5 Worker 执行失败");
+      settle(() => reject(err));
     };
 
     worker.postMessage({

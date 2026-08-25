@@ -58,6 +58,14 @@ function isRetryable(err: unknown): boolean {
   );
 }
 
+/**
+ * 分片上传的默认参数（唯一来源）。
+ * `LargeFileUploadPanel` 的 props 默认值直接引用这三个常量，避免两处各写一份而漂移。
+ */
+export const LARGE_UPLOAD_DEFAULT_CHUNK_BYTES = 5 * 1024 * 1024;
+export const LARGE_UPLOAD_DEFAULT_CONCURRENCY = 4;
+export const LARGE_UPLOAD_DEFAULT_MAX_RETRIES = 2;
+
 /** 真实分片上传占用的进度区间下界；其上一段 [0, PREP] 留给 MD5 + init 的「准备」动画 */
 const UPLOAD_PROGRESS_PREP_FLOOR = 22;
 
@@ -97,9 +105,9 @@ export function useLargeFileUpload(options: LargeFileUploadOptions = {}) {
   const client: HttpRequest = options.http ?? http;
   const api = createLargeFileUploadApi(client);
 
-  const chunkSize = options.chunkSize ?? 5 * 1024 * 1024;
-  const concurrency = options.concurrency ?? 4;
-  const maxRetries = options.maxRetries ?? 2;
+  const chunkSize = options.chunkSize ?? LARGE_UPLOAD_DEFAULT_CHUNK_BYTES;
+  const concurrency = options.concurrency ?? LARGE_UPLOAD_DEFAULT_CONCURRENCY;
+  const maxRetries = options.maxRetries ?? LARGE_UPLOAD_DEFAULT_MAX_RETRIES;
 
   const phase = ref<LargeFileUploadPhase>("idle");
   const progress = ref(0);
@@ -296,7 +304,6 @@ export function useLargeFileUpload(options: LargeFileUploadOptions = {}) {
               writePendingUploadId(file, uploadId);
               status = await api.getStatus(uploadId);
             } else {
-               
               const instantUrl = init.publicUrl;
               clearPendingUploadId(file);
               progress.value = 100;
@@ -305,7 +312,6 @@ export function useLargeFileUpload(options: LargeFileUploadOptions = {}) {
               currentUploadId.value = null;
               lastFile.value = null;
               return { url: instantUrl };
-               
             }
           } finally {
             stopMd5Prep();
