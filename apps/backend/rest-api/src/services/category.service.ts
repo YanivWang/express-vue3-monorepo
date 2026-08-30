@@ -41,11 +41,11 @@ export async function assertPostCategoryLeaf(categoryId: number) {
   if (!leaf) {
     throw createHttpError(400, "分类不存在");
   }
-  if (leaf.get("parentId") == null) {
+  if (leaf.parentId == null) {
     throw createHttpError(400, "请选择二级分类，不能仅选一级分类");
   }
-  const parent = leaf.get("parent") as Model | null | undefined;
-  if (!parent || parent.get("parentId") != null) {
+  const parent = leaf.parent;
+  if (!parent || parent.parentId != null) {
     throw createHttpError(400, "仅支持两层分类");
   }
   const childCount = await Category.count({ where: { parentId: categoryId } });
@@ -68,7 +68,7 @@ export async function ensureLeafCategoryUnderRoot(input: {
   if (!parent) {
     throw createHttpError(400, "父分类不存在");
   }
-  if (parent.get("parentId") != null) {
+  if (parent.parentId != null) {
     throw createHttpError(400, "仅允许在一级分类下新建叶子分类");
   }
 
@@ -76,7 +76,7 @@ export async function ensureLeafCategoryUnderRoot(input: {
     where: { parentId: input.parentId, name },
   });
   if (existing) {
-    await assertPostCategoryLeaf(existing.get("id") as number);
+    await assertPostCategoryLeaf(existing.id);
     return { category: existing, reused: true };
   }
 
@@ -85,7 +85,7 @@ export async function ensureLeafCategoryUnderRoot(input: {
     parentId: input.parentId,
     sortOrder: input.sortOrder,
   });
-  await assertPostCategoryLeaf(row.get("id") as number);
+  await assertPostCategoryLeaf(row.id);
   return { category: row, reused: false };
 }
 
@@ -95,7 +95,7 @@ export async function resolveLeafIdsUnderParentOrEmpty(parentId: number) {
   if (!parent) {
     throw createHttpError(400, "一级分类不存在");
   }
-  if (parent.get("parentId") != null) {
+  if (parent.parentId != null) {
     throw createHttpError(400, "parentId 须为一级分类");
   }
   const rows = await Category.findAll({
@@ -106,7 +106,7 @@ export async function resolveLeafIdsUnderParentOrEmpty(parentId: number) {
       ["id", "ASC"],
     ] satisfies Order,
   });
-  return rows.map((r: Model) => r.get("id") as number);
+  return rows.map((r) => r.id);
 }
 
 export async function createRootCategory(input: { name: unknown; sortOrder?: unknown }) {

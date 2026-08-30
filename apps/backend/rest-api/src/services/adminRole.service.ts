@@ -9,6 +9,7 @@ import { trimmedStringFromUnknown } from "../utils/trimmedStringFromUnknown.js";
 
 import { clearRbacSnapshotCacheForRole } from "./rbac.service.js";
 
+import type { RoleAttributes, RoleModel } from "../models/index.js";
 import type { Model } from "sequelize";
 
 /** 枚举全部权限 definition（前端矩阵） */
@@ -32,17 +33,16 @@ export async function findRolesDetailed() {
     ],
   });
 
-  const out: Record<string, unknown>[] = [];
+  const out: (RoleAttributes & { userCount: number })[] = [];
   for (const r of roles) {
-    const nUser = await User.count({ where: { roleId: r.get("id") as number } });
-    const plain = r.get({ plain: true }) as Record<string, unknown>;
-    out.push({ ...plain, userCount: nUser });
+    const nUser = await User.count({ where: { roleId: r.id } });
+    out.push({ ...r.get({ plain: true }), userCount: nUser });
   }
   return out;
 }
 
-function assertNonSystem(role: Model) {
-  if (role.get("isSystem") as boolean) {
+function assertNonSystem(role: RoleModel) {
+  if (role.isSystem) {
     throw createHttpError(400, "系统内置角色不可删除");
   }
 }
@@ -55,8 +55,8 @@ function assertNonSystem(role: Model) {
  *
  * 需要可配置权限的后台角色请新建自定义角色（`POST /api/admin/roles`）。
  */
-function assertPermissionsAssignable(role: Model) {
-  const slug = String(role.get("slug"));
+function assertPermissionsAssignable(role: RoleModel) {
+  const slug = role.slug;
   if (slug === ROLE_SLUG_USER) {
     throw createHttpError(400, "注册用户角色不可绑定后台权限，请新建自定义角色");
   }
@@ -93,7 +93,7 @@ export async function createCustomRole(payload: {
     isSystem: false,
   });
   await (row as unknown as { setPermissions: (p: unknown[]) => Promise<void> }).setPermissions([]);
-  return Role.findByPk(row.get("id") as number, {
+  return Role.findByPk(row.id, {
     include: [
       {
         model: Permission,
@@ -170,7 +170,7 @@ export async function removeRoleById(roleId: number) {
     throw createHttpError(404, "角色不存在");
   }
   assertNonSystem(row);
-  const slug = String(row.get("slug"));
+  const slug = row.slug;
   if (slug === ROLE_SLUG_SUPER_ADMIN) {
     throw createHttpError(400, "禁止删除超级管理员角色");
   }

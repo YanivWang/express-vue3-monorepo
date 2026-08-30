@@ -1,7 +1,26 @@
-import { DataTypes, type Sequelize } from "sequelize";
+import { DataTypes, type Model, type Optional, type Sequelize } from "sequelize";
+
+import type { DefinedColumns } from "./model-helpers.js";
+
+/** Permissions 表的完整列，与 migrations/0001-initial-schema 保持一致 */
+export interface PermissionAttributes {
+  id: number;
+  code: string;
+  description: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type PermissionCreationAttributes = Optional<
+  PermissionAttributes,
+  "id" | "description" | "createdAt" | "updatedAt"
+>;
+
+export type PermissionModel = Model<PermissionAttributes, PermissionCreationAttributes> &
+  PermissionAttributes;
 
 export function definePermissionModel(sequelize: Sequelize) {
-  return sequelize.define(
+  return sequelize.define<PermissionModel, DefinedColumns<PermissionAttributes>>(
     "Permission",
     {
       code: {

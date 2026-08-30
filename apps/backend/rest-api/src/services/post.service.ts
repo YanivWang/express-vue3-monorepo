@@ -14,9 +14,31 @@ import { assertPostCategoryLeaf, resolveLeafIdsUnderParentOrEmpty } from "./cate
 import { voteValueToMyVote } from "./post-vote.service.js";
 import { assertUserPermission, userHasPermissions } from "./rbac.service.js";
 
+import type {
+  CategoryAttributes,
+  PostAttributes,
+  PostModel,
+  UserAttributes,
+} from "../models/index.js";
 import type { AppJwtUser } from "../types/jwt-user.js";
 
 const authorAttributes = ["id", "username", "avatar"];
+
+/**
+ * `get({ plain: true })` 的运行时形态：表列 + 被 include 的关联。
+ * 关联不属于表列，因而不在 PostAttributes 里，这里显式补齐，
+ * 使响应体有真实类型，而不是退化成 Record<string, unknown> 这种不透明的袋子。
+ */
+export type PlainPost = PostAttributes & {
+  author?: Pick<UserAttributes, "id" | "username" | "avatar">;
+  category?: Pick<CategoryAttributes, "id" | "name">;
+};
+
+/** 叠加「当前访问者视角」后的文章响应体；未登录访问时后两个字段不下发 */
+export type PostForViewer = PlainPost & {
+  myVote?: "like" | "dislike" | null;
+  myFavorited?: boolean;
+};
 const categoryAttributes = ["id", "name"];
 
 const postIncludeAuthor = { model: User, as: "author" as const, attributes: authorAttributes };
@@ -41,8 +63,8 @@ async function findPostOrThrow(
     throw createHttpError(404, "文章不存在");
   }
 
-  if (!allowUnpublished && !(post.get("published") as boolean)) {
-    const isAuthor = viewerUserId != null && Number(post.get("authorId")) === viewerUserId;
+  if (!allowUnpublished && !post.published) {
+    const isAuthor = viewerUserId != null && post.authorId === viewerUserId;
     if (!isAuthor) {
       throw createHttpError(404, "文章不存在");
     }
@@ -51,13 +73,13 @@ async function findPostOrThrow(
   return post;
 }
 
-async function canUpdatePost(post: Model, operatorId: number): Promise<boolean> {
-  if (Number(post.get("authorId")) === operatorId) return true;
+async function canUpdatePost(post: PostModel, operatorId: number): Promise<boolean> {
+  if (post.authorId === operatorId) return true;
   return userHasPermissions(operatorId, ["admin.posts.write"], "all");
 }
 
-async function canDeletePost(post: Model, operatorId: number): Promise<boolean> {
-  if (Number(post.get("authorId")) === operatorId) return true;
+async function canDeletePost(post: PostModel, operatorId: number): Promise<boolean> {
+  if (post.authorId === operatorId) return true;
   return userHasPermissions(operatorId, ["admin.posts.delete"], "all");
 }
 
@@ -117,11 +139,11 @@ function listOrder(sort: "latest" | "hot") {
   ] as Order;
 }
 
-export async function incrementPostViewIfEligible(post: Model, viewerUserId: number | null) {
-  if (!(post.get("published") as boolean)) return;
-  const authorId = Number(post.get("authorId"));
+export async function incrementPostViewIfEligible(post: PostModel, viewerUserId: number | null) {
+  if (!post.published) return;
+  const authorId = post.authorId;
   if (viewerUserId != null && viewerUserId === authorId) return;
-  const id = post.get("id") as number;
+  const id = post.id;
   await Post.increment("viewCount", { by: 1, where: { id } });
   await post.reload({
     include: [postIncludeAuthor, postIncludeCategory],
@@ -129,34 +151,34 @@ export async function incrementPostViewIfEligible(post: Model, viewerUserId: num
 }
 
 export async function enrichPublicPostForResponse(
-  post: Model,
+  post: PostModel,
   viewerUserId: number | null,
   options?: { bumpView?: boolean },
-): Promise<Record<string, unknown>> {
+): Promise<PostForViewer> {
   const bumpView = options?.bumpView ?? true;
   if (bumpView) {
     await incrementPostViewIfEligible(post, viewerUserId);
   }
-  const plain = post.get({ plain: true }) as Record<string, unknown>;
+  const plain: PostForViewer = post.get({ plain: true });
   if (viewerUserId != null) {
-    const pid = Number(post.get("id"));
+    const pid = post.id;
     const [vote, fav] = await Promise.all([
       PostVote.findOne({ where: { postId: pid, userId: viewerUserId } }),
       PostFavorite.findOne({ where: { postId: pid, userId: viewerUserId } }),
     ]);
-    plain.myVote = voteValueToMyVote(vote == null ? null : Number(vote.get("value")));
+    plain.myVote = voteValueToMyVote(vote == null ? null : vote.value);
     plain.myFavorited = Boolean(fav);
   }
   return plain;
 }
 
 export async function decoratePostsListForViewer(
-  rows: Model[],
+  rows: PostModel[],
   viewerUserId: number | null,
-): Promise<Record<string, unknown>[]> {
-  const base = rows.map((r) => r.get({ plain: true }) as Record<string, unknown>);
+): Promise<PostForViewer[]> {
+  const base: PostForViewer[] = rows.map((r) => r.get({ plain: true }));
   if (viewerUserId == null) return base;
-  const ids = rows.map((r) => Number(r.get("id")));
+  const ids = rows.map((r) => r.id);
   if (ids.length === 0) return base;
   const [votes, favs] = await Promise.all([
     PostVote.findAll({ where: { userId: viewerUserId, postId: { [Op.in]: ids } } }),
@@ -164,11 +186,11 @@ export async function decoratePostsListForViewer(
   ]);
   const voteByPost = new Map<number, "like" | "dislike" | null>();
   for (const v of votes) {
-    voteByPost.set(Number(v.get("postId")), voteValueToMyVote(Number(v.get("value"))));
+    voteByPost.set(v.postId, voteValueToMyVote(v.value));
   }
-  const favSet = new Set(favs.map((f: Model) => Number(f.get("postId"))));
+  const favSet = new Set(favs.map((f) => f.postId));
   return base.map((o) => {
-    const id = Number(o.id);
+    const id = o.id;
     return {
       ...o,
       myVote: voteByPost.get(id) ?? null,
@@ -386,7 +408,7 @@ export async function createPost(authorId: number, payload: Record<string, unkno
     ...(extSource && extKey ? { externalSource: extSource, externalKey: extKey } : {}),
   });
 
-  return Post.findByPk(post.get("id") as number, {
+  return Post.findByPk(post.id, {
     include: [postIncludeAuthor, postIncludeCategory],
   });
 }
@@ -406,7 +428,7 @@ export async function updatePostById(
     throw createHttpError(401, "未登录或登录已过期");
   }
 
-  if (!(await canUpdatePost(post, user.get("id") as number))) {
+  if (!(await canUpdatePost(post, user.id))) {
     throw createHttpError(403, "无权修改该文章");
   }
 
@@ -440,7 +462,7 @@ export async function updatePostById(
 
   await post.update(next);
 
-  return Post.findByPk(post.get("id") as number, {
+  return Post.findByPk(post.id, {
     include: [postIncludeAuthor, postIncludeCategory],
   });
 }
@@ -456,7 +478,7 @@ export async function removePostById(postId: string | number, operator: AppJwtUs
     throw createHttpError(401, "未登录或登录已过期");
   }
 
-  if (!(await canDeletePost(post, user.get("id") as number))) {
+  if (!(await canDeletePost(post, user.id))) {
     throw createHttpError(403, "无权删除该文章");
   }
 

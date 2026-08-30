@@ -15,7 +15,7 @@ import {
   clearRbacSnapshotCache,
 } from "./rbac.service.js";
 
-import type { Model } from "sequelize";
+import type { RoleModel } from "../models/index.js";
 
 const roleBrief = ["id", "slug", "name", "isStaff", "isSystem"] as const;
 
@@ -27,8 +27,8 @@ async function loadRoleOrThrow(roleId: number) {
   return r;
 }
 
-function assertStaffRole(role: Model) {
-  if (!(role.get("isStaff") as boolean)) {
+function assertStaffRole(role: RoleModel) {
+  if (!role.isStaff) {
     throw createHttpError(400, "目标角色须为可登录后台的职员角色");
   }
 }
@@ -92,7 +92,7 @@ export async function createStaffUser(
 
   const role = await loadRoleOrThrow(roleId);
   assertStaffRole(role);
-  const roleSlug = String(role.get("slug"));
+  const roleSlug = role.slug;
   if (roleSlug === ROLE_SLUG_SUPER_ADMIN) {
     const actor = await loadRbacSnapshot(operatorId);
     if (!actor?.isSuperAdmin) {
@@ -107,7 +107,7 @@ export async function createStaffUser(
       password: hashPwd,
       roleId,
     });
-    return User.findByPk(created.get("id") as number, {
+    return User.findByPk(created.id, {
       attributes: { exclude: ["password"] },
       include: [{ model: Role, as: "role", attributes: [...roleBrief] }],
     });
@@ -127,8 +127,8 @@ export async function updateStaffUser(
   if (!row) {
     throw createHttpError(404, "用户不存在");
   }
-  const currentRole = row.get("role") as Model | null;
-  if (!currentRole || !(currentRole.get("isStaff") as boolean)) {
+  const currentRole = row.role;
+  if (!currentRole || !currentRole.isStaff) {
     throw createHttpError(400, "目标不是后台职员账号");
   }
 
@@ -159,7 +159,7 @@ export async function updateStaffUser(
     await assertUserPermissions(operatorId, ["admin.staff.assign_role"], "all");
     const newRole = await loadRoleOrThrow(Number(payload.roleId));
     assertStaffRole(newRole);
-    const nextSlug = String(newRole.get("slug"));
+    const nextSlug = newRole.slug;
     if (nextSlug === ROLE_SLUG_SUPER_ADMIN) {
       const actor = await loadRbacSnapshot(operatorId);
       if (!actor?.isSuperAdmin) {
@@ -167,7 +167,7 @@ export async function updateStaffUser(
       }
     }
     await ensureNotDemotingLastSuperAdmin(targetId, nextSlug);
-    next.roleId = newRole.get("id");
+    next.roleId = newRole.id;
   }
 
   if (Object.keys(next).length === 0) {
@@ -197,8 +197,8 @@ export async function revokeStaffUser(operatorId: number, targetId: number) {
   if (!row) {
     throw createHttpError(404, "用户不存在");
   }
-  const cur = row.get("role") as Model | null;
-  if (!cur || !(cur.get("isStaff") as boolean)) {
+  const cur = row.role;
+  if (!cur || !cur.isStaff) {
     throw createHttpError(400, "目标不是后台职员账号");
   }
   await ensureNotDemotingLastSuperAdmin(targetId, ROLE_SLUG_USER);
@@ -215,5 +215,5 @@ export async function listAssignableStaffRoles() {
     attributes: ["id", "slug", "name", "isSystem"],
     order: [["id", "ASC"]],
   });
-  return rows.map((r) => r.get({ plain: true }) as Record<string, unknown>);
+  return rows.map((r) => r.get({ plain: true }));
 }

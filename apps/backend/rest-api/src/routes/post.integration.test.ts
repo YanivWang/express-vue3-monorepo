@@ -35,7 +35,7 @@ async function createCategoryTree(adminToken: string): Promise<number> {
     parentId: null,
     sortOrder: 0,
   });
-  const rootId = root.get("id") as number;
+  const rootId = root.id;
 
   const leaf = await api.request<{ category: { id: number } }>("POST", "/api/categories", {
     token: adminToken,

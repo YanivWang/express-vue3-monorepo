@@ -3,8 +3,8 @@ import { createHttpError } from "../middlewares/error.middleware.js";
 import { PERMISSION_CODES, ROLE_SLUG_SUPER_ADMIN } from "../rbac/permission-codes.js";
 import { redis } from "../redis.js";
 
+import type { UserModel } from "../models/index.js";
 import type { PermissionMode } from "../rbac/permission-codes.js";
-import type { Model } from "sequelize";
 
 const permissionInclude = {
   model: Permission,
@@ -50,13 +50,13 @@ export type RbacSnapshot = {
   permissionCodes: ReadonlySet<string>;
 };
 
-async function snapshotFromLoadedUser(model: Model | null): Promise<RbacSnapshot | null> {
+async function snapshotFromLoadedUser(model: UserModel | null): Promise<RbacSnapshot | null> {
   if (!model) return null;
 
-  const userId = Number(model.get("id"));
-  const role = model.get("role") as Model | null | undefined;
-  const roleSlug = role ? String(role.get("slug")) : "";
-  const roleId = role ? Number(role.get("id")) : Number(model.get("roleId"));
+  const userId = model.id;
+  const role = model.role;
+  const roleSlug = role ? role.slug : "";
+  const roleId = role ? role.id : model.roleId;
 
   if (!roleSlug || !Number.isFinite(roleId)) {
     return null;
@@ -73,8 +73,9 @@ async function snapshotFromLoadedUser(model: Model | null): Promise<RbacSnapshot
     };
   }
 
-  const perms = (role?.get("permissions") as Model[] | undefined) ?? [];
-  const codes = new Set(perms.map((p) => String(p.get("code"))));
+  // RoleModel 已声明 permissions?: PermissionModel[]，无需再做数组断言
+  const perms = role?.permissions ?? [];
+  const codes = new Set(perms.map((p) => p.code));
   return { userId, roleId, roleSlug, isSuperAdmin: false, permissionCodes: codes };
 }
 
@@ -124,7 +125,7 @@ export async function clearRbacSnapshotCacheForRole(roleId: number): Promise<voi
     attributes: ["id"],
   });
 
-  const keys = users.map((u) => rbacSnapshotCacheKey(u.get("id") as number));
+  const keys = users.map((u) => rbacSnapshotCacheKey(u.id));
   if (keys.length === 0) return;
 
   try {
@@ -182,7 +183,7 @@ export async function getRoleIdBySlugOrThrow(slug: string): Promise<number> {
   if (!r) {
     throw createHttpError(500, "系统角色未初始化");
   }
-  return r.get("id") as number;
+  return r.id;
 }
 
 export async function countUsersWithRoleSlug(slug: string): Promise<number> {

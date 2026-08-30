@@ -22,7 +22,7 @@ export async function listAdminPosts(req: Request, res: Response) {
   });
 
   const hasNext = totalPages > 0 && page < totalPages;
-  const payload = posts.map((p: Model) => p.get({ plain: true }) as Record<string, unknown>);
+  const payload = posts.map((p) => p.get({ plain: true }));
   return success(res, "获取管理端文章列表成功", {
     posts: payload,
     pagination: { page, limit, total, totalPages, hasNext },
@@ -32,6 +32,6 @@ export async function listAdminPosts(req: Request, res: Response) {
 export async function getAdminPost(req: Request, res: Response) {
   const { params } = getValidated<ValidatedAdminGetPostSchema>(req);
   const model = await findPostByIdAdmin(params.id);
-  const post = model.get({ plain: true }) as Record<string, unknown>;
+  const post = model.get({ plain: true });
   return success(res, "获取文章详情成功", { post });
 }

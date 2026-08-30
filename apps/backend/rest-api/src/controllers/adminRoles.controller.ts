@@ -19,7 +19,7 @@ import type { Model } from "sequelize";
 export async function listPermissions(_req: Request, res: Response) {
   const permissions = await findAllPermissions();
   return success(res, "权限列表成功", {
-    permissions: permissions.map((p: Model) => p.get({ plain: true }) as Record<string, unknown>),
+    permissions: permissions.map((p) => p.get({ plain: true })),
   });
 }
 

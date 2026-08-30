@@ -19,7 +19,7 @@ export async function listPortalUsers(req: Request, res: Response) {
   const { page, limit, q } = query;
   const { users, total, totalPages } = await findPortalUsersPage(page, limit, q);
   const hasNext = totalPages > 0 && page < totalPages;
-  const rows = users.map((u: Model) => u.get({ plain: true }) as Record<string, unknown>);
+  const rows = users.map((u) => u.get({ plain: true }));
   return success(res, "获取注册用户列表成功", {
     users: rows,
     pagination: { page, limit, total, totalPages, hasNext },

@@ -17,7 +17,7 @@ const postIncludeCategory = {
 
 export async function setPostFavorite(userId: number, postId: number, favorited: boolean) {
   const post = await Post.findByPk(postId);
-  if (!post || !(post.get("published") as boolean)) {
+  if (!post || !post.published) {
     throw createHttpError(404, "文章不存在");
   }
 
@@ -59,7 +59,8 @@ export async function findFavoritePostsPage(userId: number, page: number, limit:
       ],
     }),
   ]);
-  const posts = rows.map((r: Model) => r.get("post") as Model);
+  // include 的 required: true 保证 post 必然存在；这里做一次显式收窄以满足类型
+  const posts = rows.flatMap((r) => (r.post ? [r.post] : []));
   const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
   return { posts, total, totalPages };
 }

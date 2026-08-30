@@ -4,6 +4,7 @@ import { sequelize, User, UserProfile } from "../db.js";
 import { createHttpError } from "../middlewares/error.middleware.js";
 import { trimmedStringFromUnknown } from "../utils/trimmedStringFromUnknown.js";
 
+import type { UserProfileAttributes, UserProfileModel } from "../models/index.js";
 import type { Model } from "sequelize";
 
 export type UserProfilePlain = {
@@ -40,27 +41,25 @@ function toIsoTime(v: unknown): string {
   return "";
 }
 
-export function userProfileToPlain(row: Model): UserProfilePlain {
+export function userProfileToPlain(row: UserProfileModel): UserProfilePlain {
   return {
-    id: row.get("id") as number,
-    userId: row.get("userId") as number,
-    nickname: (row.get("nickname") as string | null | undefined) ?? null,
-    avatar: (row.get("avatar") as string | null | undefined) ?? null,
-    gender: (row.get("gender") as string | null | undefined) ?? null,
-    birthday: toDateOnlyString(row.get("birthday")),
-    bio: (row.get("bio") as string | null | undefined) ?? null,
-    address: (row.get("address") as string | null | undefined) ?? null,
-    company: (row.get("company") as string | null | undefined) ?? null,
-    jobTitle: (row.get("jobTitle") as string | null | undefined) ?? null,
+    id: row.id,
+    userId: row.userId,
+    nickname: row.nickname ?? null,
+    avatar: row.avatar ?? null,
+    gender: row.gender ?? null,
+    birthday: toDateOnlyString(row.birthday),
+    bio: row.bio ?? null,
+    address: row.address ?? null,
+    company: row.company ?? null,
+    jobTitle: row.jobTitle ?? null,
     isMarried:
-      row.get("isMarried") === null || row.get("isMarried") === undefined
-        ? null
-        : Boolean(row.get("isMarried")),
-    mom: (row.get("mom") as string | null | undefined) ?? null,
-    father: (row.get("father") as string | null | undefined) ?? null,
-    university: (row.get("university") as string | null | undefined) ?? null,
-    createdAt: toIsoTime(row.get("createdAt")),
-    updatedAt: toIsoTime(row.get("updatedAt")),
+      row.isMarried === null || row.isMarried === undefined ? null : Boolean(row.isMarried),
+    mom: row.mom ?? null,
+    father: row.father ?? null,
+    university: row.university ?? null,
+    createdAt: toIsoTime(row.createdAt),
+    updatedAt: toIsoTime(row.updatedAt),
   };
 }
 
@@ -94,7 +93,8 @@ export type PatchUserProfileInput = {
 export async function upsertUserProfileForUser(userId: number, patch: PatchUserProfileInput) {
   const allowedGenders = new Set(["male", "female", "unknown"]);
 
-  const next: Record<string, unknown> = {};
+  // 用属性类型而非 Record<string, unknown>：字段名写错、类型不符都会在编译期暴露
+  const next: Partial<UserProfileAttributes> = {};
 
   if (patch.nickname !== undefined) {
     if (patch.nickname === null) {
@@ -116,7 +116,7 @@ export async function upsertUserProfileForUser(userId: number, patch: PatchUserP
       const s = trimmedStringFromUnknown(patch.avatar);
       assertMaxLen("头像", s, 500);
       next.avatar = s.length ? s : null;
-      nextUserAvatar = next.avatar as string | null;
+      nextUserAvatar = next.avatar;
     }
   }
 
@@ -191,9 +191,7 @@ export async function upsertUserProfileForUser(userId: number, patch: PatchUserP
       lock: Transaction.LOCK.UPDATE,
     });
     if (!row) {
-      row = await UserProfile.create({ userId, ...next } as Record<string, unknown>, {
-        transaction: t,
-      });
+      row = await UserProfile.create({ userId, ...next }, { transaction: t });
     } else {
       await row.update(next, { transaction: t });
     }

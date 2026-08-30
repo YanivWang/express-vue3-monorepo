@@ -1,11 +1,57 @@
-import { DataTypes, type Model, type ModelStatic, type Sequelize } from "sequelize";
+import { DataTypes, type Model, type ModelStatic, type Optional, type Sequelize } from "sequelize";
+
+import type { CategoryModel } from "./category.model.js";
+import type { DefinedColumns } from "./model-helpers.js";
+import type { UserModel } from "./user.model.js";
+
+/** Posts 表的完整列，与 migrations/0001-initial-schema + 0003 保持一致 */
+export interface PostAttributes {
+  id: number;
+  title: string;
+  content: string;
+  published: boolean;
+  /** 所属叶子分类（二级）id */
+  categoryId: number;
+  /** 迁移 0003 起为 NOT NULL */
+  authorId: number;
+  externalSource: string | null;
+  externalKey: string | null;
+  likeCount: number;
+  dislikeCount: number;
+  favoriteCount: number;
+  viewCount: number;
+  commentCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type PostCreationAttributes = Optional<
+  PostAttributes,
+  | "id"
+  | "externalSource"
+  | "externalKey"
+  | "likeCount"
+  | "dislikeCount"
+  | "favoriteCount"
+  | "viewCount"
+  | "commentCount"
+  | "createdAt"
+  | "updatedAt"
+>;
+
+export type PostModel = Model<PostAttributes, PostCreationAttributes> &
+  PostAttributes & {
+    /** 仅在 include 了对应 as 时存在 */
+    author?: UserModel;
+    category?: CategoryModel;
+  };
 
 export function definePostModel(
   sequelize: Sequelize,
-  User: ModelStatic<Model>,
-  Category: ModelStatic<Model>,
+  User: ModelStatic<UserModel>,
+  Category: ModelStatic<CategoryModel>,
 ) {
-  const Post = sequelize.define(
+  const Post = sequelize.define<PostModel, DefinedColumns<PostAttributes>>(
     "Post",
     {
       title: {
@@ -27,6 +73,12 @@ export function definePostModel(
         type: DataTypes.INTEGER,
         allowNull: false,
         comment: "所属叶子分类（二级）id",
+      },
+      // 显式声明而非交给 belongsTo 隐式创建：隐式列默认可空，正是孤儿行的来源
+      authorId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        comment: "作者 Users.id",
       },
       externalSource: {
         type: DataTypes.STRING(64),

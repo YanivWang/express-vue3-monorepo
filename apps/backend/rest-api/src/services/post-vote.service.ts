@@ -7,7 +7,7 @@ export type PostVoteChoice = "like" | "dislike" | "none";
 
 export async function setPostVote(userId: number, postId: number, choice: PostVoteChoice) {
   const post = await Post.findByPk(postId);
-  if (!post || !(post.get("published") as boolean)) {
+  if (!post || !post.published) {
     throw createHttpError(404, "文章不存在");
   }
 
@@ -20,7 +20,7 @@ export async function setPostVote(userId: number, postId: number, choice: PostVo
       transaction: t,
       lock: t.LOCK.UPDATE,
     });
-    const prevVal = prev == null ? null : Number(prev.get("value"));
+    const prevVal = prev == null ? null : prev.value;
 
     if (choice === "none") {
       if (!prev) return;

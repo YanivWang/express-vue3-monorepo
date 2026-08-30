@@ -22,7 +22,7 @@ export async function listStaffUsers(req: Request, res: Response) {
   const { users, total, totalPages } = await findStaffUsersPage(query.page, query.limit, query.q);
   const hasNext = totalPages > 0 && query.page < totalPages;
   return success(res, "获取职员列表成功", {
-    users: users.map((u: Model) => u.get({ plain: true }) as Record<string, unknown>),
+    users: users.map((u) => u.get({ plain: true })),
     pagination: { page: query.page, limit: query.limit, total, totalPages, hasNext },
   });
 }

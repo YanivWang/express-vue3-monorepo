@@ -9,7 +9,7 @@ import {
 } from "../rbac/permission-codes.js";
 import { logger } from "../utils/logger.js";
 
-import type { Model } from "sequelize";
+import type { PermissionModel, RoleModel } from "../models/index.js";
 
 function trimUnset(value: string | undefined): string | undefined {
   if (value === undefined) return undefined;
@@ -17,11 +17,9 @@ function trimUnset(value: string | undefined): string | undefined {
   return t === "" ? undefined : t;
 }
 
-/** Sequelize 的 belongsToMany 关联方法未进入 Model 类型，收敛在一处做窄化，避免各调用点重复断言。 */
-async function setRolePermissions(role: Model, permissions: Model[]): Promise<void> {
-  await (role as unknown as { setPermissions: (p: Model[]) => Promise<void> }).setPermissions(
-    permissions,
-  );
+/** setPermissions 由 belongsToMany 生成，已在 RoleModel 上显式声明，无需再做运行时窄化断言。 */
+async function setRolePermissions(role: RoleModel, permissions: PermissionModel[]): Promise<void> {
+  await role.setPermissions(permissions);
 }
 
 /**
@@ -83,7 +81,7 @@ export async function bootstrapRbacIfNeeded(): Promise<void> {
     await setRolePermissions(moderatorRole, []);
   }
 
-  const superId = superAdminRole.get("id") as number;
+  const superId = superAdminRole.id;
 
   const superAdminCount = await User.count({
     include: [

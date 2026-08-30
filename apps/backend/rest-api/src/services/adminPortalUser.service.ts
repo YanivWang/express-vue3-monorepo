@@ -15,8 +15,7 @@ async function loadPortalTargetOrThrow(userId: number) {
   if (!row) {
     throw createHttpError(404, "用户不存在");
   }
-  const slug = (row.get("role") as { get: (k: string) => unknown } | null)?.get("slug");
-  if (String(slug) !== ROLE_SLUG_USER) {
+  if (row.role?.slug !== ROLE_SLUG_USER) {
     throw createHttpError(400, "仅可维护前台注册用户（普通客户角色）");
   }
   return row;

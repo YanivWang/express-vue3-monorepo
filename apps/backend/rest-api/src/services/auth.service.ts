@@ -44,24 +44,22 @@ export async function loginUser(payload: { username?: unknown; password?: unknow
     where: { username },
     include: [{ model: Role, as: "role", attributes: ["id", "slug"] }],
   });
-  const credentialOk = user
-    ? await bcrypt.compare(password, user.get("password") as string)
-    : false;
+  const credentialOk = user ? await bcrypt.compare(password, user.password) : false;
 
   if (!credentialOk || !user) {
     throw createHttpError(401, "用户名或密码错误");
   }
 
-  const role = user.get("role") as { get: (k: string) => unknown } | null | undefined;
-  const roleSlug = role ? String(role.get("slug")) : "";
-  const roleId = user.get("roleId") as number | null | undefined;
+  // include 命中时 role 存在；UserModel 已声明其类型，无需再做结构化窄化
+  const roleSlug = user.role?.slug ?? "";
+  const roleId = user.roleId;
 
   const jti = randomUUID();
 
   return jwt.sign(
     {
-      id: user.get("id") as number,
-      username: user.get("username") as string,
+      id: user.id,
+      username: user.username,
       roleId: roleId ?? undefined,
       roleSlug,
     },

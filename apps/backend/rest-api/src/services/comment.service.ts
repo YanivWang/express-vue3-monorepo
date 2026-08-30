@@ -9,14 +9,29 @@ import { trimmedStringFromUnknown } from "../utils/trimmedStringFromUnknown.js";
 import { findPostByIdPublic } from "./post.service.js";
 import { userHasPermissions } from "./rbac.service.js";
 
+import type {
+  CommentAttributes,
+  CommentModel,
+  PostAttributes,
+  PostModel,
+  UserModel,
+} from "../models/index.js";
 import type { AppJwtUser } from "../types/jwt-user.js";
-import type { Model } from "sequelize";
 
 const authorAttributes = ["id", "username", "avatar"];
 
-async function canDeleteComment(comment: Model, post: Model, operatorId: number): Promise<boolean> {
-  if (Number(comment.get("authorId")) === operatorId) return true;
-  if (Number(post.get("authorId")) === operatorId) return true;
+/** `get({ plain: true })` 的运行时形态：表列 + 被 include 的关联（关联不属于表列，故需补齐） */
+type PlainComment = CommentAttributes & {
+  post?: Pick<PostAttributes, "id" | "title">;
+};
+
+async function canDeleteComment(
+  comment: CommentModel,
+  post: PostModel,
+  operatorId: number,
+): Promise<boolean> {
+  if (comment.authorId === operatorId) return true;
+  if (post.authorId === operatorId) return true;
   return userHasPermissions(operatorId, ["admin.comments.delete"], "all");
 }
 
@@ -27,31 +42,31 @@ async function syncCommentCountForPost(postId: string | number) {
 
 type PostAuthorDto = { id: number; username: string; avatar?: string | null };
 
-function toAuthorDto(user: Model | null | undefined): PostAuthorDto | undefined {
+function toAuthorDto(user: UserModel | null | undefined): PostAuthorDto | undefined {
   if (!user) return undefined;
   return {
-    id: Number(user.get("id")),
-    username: String(user.get("username")),
-    avatar: user.get("avatar") as string | null | undefined,
+    id: user.id,
+    username: user.username,
+    avatar: user.avatar,
   };
 }
 
 /** API 普通对象；回复行带 replyToUser（被直接回复一方的作者快照） */
 function commentRowToJson(
-  row: Model,
+  row: CommentModel,
   replyToUser: PostAuthorDto | null = null,
 ): Record<string, unknown> {
-  const rootRaw = row.get("rootId");
+  const rootRaw = row.rootId;
   return {
-    id: Number(row.get("id")),
-    postId: Number(row.get("postId")),
-    authorId: Number(row.get("authorId")),
-    parentId: row.get("parentId") == null ? null : Number(row.get("parentId")),
+    id: row.id,
+    postId: row.postId,
+    authorId: row.authorId,
+    parentId: row.parentId == null ? null : row.parentId,
     rootId: rootRaw == null ? null : Number(rootRaw),
-    content: String(row.get("content")),
-    createdAt: row.get("createdAt"),
-    updatedAt: row.get("updatedAt"),
-    author: toAuthorDto(row.get("author") as Model | undefined),
+    content: row.content,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    author: toAuthorDto(row.author),
     replyToUser,
   };
 }
@@ -80,7 +95,7 @@ export async function findCommentsPageByPost(
   ]);
 
   const totalPages = threadTotal === 0 ? 0 : Math.ceil(threadTotal / limit);
-  const rootIds = rows.map((r) => Number(r.get("id")));
+  const rootIds = rows.map((r) => r.id);
 
   if (rootIds.length === 0) {
     return {
@@ -104,7 +119,11 @@ export async function findCommentsPageByPost(
     include: [{ model: User, as: "author", attributes: authorAttributes }],
   });
 
-  const parentIds: number[] = [...new Set(flatRows.map((r) => Number(r.get("parentId"))))];
+  // 上面的查询条件已排除 parentId 为 null 的行；这里显式收窄而非断言，
+  // 使「回复必然有父评论」这一不变量在类型层面成立。
+  const parentIds: number[] = [
+    ...new Set(flatRows.map((r) => r.parentId).filter((id): id is number => id !== null)),
+  ];
   const parents = parentIds.length
     ? await Comment.findAll({
         where: { id: { [Op.in]: parentIds } },
@@ -112,15 +131,15 @@ export async function findCommentsPageByPost(
       })
     : [];
 
-  const parentById = new Map<number, Model>();
+  const parentById = new Map<number, CommentModel>();
   for (const p of parents) {
-    parentById.set(Number(p.get("id")), p);
+    parentById.set(p.id, p);
   }
 
   const replyToByParentId = new Map<number, PostAuthorDto | null>();
   for (const pid of parentIds) {
     const pRow = parentById.get(pid);
-    replyToByParentId.set(pid, toAuthorDto(pRow?.get("author") as Model | undefined) ?? null);
+    replyToByParentId.set(pid, toAuthorDto(pRow?.author) ?? null);
   }
 
   const byRoot = new Map<number, Record<string, unknown>[]>();
@@ -128,16 +147,18 @@ export async function findCommentsPageByPost(
     byRoot.set(rid, []);
   }
   for (const replyRow of flatRows) {
-    const rid = Number(replyRow.get("rootId"));
+    const rid = replyRow.rootId;
+    const pid = replyRow.parentId;
+    // rootId / parentId 在本查询下均不应为 null；为 null 说明数据异常，跳过而不是让它污染分组
+    if (rid == null || pid == null) continue;
     const list = byRoot.get(rid);
     if (!list) continue;
-    const pid = Number(replyRow.get("parentId"));
     const replyToUser = replyToByParentId.get(pid) ?? null;
     list.push(commentRowToJson(replyRow, replyToUser));
   }
 
-  const comments = rows.map((root: Model) => {
-    const rid = Number(root.get("id"));
+  const comments = rows.map((root) => {
+    const rid = root.id;
     const rootJson = commentRowToJson(root, null);
     rootJson.replies = byRoot.get(rid) ?? [];
     return rootJson;
@@ -168,15 +189,15 @@ export async function createComment(
 
   if (payload.parentId != null) {
     const parent = await Comment.findByPk(payload.parentId as number);
-    if (!parent || Number(parent.get("postId")) !== Number(postId)) {
+    if (!parent || parent.postId !== Number(postId)) {
       throw createHttpError(400, "父评论不存在或不属于该文章");
     }
-    parentId = Number(parent.get("id"));
-    const pParentId = parent.get("parentId") as number | null;
+    parentId = parent.id;
+    const pParentId = parent.parentId;
     if (pParentId == null) {
       rootId = parentId;
     } else {
-      const pRoot = parent.get("rootId") as number | null;
+      const pRoot = parent.rootId;
       if (pRoot == null) {
         throw createHttpError(500, "父评论缺少 rootId，数据异常");
       }
@@ -187,7 +208,8 @@ export async function createComment(
   const newId = await sequelize.transaction(async (t) => {
     const comment = await Comment.create(
       {
-        postId,
+        // 形参允许 string | number（路由参数来源），列是 number，这里显式收敛而非依赖驱动隐式转换
+        postId: Number(postId),
         authorId,
         parentId,
         content,
@@ -195,7 +217,7 @@ export async function createComment(
       },
       { transaction: t },
     );
-    const id = Number(comment.get("id"));
+    const id = comment.id;
     if (parentId == null) {
       await comment.update({ rootId: id }, { transaction: t });
     }
@@ -216,7 +238,7 @@ export async function createComment(
     const parentRow = await Comment.findByPk(parentId, {
       include: [{ model: User, as: "author", attributes: authorAttributes }],
     });
-    replyToUser = toAuthorDto(parentRow?.get("author") as Model | undefined) ?? null;
+    replyToUser = toAuthorDto(parentRow?.author) ?? null;
   }
 
   return commentRowToJson(fresh, replyToUser);
@@ -238,11 +260,11 @@ export async function removeComment(
   }
 
   const comment = await Comment.findByPk(commentId);
-  if (!comment || Number(comment.get("postId")) !== Number(postId)) {
+  if (!comment || comment.postId !== Number(postId)) {
     throw createHttpError(404, "评论不存在");
   }
 
-  if (!(await canDeleteComment(comment, post, user.get("id") as number))) {
+  if (!(await canDeleteComment(comment, post, user.id))) {
     throw createHttpError(403, "无权删除该评论");
   }
 
@@ -292,12 +314,12 @@ export async function findCommentsPageAdmin(
     Comment.count({ where }),
   ]);
   const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
-  const list = rows.map((r: Model) => {
-    const plain = r.get({ plain: true }) as Record<string, unknown>;
+  const list = rows.map((r) => {
+    const plain: PlainComment = r.get({ plain: true });
     const excerpt = trimmedStringFromUnknown(plain.content);
     return {
       ...commentRowToJson(r, null),
-      postTitle: (plain.post as { title?: string } | undefined)?.title ?? null,
+      postTitle: plain.post?.title ?? null,
       contentExcerpt: excerpt.length > 160 ? `${excerpt.slice(0, 160)}…` : excerpt,
     };
   });

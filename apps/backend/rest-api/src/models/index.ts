@@ -52,3 +52,14 @@ export function initModels(sequelize: Sequelize) {
     Comment,
   };
 }
+
+export type { CategoryAttributes, CategoryModel } from "./category.model.js";
+export type { CommentAttributes, CommentModel } from "./comment.model.js";
+export type { PermissionAttributes, PermissionModel } from "./permission.model.js";
+export type { PostFavoriteAttributes, PostFavoriteModel } from "./post-favorite.model.js";
+export type { PostVoteAttributes, PostVoteModel } from "./post-vote.model.js";
+export type { PostAttributes, PostModel } from "./post.model.js";
+export type { RolePermissionAttributes, RolePermissionModel } from "./role-permission.model.js";
+export type { RoleAttributes, RoleModel } from "./role.model.js";
+export type { UserProfileAttributes, UserProfileModel } from "./user-profile.model.js";
+export type { UserAttributes, UserModel } from "./user.model.js";

@@ -1,15 +1,53 @@
-import { type Model, type ModelStatic, type Sequelize } from "sequelize";
+import { DataTypes, type Model, type ModelStatic, type Optional, type Sequelize } from "sequelize";
+
+import type { DefinedColumns } from "./model-helpers.js";
+import type { PostModel } from "./post.model.js";
+import type { UserModel } from "./user.model.js";
+
+/** PostFavorites 表的完整列，与 migrations/0001-initial-schema + 0003 保持一致 */
+export interface PostFavoriteAttributes {
+  id: number;
+  /** 迁移 0003 起为 NOT NULL */
+  postId: number;
+  /** 迁移 0003 起为 NOT NULL */
+  userId: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type PostFavoriteCreationAttributes = Optional<
+  PostFavoriteAttributes,
+  "id" | "createdAt" | "updatedAt"
+>;
+
+export type PostFavoriteModel = Model<PostFavoriteAttributes, PostFavoriteCreationAttributes> &
+  PostFavoriteAttributes & {
+    post?: PostModel;
+    user?: UserModel;
+  };
 
 export function definePostFavoriteModel(
   sequelize: Sequelize,
-  User: ModelStatic<Model>,
-  Post: ModelStatic<Model>,
+  User: ModelStatic<UserModel>,
+  Post: ModelStatic<PostModel>,
 ) {
-  const PostFavorite = sequelize.define(
+  const PostFavorite = sequelize.define<PostFavoriteModel, DefinedColumns<PostFavoriteAttributes>>(
     "PostFavorite",
-    {},
     {
-      indexes: [{ unique: true, fields: ["postId", "userId"] }, { fields: ["postId"] }],
+      // 显式声明而非交给 belongsTo 隐式创建
+      postId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        comment: "文章 Posts.id",
+      },
+      userId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        comment: "收藏用户 Users.id",
+      },
+    },
+    {
+      indexes: [{ unique: true, fields: ["postId", "userId"] }],
     },
   );
 
