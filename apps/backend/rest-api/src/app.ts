@@ -40,7 +40,10 @@ const helmetPick: RequestHandler = (req, res, next) => {
 };
 app.use(helmetPick);
 
-app.use(cors({ origin: getCorsOriginOption() }));
+// credentials 必须开启：刷新令牌走 Cookie，跨域场景（Vite 5173 → API 3000）下
+// 浏览器只有在 Access-Control-Allow-Credentials 为 true 且 Origin 非通配时才会收发它。
+// 生产环境 CORS_ORIGINS 未配置时 getCorsOriginOption() 返回 false，即不开放跨域。
+app.use(cors({ origin: getCorsOriginOption(), credentials: true }));
 app.use(requestIdMiddleware);
 app.use(httpRequestLogMiddleware);
 app.use("/uploads", express.static(uploadsRoot));

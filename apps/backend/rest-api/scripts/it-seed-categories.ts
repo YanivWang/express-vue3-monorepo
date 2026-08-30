@@ -41,7 +41,7 @@ try {
     { transaction: tx },
   );
 
-  const rootId = root.get("id") as number;
+  const rootId = root.get("id");
   const leaves = await Category.bulkCreate(
     seed.children.map(({ name, sortOrder }) => ({
       name,

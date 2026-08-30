@@ -7,7 +7,6 @@ import type {
   ValidatedAdminListPostsSchema,
 } from "../schema/admin.schema.js";
 import type { Request, Response } from "express";
-import type { Model } from "sequelize";
 
 export async function listAdminPosts(req: Request, res: Response) {
   const { query } = getValidated<ValidatedAdminListPostsSchema>(req);

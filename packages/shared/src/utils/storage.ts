@@ -109,24 +109,31 @@ export function ssClear(): void {
 
 export interface TokenStorage {
   getToken(): string | undefined;
-  setToken(token: string, expires?: number): void;
+  setToken(token: string): void;
   removeToken(): void;
 }
 
-export interface CreateTokenStorageOptions {
-  tokenKey: string;
-  /** token 默认有效天数；JWT 签发 7d 时各 app 通常传入 7 */
-  tokenExpires?: number;
-}
-
 /**
- * 根据 key 构造 JWT 存取器（两端通用：底层仍基于 js-cookie）
+ * 访问令牌存储：只存在于内存中。
+ *
+ * 为什么不再落 Cookie / localStorage：
+ * 旧实现把 7 天有效的 JWT 写进一个 JS 可读、且没有 Secure / SameSite 的 Cookie，
+ * 一次 XSS 就足以把凭证带走并冒用一周。凡是 JS 读得到的地方，XSS 就读得到——
+ * 换成 localStorage 也一样，唯一的区别只是攻击者少敲几个字符。
+ *
+ * 现在访问令牌短时效（默认 15 分钟）且只驻留内存：刷新页面即丢失，
+ * 会话的延续交给服务端下发的 HttpOnly 刷新令牌 Cookie（JS 完全接触不到），
+ * 由 `POST /api/auth/refresh` 静默换取新的访问令牌。
  */
-export function createTokenStorage(options: CreateTokenStorageOptions): TokenStorage {
-  const { tokenKey, tokenExpires = 1 } = options;
+export function createTokenStorage(): TokenStorage {
+  let accessToken: string | undefined;
   return {
-    getToken: () => cookie.get(tokenKey),
-    setToken: (token, expires = tokenExpires) => cookie.set(tokenKey, token, expires),
-    removeToken: () => cookie.remove(tokenKey),
+    getToken: () => accessToken,
+    setToken: (token) => {
+      accessToken = token;
+    },
+    removeToken: () => {
+      accessToken = undefined;
+    },
   };
 }

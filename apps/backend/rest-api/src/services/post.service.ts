@@ -1,4 +1,4 @@
-import { Op, Sequelize, type Model, type Order } from "sequelize";
+import { Op, Sequelize, type Order } from "sequelize";
 
 import { Category, Post, PostFavorite, PostVote, User } from "../db.js";
 import { createHttpError } from "../middlewares/error.middleware.js";

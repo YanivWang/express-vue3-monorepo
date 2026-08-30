@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
 import { login as apiLogin, logout as apiLogout, register as apiRegister } from "@/api/auth";
-import { tokenStorage } from "@/api/http";
+import { restoreSession, tokenStorage } from "@/api/http";
 import type { CurrentUserProfile } from "@/api/types";
 import * as userApi from "@/api/user";
 import { parseJwtPayload } from "@/utils/jwt";
@@ -25,6 +25,7 @@ export const useAuthStore = defineStore("auth", () => {
     token,
     profile,
     fetchCurrentUser: userApi.fetchCurrentUser,
+    restoreSession,
   });
 
   async function login(payload: LoginParams) {

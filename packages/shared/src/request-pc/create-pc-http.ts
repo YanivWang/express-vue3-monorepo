@@ -10,11 +10,11 @@ import { createPcHooks, type PcPresetOptions } from "./preset.js";
 
 export interface CreatePcHttpOptions
   extends Omit<CreateHttpOptions, "tokenProvider" | "loading" | "hooks">, PcPresetOptions {
-  /** Token 存储 key；各 app 应传入独立 key（如 `pc_portal_access_token`），默认仅作占位 */
-  tokenKey?: string;
-  /** Token 存储有效期（天）；JWT 签发 7d，各 app 通常设为 7 */
-  tokenExpires?: number;
-  /** 已创建好的 token storage 实例（传入后忽略 tokenKey） */
+  /**
+   * 访问令牌存储实例。不传则新建一个内存存储。
+   * 注意：不再有 tokenKey / tokenExpires —— 访问令牌已不再持久化到 Cookie，
+   * 会话延续改由服务端的 HttpOnly 刷新令牌承担（见 create-app-http.ts）。
+   */
   tokenStorage?: TokenStorage;
   /** 覆盖/扩展默认钩子 */
   hooks?: Partial<CreateHttpOptions["hooks"]>;
@@ -27,8 +27,6 @@ export interface CreatePcHttpOptions
 /** 创建 PC 端 HttpRequest：集成 Element Plus 默认 UI 反馈，响应对齐 rest-api `{ code, msg, ... }`。 */
 export function createPcHttp(options: CreatePcHttpOptions = {}): HttpRequest {
   const {
-    tokenKey = "access_token",
-    tokenExpires = 1,
     tokenStorage,
     loginPath,
     onLogout,
@@ -40,7 +38,7 @@ export function createPcHttp(options: CreatePcHttpOptions = {}): HttpRequest {
     ...rest
   } = options;
 
-  const storage = tokenStorage ?? createTokenStorage({ tokenKey, tokenExpires });
+  const storage = tokenStorage ?? createTokenStorage();
 
   const presetHooks = createPcHooks(storage, { loginPath, onLogout, authDialog, errorDuration });
 

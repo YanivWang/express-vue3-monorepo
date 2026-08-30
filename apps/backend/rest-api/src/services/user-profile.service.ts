@@ -5,7 +5,6 @@ import { createHttpError } from "../middlewares/error.middleware.js";
 import { trimmedStringFromUnknown } from "../utils/trimmedStringFromUnknown.js";
 
 import type { UserProfileAttributes, UserProfileModel } from "../models/index.js";
-import type { Model } from "sequelize";
 
 export type UserProfilePlain = {
   id: number;
@@ -53,8 +52,7 @@ export function userProfileToPlain(row: UserProfileModel): UserProfilePlain {
     address: row.address ?? null,
     company: row.company ?? null,
     jobTitle: row.jobTitle ?? null,
-    isMarried:
-      row.isMarried === null || row.isMarried === undefined ? null : Boolean(row.isMarried),
+    isMarried: row.isMarried ?? null,
     mom: row.mom ?? null,
     father: row.father ?? null,
     university: row.university ?? null,

@@ -28,6 +28,14 @@ export class HttpRequest {
   private tokenProvider?: TokenProvider;
   private loading?: LoadingHandler;
   private hooks: RequestHooks;
+  private refreshAccessToken?: () => Promise<string>;
+
+  /**
+   * 进行中的刷新промise：多个请求同时 401 时只发起一次刷新，其余等待同一结果。
+   * 否则一次令牌过期会引发 N 个并发刷新，而刷新是轮换的——后到的那些会拿着已作废的
+   * 旧令牌去刷新，反而触发服务端的重放检测把整个会话踢掉。
+   */
+  private refreshInFlight: Promise<string> | null = null;
 
   /** 进行中的请求池：key → AbortController */
   private pendingRequests = new Map<string, AbortController>();
@@ -37,19 +45,36 @@ export class HttpRequest {
       baseURL = "",
       timeout = 10000,
       headers = { "Content-Type": "application/json;charset=UTF-8" },
+      withCredentials = false,
       successCode = 200,
       tokenProvider,
       loading,
       hooks = {},
+      refreshAccessToken,
     } = options;
 
     this.successCode = successCode;
     this.tokenProvider = tokenProvider;
+    this.refreshAccessToken = refreshAccessToken;
     this.loading = loading;
     this.hooks = hooks;
 
-    this.instance = axios.create({ baseURL, timeout, headers });
+    this.instance = axios.create({ baseURL, timeout, headers, withCredentials });
     this.setupInterceptors();
+  }
+
+  /** 刷新去重：并发 401 只触发一次真实刷新，其余请求复用同一个 promise */
+  private async performRefresh(): Promise<string> {
+    if (!this.refreshAccessToken) {
+      throw new Error("未配置 refreshAccessToken");
+    }
+    this.refreshInFlight ??= this.refreshAccessToken().finally(() => {
+      this.refreshInFlight = null;
+    });
+
+    const token = await this.refreshInFlight;
+    this.tokenProvider?.setToken(token);
+    return token;
   }
 
   private addPending(config: RequestConfig & InternalAxiosRequestConfig): void {
@@ -216,6 +241,29 @@ export class HttpRequest {
             }
             return "登录已过期";
           };
+
+          // 访问令牌过期先尝试静默刷新并重放一次；刷新接口自身与登录接口须置 skipAuthRefresh
+          const canRefresh =
+            this.refreshAccessToken !== undefined &&
+            customConfig.skipAuthRefresh !== true &&
+            customConfig._authRetried !== true;
+
+          if (canRefresh) {
+            try {
+              const nextToken = await this.performRefresh();
+              // customConfig 源自 error.config，其 headers 在运行时已是 AxiosHeaders 实例
+              const headers = AxiosHeaders.from(customConfig.headers);
+              headers.set("Authorization", `Bearer ${nextToken}`);
+              const replay: RequestConfig & InternalAxiosRequestConfig = {
+                ...customConfig,
+                headers,
+                _authRetried: true,
+              };
+              return await this.instance.request(replay);
+            } catch {
+              // 刷新失败即会话确实结束，落到下面的常规 401 处理
+            }
+          }
 
           const authErr = createNormalizedError(unauthorizedMsg(), {
             type: "auth",

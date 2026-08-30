@@ -150,6 +150,47 @@ function positiveIntEnv(name: string, fallback: number): number {
 }
 
 /**
+ * 认证令牌与 Cookie 策略。
+ *
+ * 改造前的问题：登录签发一枚 **7 天** 有效的 JWT，前端用 js-cookie 存进一个
+ * **JS 可读、且没有 Secure / SameSite** 的 Cookie。于是一次 XSS 就等于账号被接管一周，
+ * 明文 HTTP 下 Cookie 还会裸奔，而除了用户主动登出（黑名单）之外没有任何撤销手段。
+ *
+ * 现在拆成两段凭证：
+ * - 访问令牌（JWT）短时效、由前端保存在内存中，随 Authorization 头发送；
+ * - 刷新令牌不透明、服务端可撤销，放在 HttpOnly + Secure + SameSite=Strict 的 Cookie 里，
+ *   且 Path 限定在刷新接口，既取不到也带不出去。
+ */
+export const ACCESS_TOKEN_TTL_SECONDS = positiveIntEnv("ACCESS_TOKEN_TTL_SECONDS", 15 * 60);
+export const REFRESH_TOKEN_TTL_SECONDS = positiveIntEnv(
+  "REFRESH_TOKEN_TTL_SECONDS",
+  7 * 24 * 60 * 60,
+);
+
+/**
+ * 刷新令牌 Cookie 名与作用路径。
+ *
+ * Path 取 `/api` 而非更窄的 `/api/auth`：登出（`POST /api/logout`）同样需要读到这枚 Cookie
+ * 才能真正撤销刷新令牌家族。把 Path 收窄就必须把登出挪到 `/api/auth/logout`，
+ * 那会破坏既有前端与 OpenAPI 契约。
+ * 权衡后选择保持契约：Cookie 虽然会随所有 /api 请求发送，但它是 HttpOnly + Secure +
+ * SameSite=Strict 的，JS 读不到、跨站也带不出去，相较改造前的「JS 可读且无任何属性」
+ * 已是数量级的差别。若将来愿意调整契约，把 Path 收窄到 `/api/auth` 是进一步的加固方向。
+ */
+export const REFRESH_COOKIE_NAME = "evm_refresh_token";
+export const REFRESH_COOKIE_PATH = "/api";
+
+/**
+ * 生产默认要求 HTTPS；本地 http://localhost 调试时浏览器不会回传 Secure Cookie，
+ * 故非生产环境默认关闭，可用 AUTH_COOKIE_SECURE=1 显式打开。
+ */
+export const AUTH_COOKIE_SECURE = (() => {
+  const raw = trimUnset(process.env.AUTH_COOKIE_SECURE);
+  if (raw === undefined) return appEnv === "production";
+  return raw === "1" || raw.toLowerCase() === "true";
+})();
+
+/**
  * 限流阈值。默认值面向生产：
  * - 全局 15 分钟 1000 次：足够正常浏览与交互，又能挡住脚本化抓取；
  * - 认证接口 1 分钟 10 次：抑制账号枚举与暴力破解。

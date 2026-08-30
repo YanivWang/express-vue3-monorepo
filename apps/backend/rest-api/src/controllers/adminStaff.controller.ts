@@ -15,7 +15,6 @@ import type {
   ValidatedAdminStaffPatchSchema,
 } from "../schema/admin.schema.js";
 import type { Request, Response } from "express";
-import type { Model } from "sequelize";
 
 export async function listStaffUsers(req: Request, res: Response) {
   const { query } = getValidated<ValidatedAdminStaffListSchema>(req);

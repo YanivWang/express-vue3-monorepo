@@ -42,16 +42,16 @@
 
 ## 核心亮点
 
-| 维度              | 说明                                                                                                                                                                                                               |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Monorepo 全栈** | pnpm workspace 管理后端 REST、PC 门户、管理端与 `packages`，依赖与脚本同仓对齐                                                                                                                                     |
-| **pnpm catalog**  | 在 workspace 层面集中约束版本，`pnpm-lock.yaml` 为准，降低多包漂移                                                                                                                                                 |
-| **共享层**        | `shared`（前后端 PC 会话/HTTP/类型）、`request-core`（axios 核心，经 shared 封装）；`js-bridge`、`web-monitor` 为独立 workspace 库，**当前前端 app 尚未接入**                                                      |
-| **契约与文档**    | OpenAPI 3.0（[`docs/openapi.yaml`](docs/openapi.yaml)）+ 运行时 Swagger UI（`/api-docs`）                                                                                                                          |
-| **Docker 网关**   | Compose 一体拉起 **MySQL**、**Redis**、**rest-api**、**pc-portal**、**pc-admin** 与 **Nginx**；浏览器单端口访问（默认网关 **2026**），门户 `/`、管理端 **`/pc-admin/`**、API `/api` 等同源                         |
-| **工程规范**      | ESLint 9 flat、typescript-eslint、Prettier、Stylelint、Husky、lint-staged、Commitlint（Conventional Commits）                                                                                                      |
-| **质量门禁**      | `pnpm typecheck`（权威）、`pnpm verify`（类型 + Lint + 样式 + 格式 + 测试）                                                                                                                                        |
-| **数据与链路**    | Sequelize + MySQL；**Redis**（JWT 黑名单、RBAC 缓存）；**类目**与 **合成灌帖** 已拆分为 `pnpm db:seed-categories` 与 `pnpm db:seed-post`，推荐顺序见 [空库到完整合成数据（推荐顺序）](#空库到完整合成数据推荐顺序) |
+| 维度              | 说明                                                                                                                                                                                                                        |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Monorepo 全栈** | pnpm workspace 管理后端 REST、PC 门户、管理端与 `packages`，依赖与脚本同仓对齐                                                                                                                                              |
+| **pnpm catalog**  | 在 workspace 层面集中约束版本，`pnpm-lock.yaml` 为准，降低多包漂移                                                                                                                                                          |
+| **共享层**        | `shared`（前后端 PC 会话/HTTP/类型）、`request-core`（axios 核心，经 shared 封装）；`js-bridge`、`web-monitor` 为独立 workspace 库，**当前前端 app 尚未接入**                                                               |
+| **契约与文档**    | OpenAPI 3.0（[`docs/openapi.yaml`](docs/openapi.yaml)）+ 运行时 Swagger UI（`/api-docs`）                                                                                                                                   |
+| **Docker 网关**   | Compose 一体拉起 **MySQL**、**Redis**、**rest-api**、**pc-portal**、**pc-admin** 与 **Nginx**；浏览器单端口访问（默认网关 **2026**），门户 `/`、管理端 **`/pc-admin/`**、API `/api` 等同源                                  |
+| **工程规范**      | ESLint 9 flat、typescript-eslint、Prettier、Stylelint、Husky、lint-staged、Commitlint（Conventional Commits）                                                                                                               |
+| **质量门禁**      | `pnpm verify`（类型 + Lint + 样式 + 格式 + 单测）本地与 CI 同一套命令；GitHub Actions 三作业：`verify`、集成测试（真实 MySQL + Redis）、镜像构建并真实启动冒烟                                                              |
+| **数据与链路**    | Sequelize + MySQL，**表结构由 `src/migrations/*` 版本化管理**（不再使用 `sequelize.sync()`）；**Redis**（访问令牌黑名单、刷新令牌、RBAC 缓存）；**类目**与 **合成灌帖** 见 `pnpm db:seed-categories` 与 `pnpm db:seed-post` |
 
 ---
 
@@ -167,14 +167,14 @@ _「权限矩阵」弹窗：为指定角色勾选一般权限（读写类目、�
 
 ## 技术栈
 
-| 类别       | 技术                                                                                                                                              |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 后端       | Node.js、Express（ESM）、TypeScript、Sequelize、MySQL、**Redis**、JWT（登出黑名单 + RBAC 缓存）、Zod                                              |
-| 前端       | Vue 3、Vite、TypeScript、Pinia、Vue Router（pc-portal 等与 shared 对齐的栈，含 Element Plus 等）                                                  |
-| 共享包     | `@express-vue3-monorepo/*`：`shared`、`request-core`（已用于 pc-portal / pc-admin）；`js-bridge`、`web-monitor`（workspace 库，**待接入**）       |
-| 工程化     | pnpm workspace、pnpm catalog、ESLint、typescript-eslint、Prettier、Stylelint、Husky、lint-staged、Commitlint                                      |
-| 契约与观测 | OpenAPI 3.0、Swagger UI；`web-monitor` 提供 Web Vitals / 客户端错误上报（可选接入）                                                               |
-| 测试       | 根目录 `pnpm test` / `pnpm verify` 仅跑 **rest-api** Vitest；`js-bridge` 包内另有 Vitest（`pnpm --filter @express-vue3-monorepo/js-bridge test`） |
+| 类别       | 技术                                                                                                                                                                                                      |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 后端       | Node.js、Express（ESM）、TypeScript、Sequelize（迁移版本化）、MySQL、**Redis**（令牌黑名单 / 刷新令牌 / RBAC 缓存）、短时效 JWT + 可撤销刷新令牌、Zod                                                     |
+| 前端       | Vue 3、Vite、TypeScript、Pinia、Vue Router（pc-portal 等与 shared 对齐的栈，含 Element Plus 等）                                                                                                          |
+| 共享包     | `@express-vue3-monorepo/*`：`shared`、`request-core`（已用于 pc-portal / pc-admin）；`js-bridge`、`web-monitor`（workspace 库，**待接入**）                                                               |
+| 工程化     | pnpm workspace、pnpm catalog、ESLint、typescript-eslint、Prettier、Stylelint、Husky、lint-staged、Commitlint                                                                                              |
+| 契约与观测 | OpenAPI 3.0、Swagger UI；`web-monitor` 提供 Web Vitals / 客户端错误上报（可选接入）                                                                                                                       |
+| 测试       | `pnpm test` 跑 rest-api 单测（无外部依赖，构成 `verify` 一环）；`pnpm test:integration` 跑集成测试，需真实 MySQL + Redis，拉起完整应用打真实 HTTP；`js-bridge` 包内另有 Vitest。**前端 app 目前仍无测试** |
 
 ---
 
@@ -215,14 +215,18 @@ pnpm pc-admin:dev
 
 仓库根**已跟踪提交**一份 **`.env.development`**（`.gitignore` 中以 `!.env.development` 放行），可直接跑起来；**其中的口令是公开可见的示例值，仅供一次性本地试跑**，请在任何共享环境中先行替换，或改用不入库的 **`.env.development.local`** 覆盖。加载顺序与 `APP_ENV` / `NODE_ENV` 约束见 `apps/backend/rest-api/src/env.ts`。至少需要下列变量：
 
-| 变量                                                   | 说明                                                                                                                                                                                                                            |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `JWT_SECRET`                                           | 必填，长度 ≥ 32                                                                                                                                                                                                                 |
-| `REDIS_URL`                                            | 必填；例如 `redis://:密码@127.0.0.1:6379`。Docker Compose 开发栈中 **`REDIS_URL`** 常由 [`docker-compose.base.yaml`](docker/docker-compose.base.yaml) 注入（`REDIS_PASSWORD` 来自 `.env.development`）；宿主直连 Redis 时须自填 |
-| `REDIS_PASSWORD`                                       | 使用 **`pnpm docker:*`** 时须在 `.env.development` 配置（供 **redis** 容器 `requirepass` 与拼接 **`REDIS_URL`**）；仅用宿主服务、`REDIS_URL` 已含口令时可不单独使用本变量                                                       |
-| `DB_HOST`、`DB_USER`、`DB_PWD`、`DB_NAME`              | 必填；`DB_PORT` 缺省 3306                                                                                                                                                                                                       |
-| `ADMIN_BOOTSTRAP_USERNAME`、`ADMIN_BOOTSTRAP_PASSWORD` | 首个 `super_admin` 及合成链路默认登录依赖；**源码内无硬编码账号**，但仓库跟踪的 `.env.development` 已带一组示例口令，**共享环境务必替换**                                                                                       |
-| `DB_SYNC_ALTER`                                        | 可选；development 下 Sequelize 默认 `sync({ alter: true })`；设为 **`0`** 时仅建缺表、不 alter                                                                                                                                  |
+| 变量                                                     | 说明                                                                                                                                                                                                                            |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `JWT_SECRET`                                             | 必填，长度 ≥ 32                                                                                                                                                                                                                 |
+| `REDIS_URL`                                              | 必填；例如 `redis://:密码@127.0.0.1:6379`。Docker Compose 开发栈中 **`REDIS_URL`** 常由 [`docker-compose.base.yaml`](docker/docker-compose.base.yaml) 注入（`REDIS_PASSWORD` 来自 `.env.development`）；宿主直连 Redis 时须自填 |
+| `REDIS_PASSWORD`                                         | 使用 **`pnpm docker:*`** 时须在 `.env.development` 配置（供 **redis** 容器 `requirepass` 与拼接 **`REDIS_URL`**）；仅用宿主服务、`REDIS_URL` 已含口令时可不单独使用本变量                                                       |
+| `DB_HOST`、`DB_USER`、`DB_PWD`、`DB_NAME`                | 必填；`DB_PORT` 缺省 3306                                                                                                                                                                                                       |
+| `ADMIN_BOOTSTRAP_USERNAME`、`ADMIN_BOOTSTRAP_PASSWORD`   | 首个 `super_admin` 及合成链路默认登录依赖；**源码内无硬编码账号**，但仓库跟踪的 `.env.development` 已带一组示例口令，**共享环境务必替换**                                                                                       |
+| `DB_AUTO_MIGRATE`                                        | 可选；默认启动时自动执行迁移（多副本由 MySQL 命名锁串行化）。设为 **`0`** 则跳过，改由部署流水线执行 `pnpm db:migrate`                                                                                                          |
+| `ACCESS_TOKEN_TTL_SECONDS` / `REFRESH_TOKEN_TTL_SECONDS` | 可选；访问令牌与刷新令牌有效期，默认 **900**（15 分钟）/ **604800**（7 天）                                                                                                                                                     |
+| `AUTH_COOKIE_SECURE`                                     | 可选；刷新令牌 Cookie 是否要求 HTTPS。生产默认开启；本地 http 调试默认关闭                                                                                                                                                      |
+| `RATE_LIMIT_GLOBAL_MAX` 等 `RATE_LIMIT_*`                | 可选；限流阈值，默认全局 15 分钟 / 1000 次、认证接口 1 分钟 / 10 次                                                                                                                                                             |
+| `LOG_TO_FILE`                                            | 可选；设为 **`1`** 时日志额外落盘到 `logs/`。默认只走 stdout（容器内写文件既看不到也留不住）                                                                                                                                    |
 
 若仅在 **宿主** 调试后端进程，可先 **`pnpm docker:dev`** 保持 **MySQL / Redis**，[`docker/docker-compose.dev.yaml`](docker/docker-compose.dev.yaml) 默认映射 **`3306:3306`** 与 **`6379:6379`** 到宿主；`.env.development` 设 **`DB_HOST=127.0.0.1`**，并配置 **`REDIS_URL`**（口令与 compose 中 **`REDIS_PASSWORD`**、本机 Redis 一致），再执行 **`pnpm rest-api:dev`**。不需要暴露端口时可自行注释对应 `ports`。
 
@@ -235,7 +239,7 @@ pnpm pc-admin:dev
 | `VITE_DEV_HMR_CLIENT_PORT` | Docker 网关模式下 HMR WebSocket 端口，通常与 **`GATEWAY_HOST_PORT`**（默认 **2026**）一致；Compose 开发栈会注入                      |
 | `VITE_ADMIN_BASE`          | **仅 pc-admin**：生产/网关子路径 base，Compose 与生产镜像为 **`/pc-admin/`**；宿主单独 `pnpm pc-admin:dev` 时可不设（默认 `/`）      |
 
-两前端 app 的 JWT 分别存于同名 **Cookie**：**`pc_portal_access_token`**、**`pc_admin_access_token`**（`shared` 的 `createAppPcHttp` → `createTokenStorage`，底层为 js-cookie，默认有效期 **7 天**）；管理端 dev 端口 **5174**，门户 **5173**。
+两前端 app 的**访问令牌只保存在内存中**（`shared` 的 `createTokenStorage`），不写 Cookie 也不写 localStorage——凡是 JS 读得到的地方，XSS 就读得到。会话延续由服务端下发的 **HttpOnly + SameSite=Strict** 刷新令牌 Cookie（`evm_refresh_token`）承担：页面加载时 `createAppPcHttp` 的 `restoreSession()` 静默换回访问令牌，令牌过期时 `request-core` 自动刷新并重放原请求。管理端 dev 端口 **5174**，门户 **5173**。
 
 ### 首个超级管理员（bootstrap）
 
@@ -245,25 +249,27 @@ pnpm pc-admin:dev
 
 ## 常用命令
 
-| 功能                                                       | 命令                                                                                                           |
-| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| 并行对所有含 `dev` 的包执行 dev                            | `pnpm dev`                                                                                                     |
-| 宿主运行后端                                               | `pnpm rest-api:dev` / `pnpm rest-api:dev:debug` / `pnpm rest-api:start`                                        |
-| 宿主运行前端                                               | `pnpm pc-portal:dev` / `pnpm pc-admin:dev`                                                                     |
-| 删库并重建 MySQL 库（`DROP DATABASE` + `CREATE`）          | `pnpm db:drop-create`（或 filter 同包 `db:drop-create`）                                                       |
-| 仅 MySQL 索引去重（脚本，无 HTTP）                         | `pnpm db:dedupe-indexes`                                                                                       |
-| 写入 IT 示例类目（会 `connectDatabase`；仅空类目表时写入） | `pnpm db:seed-categories`                                                                                      |
-| 幂等创建/更新超级管理员                                    | `pnpm --filter @express-vue3-monorepo/rest-api exec tsx scripts/ensure-super-admin.ts`                         |
-| 测试                                                       | `pnpm test`（`pnpm test:all` 与之同义；均只跑 rest-api 的 `test`，即 Vitest + `scripts/test-env.ts` 环境冒烟） |
-| 类型检查（全仓权威入口）                                   | `pnpm typecheck`                                                                                               |
-| 纯 TS workspace 包的 `tsc -b` 构图                         | `pnpm typecheck:solution`                                                                                      |
-| 仅 packages 并行 typecheck                                 | `pnpm typecheck:packages`                                                                                      |
-| Lint / 样式 / 格式                                         | `pnpm lint` · `pnpm lint:style` · `pnpm format`（及对应 `:fix` / `:check`）                                    |
-| 提交前全套校验                                             | `pnpm verify`                                                                                                  |
-| Docker 开发栈                                              | `pnpm docker:dev` / `pnpm docker:dev:down` / `pnpm docker:dev:debug`                                           |
-| 容器内 pnpm                                                | `pnpm docker:install` / `pnpm docker:pnpm`                                                                     |
-| Docker 测试 / 生产                                         | `pnpm docker:test` / `pnpm docker:prod`                                                                        |
-| **索引去重 + 清帖 + 合成灌帖（HTTP，不含类目）**           | `pnpm db:seed-post`（须 **API 已启动** 且已 **`pnpm db:seed-categories`** 或已有等价类目）                     |
+| 功能                                                       | 命令                                                                                       |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| 并行对所有含 `dev` 的包执行 dev                            | `pnpm dev`                                                                                 |
+| 宿主运行后端                                               | `pnpm rest-api:dev` / `pnpm rest-api:dev:debug` / `pnpm rest-api:start`                    |
+| 宿主运行前端                                               | `pnpm pc-portal:dev` / `pnpm pc-admin:dev`                                                 |
+| 删库并重建 MySQL 库（`DROP DATABASE` + `CREATE`）          | `pnpm db:drop-create`（或 filter 同包 `db:drop-create`）                                   |
+| 执行数据库迁移 / 查看状态 / 回滚一步                       | `pnpm db:migrate` / `pnpm db:migrate:status` / `pnpm db:migrate:undo`                      |
+| 仅 MySQL 索引去重（历史库补救用；新库已由迁移 0002 根治）  | `pnpm db:dedupe-indexes`                                                                   |
+| 写入 IT 示例类目（会 `connectDatabase`；仅空类目表时写入） | `pnpm db:seed-categories`                                                                  |
+| 幂等创建/更新超级管理员                                    | `pnpm --filter @express-vue3-monorepo/rest-api exec tsx scripts/ensure-super-admin.ts`     |
+| 单元测试                                                   | `pnpm test`（rest-api 的 Vitest + `scripts/test-env.ts` 环境冒烟；无需外部依赖）           |
+| 集成测试（需 MySQL + Redis）                               | `pnpm test:integration`                                                                    |
+| 类型检查（全仓权威入口）                                   | `pnpm typecheck`                                                                           |
+| 纯 TS workspace 包的 `tsc -b` 构图                         | `pnpm typecheck:solution`                                                                  |
+| 仅 packages 并行 typecheck                                 | `pnpm typecheck:packages`                                                                  |
+| Lint / 样式 / 格式                                         | `pnpm lint` · `pnpm lint:style` · `pnpm format`（及对应 `:fix` / `:check`）                |
+| 提交前全套校验                                             | `pnpm verify`                                                                              |
+| Docker 开发栈                                              | `pnpm docker:dev` / `pnpm docker:dev:down` / `pnpm docker:dev:debug`                       |
+| 容器内 pnpm                                                | `pnpm docker:install` / `pnpm docker:pnpm`                                                 |
+| Docker 测试 / 生产                                         | `pnpm docker:test` / `pnpm docker:prod`                                                    |
+| **索引去重 + 清帖 + 合成灌帖（HTTP，不含类目）**           | `pnpm db:seed-post`（须 **API 已启动** 且已 **`pnpm db:seed-categories`** 或已有等价类目） |
 
 `prepare` 会安装 Husky；未执行过 `pnpm install` 则无 Git 钩子。
 
@@ -440,7 +446,7 @@ pnpm docker:prod
 ## npm 镜像与安全
 
 - 根 [`.npmrc`](.npmrc) 若配置了镜像，CI 海外环境可按需指定 registry。
-- `.gitignore` 默认忽略 `.env.*`，但**显式放行了 `.env.example` 与 `.env.development`**——后者带有可直接使用的开发口令（`JWT_SECRET`、`ADMIN_BOOTSTRAP_PASSWORD`、`DB_PWD`、`MYSQL_ROOT_PASSWORD`、`REDIS_PASSWORD`）。**这是为「clone 即可跑」做的取舍，不是安全实践**：`.env.test` / `.env.production` 仍被忽略，切勿比照办理。
+- `.gitignore` 默认忽略 `.env.*`，但**显式放行了 `.env.example` 与 `.env.development`**——后者带有可直接使用的开发口令（`JWT_SECRET`、`ADMIN_BOOTSTRAP_PASSWORD`、`DB_PWD`、`MYSQL_ROOT_PASSWORD`、`REDIS_PASSWORD`）。**这是为「clone 即可跑」做的取舍，不是安全实践**：`.env.test` / `.env.production` 仍被忽略，切勿比照办理。文件内所有值都必须是占位符；本地私有覆盖请写 `.env.development.local`。**若曾在其中填过真实口令，改文件并不能把它从 git 历史里抹掉，必须直接轮换该口令。**
 - 本地私有覆盖请写入 **`.env.development.local`**（已忽略）；密钥一旦进入 Git 历史，删文件不等于撤销，须在目标环境**轮换**。
 - `apps/backend/rest-api/scripts/synthetic-it.env` 同样被跟踪，其 **`SYNTHETIC_PEXELS_API_KEY` 目前填有真实 Key**；自建部署请清空并改用不入库的 `synthetic-it.env.local`。
 - 必填项见 `apps/backend/rest-api/src/env.ts`（含 **`REDIS_URL`**）。首个后台账号见 [`docs/admin-bootstrap.md`](docs/admin-bootstrap.md)。

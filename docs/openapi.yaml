@@ -9,8 +9,8 @@ info:
     - 文档：`GET /openapi.yaml`（YAML 原文）、`GET /api-docs`（Swagger UI）；契约源文件为仓库根 `docs/openapi.yaml`，由 `src/swagger.ts` 加载。
     - 安全与传输：`helmet`（`/api-docs` 路径关闭 CSP 以便 Swagger UI）；`cors` 行为见 `src/env.ts`（生产须配置 `CORS_ORIGINS`）。较大 JSON 响应可能经 `compression.middleware.ts` 压缩（`Content-Encoding: gzip` 等）。
     - 追踪：`requestId.middleware.ts` 写入响应头 **`X-Request-Id`**；客户端可传入同名请求头透传（最长 128 字符）。
-    - 限流（`middlewares/rateLimit.middleware.ts`）：`/health`、`/ready` 与 **GET `/uploads/...` 静态** 在 `src/app.ts` 中先于全局限流挂载，故 **15 分钟窗口计数不作用于这些路径**；限流器内对 `/health`、`/ready` 的 `skip` 为兜底。其余进入全局限流的 API **15 分钟 / 最多 10000 次**（开发期临时放宽，上线前请恢复合理阈值），超限 HTTP 429，`msg` 为「请求过于频繁，请稍后再试」。`POST /api/register`、`POST /api/login` 另挂载 **1 分钟 / 最多 60 次**。
-    - 认证：`POST /api/register`、`POST /api/login` 无需登录；**`POST /api/logout`** 需 Bearer，将 JWT `jti` 写入 Redis 黑名单至过期。注册/登录请求体校验见 `src/schema/auth.schema.ts`（用户名 trim 后长度 2～100；密码 6～100）。当前用户资料见 **`GET /api/me`**、**`GET/PATCH /api/me/profile`**（`src/schema/user.schema.ts` 中 `getMeSchema` 等）。
+    - 限流（`middlewares/rateLimit.middleware.ts`）：`/health`、`/ready` 与 **GET `/uploads/...` 静态** 在 `src/app.ts` 中先于全局限流挂载，故 **15 分钟窗口计数不作用于这些路径**；限流器内对 `/health`、`/ready` 的 `skip` 为兜底。其余进入全局限流的 API 默认 **15 分钟 / 最多 1000 次**，超限 HTTP 429，`msg` 为「请求过于频繁，请稍后再试」。`POST /api/register`、`POST /api/login`、`POST /api/auth/refresh` 另挂载默认 **1 分钟 / 最多 10 次**。阈值均由环境变量 `RATE_LIMIT_*` 控制（见 `src/env.ts`），不再硬编码。
+    - 认证：采用「短时效访问令牌 + 可撤销刷新令牌」双凭证。`POST /api/login` 在响应体返回访问令牌（默认 15 分钟），同时通过 **HttpOnly + Secure + SameSite=Strict** 的 `evm_refresh_token` Cookie 下发刷新令牌（默认 7 天）。访问令牌过期时调用 **`POST /api/auth/refresh`** 换新，该接口每次调用都会轮换刷新令牌；若检测到已用过的刷新令牌被重放，会撤销整个令牌家族并要求重新登录。`POST /api/register`、`POST /api/login`、`POST /api/auth/refresh` 无需 Bearer；**`POST /api/logout`** 需 Bearer，会同时把访问令牌 `jti` 写入 Redis 黑名单并撤销刷新令牌家族。注册/登录请求体校验见 `src/schema/auth.schema.ts`（用户名 trim 后长度 2～100；密码 6～100）。当前用户资料见 **`GET /api/me`**、**`GET/PATCH /api/me/profile`**（`src/schema/user.schema.ts` 中 `getMeSchema` 等）。
     - 用户：`src/routes/user.routes.ts`：**`GET /api/me`**（需 Bearer）返回轻量资料、**`nickname`**（扩展表）与 **`permissions`** RBAC 快照；**`GET/PATCH /api/me/profile`** 为当前用户扩展资料（`UserProfiles` 全量 / 部分更新 upsert）。注册用户/职员的运维请走 **`/api/admin/portal-users`**、**`/api/admin/staff`**。
     - 分类：`GET /api/categories` 公开；**`POST /api/categories`** 创建二级叶子须在 **Bearer** 下且具备 **`admin.categories.write`**。返回两级树，节点含 `id`、`name`、`parentId`、`sortOrder`，根的 `children` 为二级叶子。文章创建时 `categoryId` 必须为二级叶子 id；`GET /api/posts` 可选 `parentId`（一级 id）或 `categoryId`（叶子 id），二者不得同传。一级分类与 PATCH/DELETE 见 **`/api/admin/categories/...`**。
     - 上传：**`POST /api/uploads`** 与 **`POST /api/uploads/profiles`** 均需 Bearer；`multipart/form-data` 字段名 **`files`**；类型 jpeg/png/gif/webp。
@@ -69,7 +69,12 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: "登录接口返回的 JWT；请求头 Authorization 为「Bearer」+ 空格 + token。过期、未携带或已登出黑名单返回 401。"
+      description: >-
+        登录接口返回的**短时效**访问令牌（默认 15 分钟，由 ACCESS_TOKEN_TTL_SECONDS 控制）；
+        请求头 Authorization 为「Bearer」+ 空格 + token。过期、未携带或已登出黑名单返回 401。
+        令牌过期后不应重新登录，而应调用 `POST /api/auth/refresh` 静默换取新令牌。
+        客户端**不应**把该令牌持久化到 Cookie / localStorage —— 凡是 JS 读得到的地方，XSS 就读得到；
+        会话的延续由 HttpOnly 的刷新令牌 Cookie 承担。
 
   schemas:
     MsgBody:
@@ -1067,7 +1072,16 @@ paths:
               $ref: "#/components/schemas/CredentialsBody"
       responses:
         "200":
-          description: 登录成功，返回 JWT
+          description: >-
+            登录成功。响应体返回短时效访问令牌与其有效秒数；
+            刷新令牌通过 Set-Cookie 下发，JS 不可读。
+          headers:
+            Set-Cookie:
+              description: >-
+                `evm_refresh_token=<token>; Path=/api; HttpOnly; SameSite=Strict; Max-Age=<REFRESH_TOKEN_TTL_SECONDS>`
+                （生产环境额外带 `Secure`）。
+              schema:
+                type: string
           content:
             application/json:
               schema:
@@ -1103,13 +1117,66 @@ paths:
               schema:
                 $ref: "#/components/schemas/MsgBody"
 
+  /api/auth/refresh:
+    post:
+      tags: [认证]
+      summary: 刷新访问令牌
+      description: |
+        凭 `evm_refresh_token` Cookie 换取一枚新的访问令牌，**不需要** Bearer——
+        调用它的前提正是访问令牌已经过期。
+
+        每次调用都会轮换刷新令牌：旧令牌立即失效，新令牌经 Set-Cookie 下发。
+        因此泄露窗口被压缩到「下一次刷新之前」，而不是整个有效期。
+
+        若一枚已经用过的刷新令牌再次出现（说明它被复制走了），服务端会撤销该次登录派生出的
+        **整个令牌家族** 并返回 401，攻击者与真实用户都必须重新登录。
+
+        角色在两次刷新之间被管理员改动时，新令牌会反映最新角色（服务端重新读库，不沿用旧令牌里的冗余字段）。
+      responses:
+        "200":
+          description: 刷新成功，返回新的访问令牌并轮换刷新令牌 Cookie
+          headers:
+            Set-Cookie:
+              description: 轮换后的 `evm_refresh_token`，属性同登录接口。
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginSuccess"
+        "401":
+          description: >-
+            缺少 Cookie、刷新令牌无效/过期，或检测到重放（此时整个令牌家族已被撤销）。
+            响应会清除客户端的刷新令牌 Cookie。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+              example:
+                code: 401
+                msg: 刷新凭证无效或已过期，请重新登录
+        "429":
+          description: 与登录/注册共用的限流窗口
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+        "500":
+          description: 服务端异常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MsgBody"
+
   /api/logout:
     post:
       tags: [认证]
       summary: 退出登录
       description: |
-        需在请求头携带 Bearer JWT。服务端将 JWT 的 `jti` 写入 Redis 黑名单直至原 token 过期；
-        黑名单内 token 再次请求受保护接口时返回 401。
+        需在请求头携带 Bearer 访问令牌。服务端会做两件事：
+        1. 把访问令牌的 `jti` 写入 Redis 黑名单直至其自然过期（JWT 无法撤回，只能拉黑）；
+        2. 撤销 `evm_refresh_token` 对应的整个令牌家族，并清除该 Cookie——
+           这一步是真正的撤销，撤销后无法再刷新出新的访问令牌。
       security:
         - bearerAuth: []
       responses:

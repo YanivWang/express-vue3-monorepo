@@ -17,6 +17,10 @@ export interface RequestConfig extends AxiosRequestConfig {
   withToken?: boolean;
   /** 为 true 时 401 不调用 onUnauthorized（如登录、静默拉取 /me） */
   skipUnauthorizedDialog?: boolean;
+  /** 为 true 时 401 不尝试静默刷新（刷新接口自身、登录接口必须置为 true，否则会递归） */
+  skipAuthRefresh?: boolean;
+  /** 内部：本请求是否已因 401 刷新并重放过，防止无限循环 */
+  _authRetried?: boolean;
   /** 请求重试次数（仅 5xx 生效） */
   retryCount?: number;
   /** 请求重试间隔（ms） */
@@ -98,10 +102,22 @@ export interface CreateHttpOptions {
   timeout?: number;
   /** 默认请求头 */
   headers?: Record<string, string>;
+  /** 跨域请求是否携带 Cookie；使用 HttpOnly 刷新令牌时必须开启 */
+  withCredentials?: boolean;
   /** 业务成功码 */
   successCode?: number;
   /** Token 提供者，默认不注入即禁用自动 Token 注入 */
   tokenProvider?: TokenProvider;
+  /**
+   * 静默刷新：收到 401 时调用，返回新的访问令牌。
+   *
+   * 访问令牌被刻意做短（默认 15 分钟），正常使用中必然会在页面停留期间过期。
+   * 没有这一环，用户就会在操作到一半时被踢回登录页——这是把「短时效令牌」这一安全改进
+   * 变成体验灾难的典型方式。并发的多个请求同时 401 时，这里只会真正刷新一次。
+   *
+   * 不注入则维持旧行为：401 直接上抛。
+   */
+  refreshAccessToken?: () => Promise<string>;
   /** Loading 处理器 */
   loading?: LoadingHandler;
   /** 钩子 */

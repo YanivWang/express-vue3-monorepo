@@ -3,8 +3,6 @@ import { Transaction } from "sequelize";
 import { Category, Post, PostFavorite, User, sequelize } from "../db.js";
 import { createHttpError } from "../middlewares/error.middleware.js";
 
-import type { Model } from "sequelize";
-
 const authorAttributes = ["id", "username", "avatar"];
 const categoryAttributes = ["id", "name"];
 

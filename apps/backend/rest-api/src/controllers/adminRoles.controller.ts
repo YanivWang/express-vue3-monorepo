@@ -14,7 +14,6 @@ import type {
   ValidatedAdminRolesPatchSchema,
 } from "../schema/admin.schema.js";
 import type { Request, Response } from "express";
-import type { Model } from "sequelize";
 
 export async function listPermissions(_req: Request, res: Response) {
   const permissions = await findAllPermissions();

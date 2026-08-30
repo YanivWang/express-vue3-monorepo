@@ -38,7 +38,7 @@ if (!superRole) {
   process.exit(1);
 }
 
-const superId = superRole.get("id") as number;
+const superId = superRole.get("id");
 const hashPwd = await bcrypt.hash(password, 10);
 
 const [row, created] = await User.findOrCreate({

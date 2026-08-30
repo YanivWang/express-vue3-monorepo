@@ -14,6 +14,7 @@
     "test:env": "tsx scripts/test-env.ts",
     "lint": "eslint src scripts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "prebuild": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
     "build": "tsc -p tsconfig.build.json",
     "db:migrate": "tsx scripts/migrate.ts up",
     "db:migrate:status": "tsx scripts/migrate.ts status",

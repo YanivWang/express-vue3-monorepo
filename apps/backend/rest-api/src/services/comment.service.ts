@@ -62,7 +62,7 @@ function commentRowToJson(
     postId: row.postId,
     authorId: row.authorId,
     parentId: row.parentId == null ? null : row.parentId,
-    rootId: rootRaw == null ? null : Number(rootRaw),
+    rootId: rootRaw,
     content: row.content,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
