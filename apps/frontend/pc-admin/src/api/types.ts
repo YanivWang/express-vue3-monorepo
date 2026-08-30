@@ -25,6 +25,11 @@ export interface CategoryTreeNode {
   children?: CategoryTreeNode[];
 }
 
+export interface PostCategoryRef {
+  id: number;
+  name: string;
+}
+
 export interface PostItem {
   id: number;
   title: string;
@@ -32,6 +37,10 @@ export interface PostItem {
   published: boolean;
   authorId: number;
   categoryId: number;
+  /** 列表接口会带回关联作者；单篇详情不一定有，故为可选 */
+  author?: PostAuthor;
+  /** 同上，列表接口带回所属分类 */
+  category?: PostCategoryRef;
 }
 
 export interface PostAuthor {

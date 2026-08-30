@@ -1,0 +1,19 @@
+// 顶栏配色与交互焦点样式；拆分后频道导航、搜索、账户区各自 scoped，共用这里的值。
+
+$brand: #ea6f5a;
+$brand-hover: #e25b46;
+$text: #333;
+$text-sub: #404040;
+$text-muted: #888;
+
+// 全站统一的键盘焦点圈。
+// alpha 走插值而不是直接写进 rgb()：Sass 会把 rgb(r g b / $alpha) 当成自己的
+// rgb() 函数调用、把斜杠解析成除法，从而报 "Expected calc(...) to have unit"；
+// 插值后原样交给浏览器按 CSS 语法解析。
+// 这段说明必须用 // 行注释：块注释会被保留进产物，Sass 同样会解析其中的插值。
+@mixin focus-ring($alpha: 45%, $offset: 2px) {
+  &:focus-visible {
+    outline: 2px solid rgb(234 111 90 / #{$alpha});
+    outline-offset: $offset;
+  }
+}

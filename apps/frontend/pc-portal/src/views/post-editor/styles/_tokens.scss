@@ -1,0 +1,51 @@
+// 写作页的设计变量与跨组件复用的片段。
+// 拆分后头部、写作区、侧栏三张卡片各自 scoped，这些值集中在这里。
+
+$brand: #ea6f5a;
+$brand-hover: #e25b46;
+$brand-soft: rgb(234 111 90 / 10%);
+$stroke: #e8ebf0;
+$stroke-subtle: rgb(0 0 0 / 6%);
+$shadow-soft: 0 1px 3px rgb(0 0 0 / 4.5%);
+$text-main: #1f2329;
+$text-sub: #6b7280;
+$text-muted: #9aa3b2;
+$surface: #fff;
+$surface-soft: #fafbfd;
+$radius-md: 10px;
+$radius-lg: 12px;
+$layout-max-width: 1360px;
+
+/** 侧栏折叠为单列、底部出现快捷操作条的断点 */
+$narrow: 920px;
+
+// 侧栏三张卡片（发布前检查 / 选择栏目 / 封面图）共用的外框与文字层级
+@mixin sidebar-card {
+  flex-shrink: 0;
+  padding: 16px;
+  background: $surface;
+  border: 1px solid $stroke;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-soft;
+}
+
+@mixin sidebar-card-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: $text-main;
+}
+
+@mixin sidebar-card-desc {
+  margin: 4px 0 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: $text-muted;
+}
+
+@mixin sidebar-card-hint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: $text-muted;
+}
