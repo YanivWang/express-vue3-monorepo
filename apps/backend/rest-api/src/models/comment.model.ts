@@ -30,11 +30,17 @@ export function defineCommentModel(
     },
   );
 
-  Comment.belongsTo(Post, { foreignKey: "postId", as: "post", onDelete: "CASCADE" });
+  // 与迁移 0003 一致：评论必须挂在某篇文章下，库层已是 NOT NULL
+  Comment.belongsTo(Post, {
+    foreignKey: { name: "postId", allowNull: false },
+    as: "post",
+    onDelete: "CASCADE",
+  });
   Post.hasMany(Comment, { foreignKey: "postId", as: "comments" });
 
   Comment.belongsTo(User, {
-    foreignKey: "authorId",
+    // 与迁移 0003 一致：评论必须有作者，库层已是 NOT NULL
+    foreignKey: { name: "authorId", allowNull: false },
     as: "author",
     onDelete: "RESTRICT",
   });

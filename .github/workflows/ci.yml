@@ -1,0 +1,228 @@
+name: CI
+
+# 门禁定位：
+#   verify —— 与本地 `pnpm verify` 完全同一套命令（类型 / Lint / 样式 / 格式 / 单测），
+#             使 husky 的本地检查不再是「可被 --no-verify 绕过」的唯一防线。
+#   docker —— 真实构建三个镜像并把 rest-api 拉起来打通 /health。
+#             历史教训：docker/Dockerfile 曾漏拷 packages/，pnpm 装出悬空软链使 install 假成功，
+#             tsc 报 TS2307 导致生产镜像长期构建不出来而无人发现。仅构建不启动是发现不了启动期问题的，
+#             因此这里必须真正 run 起来做冒烟。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# 同一分支的新提交取消仍在跑的旧流水线
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # 与 .nvmrc / package.json engines 对齐
+  NODE_VERSION: "22"
+  PNPM_VERSION: "10.17.0"
+
+jobs:
+  verify:
+    name: 类型 / Lint / 样式 / 格式 / 单测
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+
+      # packages/* 的 dist 是 Node 侧（`node` 导出条件）的消费目标，
+      # 先构建可保证 typecheck 与后续作业面对的是与生产一致的解析结果。
+      - name: 构建 workspace 包
+        run: pnpm run build:packages
+
+      - name: 质量门禁（等价本地 pnpm verify）
+        run: pnpm run verify
+
+  integration:
+    name: 集成测试（真实 MySQL + Redis）
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci_root_pw
+          MYSQL_DATABASE: express_vue3_monorepo_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci_root_pw"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=20
+
+    env:
+      APP_ENV: test
+      NODE_ENV: test
+      # 用 root 连接：集成测试基座需要 CREATE / DROP DATABASE 权限来为每个测试文件建独立库
+      DB_HOST: 127.0.0.1
+      DB_PORT: "3306"
+      DB_USER: root
+      DB_PWD: ci_root_pw
+      DB_NAME: express_vue3_monorepo_ci
+      REDIS_URL: redis://127.0.0.1:6379
+      JWT_SECRET: ci_integration_secret_at_least_32_characters
+      ADMIN_BOOTSTRAP_USERNAME: ci_admin
+      ADMIN_BOOTSTRAP_PASSWORD: ci_admin_password_123
+      LOG_LEVEL: error
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+
+      - name: 构建 workspace 包
+        run: pnpm run build:packages
+
+      # 迁移在真实 MySQL 上执行一遍，等于每次 PR 都回归了 DDL 本身
+      - name: 集成测试
+        run: pnpm run test:integration
+
+  docker:
+    name: 镜像构建与启动冒烟
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci_root_pw
+          MYSQL_DATABASE: express_vue3_monorepo_ci
+          MYSQL_USER: ci_user
+          MYSQL_PASSWORD: ci_password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci_root_pw"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: 构建 rest-api 镜像
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          tags: evm/rest-api:ci
+          load: true
+          cache-from: type=gha,scope=rest-api
+          cache-to: type=gha,scope=rest-api,mode=max
+
+      - name: 构建 pc-portal 镜像
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.pc-portal
+          tags: evm/pc-portal:ci
+          load: true
+          cache-from: type=gha,scope=pc-portal
+          cache-to: type=gha,scope=pc-portal,mode=max
+
+      - name: 构建 pc-admin 镜像
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.pc-admin
+          tags: evm/pc-admin:ci
+          load: true
+          cache-from: type=gha,scope=pc-admin
+          cache-to: type=gha,scope=pc-admin,mode=max
+
+      # 只构建不启动无法暴露「镜像装好了但跑不起来」这类问题，故必须真跑。
+      # --network host 让容器直接访问 job services 暴露在 runner localhost 上的 MySQL / Redis。
+      - name: 启动 rest-api 容器
+        run: |
+          docker run -d --name rest-api-smoke --network host \
+            -e APP_ENV=production \
+            -e NODE_ENV=production \
+            -e PORT=3000 \
+            -e JWT_SECRET="$(head -c 48 /dev/urandom | base64 | tr -d '=+/' | head -c 48)" \
+            -e DB_HOST=127.0.0.1 \
+            -e DB_PORT=3306 \
+            -e DB_NAME=express_vue3_monorepo_ci \
+            -e DB_USER=ci_user \
+            -e DB_PWD=ci_password \
+            -e REDIS_URL=redis://127.0.0.1:6379 \
+            evm/rest-api:ci
+
+      - name: 冒烟 /health 与 /ready
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:3000/health > /dev/null 2>&1; then
+              echo "存活探针通过"
+              curl -fsS http://127.0.0.1:3000/ready && echo
+              curl -fsS http://127.0.0.1:3000/openapi.yaml -o /dev/null && echo "OpenAPI 契约可服务"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::rest-api 容器 120s 内未就绪，日志如下"
+          docker logs rest-api-smoke
+          exit 1
+
+      - name: 失败时导出容器日志
+        if: failure()
+        run: docker logs rest-api-smoke || true
+
+      - name: 清理
+        if: always()
+        run: docker rm -f rest-api-smoke || true

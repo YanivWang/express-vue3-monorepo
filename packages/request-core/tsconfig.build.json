@@ -1,16 +1,18 @@
+// 真实产物构建：Node 侧经 package.json 的 `node` 条件消费本 dist；
+// 前端（Vite）仍走 `default` 条件直接消费 src。与 packages/shared 保持同一形态。
 {
-  "extends": "../../tsconfig.pkg.json",
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "composite": true,
+    "noEmit": false,
+    "allowImportingTsExtensions": false,
     "declaration": true,
     "declarationMap": true,
-    "emitDeclarationOnly": true,
-    "noEmit": false,
-    "outDir": "./node_modules/.tmp/tsc-decl",
+    "sourceMap": true,
     "rootDir": "./src",
-    "incremental": true,
-    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.build.tsbuildinfo",
+    "outDir": "./dist",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": []
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
 }

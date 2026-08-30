@@ -1,7 +1,8 @@
 /**
  * 删除并重建 DB_NAME 指向的 MySQL 库（utf8mb4），不启动 HTTP。
  * **前提**：仅要求 MySQL 在本机配置（DB_HOST:DB_PORT）下可达；不要求 rest-api / 前端已启动。
- * 下次启动 rest-api（仓库根如 `pnpm rest-api:dev` 或 `pnpm docker:dev`）会跑 Sequelize sync + RBAC bootstrap 建表与权限；
+ * 下次启动 rest-api（仓库根如 `pnpm rest-api:dev` 或 `pnpm docker:dev`）会执行迁移 + RBAC bootstrap 建表与权限；
+ * 也可不启动服务、直接在仓库根执行 `pnpm db:migrate` 建表；
  * 示例类目请执行 `pnpm db:seed-categories`；合成帖子在 API 已启动后执行 `pnpm db:seed-post`（**不**含类目种子）。
  */
 import path from "node:path";
@@ -75,5 +76,5 @@ try {
 await conn.end();
 
 console.log(
-  `[db:drop-create] 已重建库 ${DB_NAME}（请启动 rest-api 一次以触发 Sequelize sync：仓库根可执行 pnpm docker:dev 或 pnpm rest-api:dev）`,
+  `[db:drop-create] 已重建库 ${DB_NAME}（请执行 pnpm db:migrate 建表，或启动一次 rest-api 由启动期自动迁移完成：pnpm docker:dev / pnpm rest-api:dev）`,
 );

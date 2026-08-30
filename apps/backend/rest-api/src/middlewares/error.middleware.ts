@@ -69,18 +69,34 @@ export const errorMiddleware: ErrorRequestHandler = (error, req, res, next) => {
     ? (httpErr.message ?? "请求处理失败")
     : (httpErr.failureMessage ?? "服务器内部错误");
 
-  //记录错误日志
-  //在全局错误中间件中，导入 logger 日志记录器，记录日志
-  logger.error("request_error", {
+  /**
+   * 按状态码分级，而不是一律 error。
+   *
+   * 4xx 是客户端行为（密码输错、校验不通过、访问了不存在的路径），属于系统的正常工作结果；
+   * 若同样打成 error 并附带完整堆栈，错误日志会被这些噪声淹没，真正需要人介入的 5xx
+   * 反而被埋掉，同时堆栈本身也没有排查价值。
+   * 因此：4xx 记 warn 且不带堆栈，5xx 记 error 且保留完整堆栈。
+   */
+  const isClientError = statusCode >= 400 && statusCode < 500;
+  const logPayload = {
     requestId: req.requestId,
     userId: req.user?.id,
     routePath: expressRoutePath(req),
-    error: serializeError(error),
     method: req.method,
     url: req.originalUrl,
     statusCode: statusCode,
     clientMsg: msg,
-  });
+  };
+
+  if (isClientError) {
+    logger.warn("request_client_error", {
+      ...logPayload,
+      // 仅保留错误信息本身，堆栈对客户端错误无诊断价值
+      reason: error instanceof Error ? error.message : String(error),
+    });
+  } else {
+    logger.error("request_error", { ...logPayload, error: serializeError(error) });
+  }
 
   fail(res, statusCode, msg);
 };

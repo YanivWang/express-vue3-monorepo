@@ -18,6 +18,8 @@ ENV HUSKY=0
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY tsconfig.base.json ./
 COPY .npmrc ./
+# 根 package.json 的 prepare 钩子实现（生产安装缺 husky 时安静跳过）
+COPY scripts/prepare-husky.mjs scripts/prepare-husky.mjs
 
 # 与 Dockerfile.dev 对齐：满足 lockfile 与工作区解析；实际构建仅依赖 pc-portal 子图
 COPY apps/backend/rest-api/package.json apps/backend/rest-api/

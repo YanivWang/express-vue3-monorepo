@@ -1,0 +1,20 @@
+// 真实产物构建（区别于 tsconfig.json 的 noEmit 纯类型检查）
+// - Node 侧（apps/backend/rest-api 编译后的 dist）通过 package.json 的 `node` 条件消费本 dist，
+//   因此这里必须产出「可被 Node 直接 import 的 ESM」：源码内相对 import 一律显式带 .js 后缀。
+// - 前端（Vite）仍走 `default` 条件直接消费 src，无需先构建本包。
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "allowImportingTsExtensions": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": []
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

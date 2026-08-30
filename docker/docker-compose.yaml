@@ -11,6 +11,13 @@ services:
     container_name: express-vue3-monorepo-mysql
     volumes:
       - mysql_data:/var/lib/mysql
+    deploy:
+      resources:
+        limits:
+          cpus: "${MYSQL_CPUS:-2}"
+          memory: ${MYSQL_MEMORY:-2g}
+        reservations:
+          memory: 512m
 
   redis:
     # 生产环境 Redis 服务
@@ -18,6 +25,11 @@ services:
     volumes:
       # 数据卷配置
       - redis_data:/data # 把 Redis 数据保存到 redis_data 卷，避免容器删除后数据丢失
+    deploy:
+      resources:
+        limits:
+          cpus: "${REDIS_CPUS:-1}"
+          memory: ${REDIS_MEMORY:-512m}
 
   gateway:
     image: nginx:alpine
@@ -28,12 +40,17 @@ services:
       - "${GATEWAY_HOST_PORT:-2026}:2026"
     depends_on:
       rest-api:
-        condition: service_started
+        condition: service_healthy
       pc-portal:
         condition: service_started
       pc-admin:
         condition: service_started
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "${GATEWAY_CPUS:-1}"
+          memory: ${GATEWAY_MEMORY:-256m}
 
   rest-api:
     container_name: express-vue3-monorepo-rest-api
@@ -44,6 +61,17 @@ services:
       NODE_ENV: production
       PORT: "3000"
       TRUST_PROXY: "1"
+    volumes:
+      # 上传文件落在容器内 /app/uploads（src/utils/projectRoot.ts）。
+      # 不挂卷则容器重建即丢文件；多副本部署时本地盘无法共享，须改用对象存储。
+      - uploads_data:/app/uploads
+    deploy:
+      resources:
+        limits:
+          cpus: "${REST_API_CPUS:-2}"
+          memory: ${REST_API_MEMORY:-1g}
+        reservations:
+          memory: 256m
 
   pc-portal:
     build:
@@ -54,6 +82,11 @@ services:
     depends_on:
       rest-api:
         condition: service_started
+    deploy:
+      resources:
+        limits:
+          cpus: "${STATIC_CPUS:-0.5}"
+          memory: ${STATIC_MEMORY:-128m}
 
   pc-admin:
     build:
@@ -67,9 +100,16 @@ services:
     depends_on:
       rest-api:
         condition: service_started
+    deploy:
+      resources:
+        limits:
+          cpus: "${STATIC_CPUS:-0.5}"
+          memory: ${STATIC_MEMORY:-128m}
 
 volumes:
   # MySQL 生产环境数据卷
   mysql_data:
   # Redis 生产环境数据卷
   redis_data:
+  # 上传文件：与容器生命周期解耦（单机方案；多副本请换对象存储）
+  uploads_data:

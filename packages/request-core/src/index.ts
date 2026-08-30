@@ -1,3 +1,3 @@
-export * from "./types";
-export * from "./utils";
-export { HttpRequest, createHttp } from "./core";
+export * from "./types.js";
+export * from "./utils.js";
+export { HttpRequest, createHttp } from "./core.js";

@@ -38,6 +38,8 @@ export default tseslint.config(
       "**/node_modules/**",
       "**/*.d.ts",
       "**/vitest.config.ts",
+      // 与 vitest.config.ts 同类：构建期配置文件不在 tsconfig 的 project 范围内
+      "**/vitest.*.config.ts",
       "pnpm-lock.yaml",
       "logs/**",
       "uploads/**",

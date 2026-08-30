@@ -137,6 +137,31 @@ export const DB_PWD = (() => {
 export const DB_NAME = requireEnv("DB_NAME");
 export const APP_ENV = appEnv;
 
+/** 读取正整数环境变量；未设置或非法时回退到默认值并给出提示 */
+function positiveIntEnv(name: string, fallback: number): number {
+  const raw = trimUnset(process.env[name]);
+  if (raw === undefined) return fallback;
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isInteger(n) || n <= 0) {
+    console.error(`[env] ${name} 必须是正整数（当前: ${raw}）`);
+    process.exit(1);
+  }
+  return n;
+}
+
+/**
+ * 限流阈值。默认值面向生产：
+ * - 全局 15 分钟 1000 次：足够正常浏览与交互，又能挡住脚本化抓取；
+ * - 认证接口 1 分钟 10 次：抑制账号枚举与暴力破解。
+ * 本地压测、集成测试或数据导入等需要放宽时，通过环境变量覆盖，不要改代码默认值。
+ */
+export const RATE_LIMIT = {
+  globalWindowMs: positiveIntEnv("RATE_LIMIT_GLOBAL_WINDOW_MS", 15 * 60 * 1000),
+  globalMax: positiveIntEnv("RATE_LIMIT_GLOBAL_MAX", 1000),
+  authWindowMs: positiveIntEnv("RATE_LIMIT_AUTH_WINDOW_MS", 60 * 1000),
+  authMax: positiveIntEnv("RATE_LIMIT_AUTH_MAX", 10),
+} as const;
+
 /**
  * 反向代理：`1` / `true` 表示信任一层代理（X-Forwarded-*）；纯数字表示 hop 数。
  * 未设置时不启用 trust proxy。

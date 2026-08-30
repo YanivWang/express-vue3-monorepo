@@ -83,7 +83,8 @@ export function definePostModel(
   );
 
   Post.belongsTo(User, {
-    foreignKey: "authorId",
+    // 与迁移 0003 一致：文章必须有作者，库层已是 NOT NULL
+    foreignKey: { name: "authorId", allowNull: false },
     as: "author",
     onDelete: "RESTRICT",
   });

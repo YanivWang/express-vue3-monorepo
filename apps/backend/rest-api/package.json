@@ -10,14 +10,18 @@
     "dev:debug": "cross-env NODE_ENV=development nodemon --inspect=0.0.0.0:9229 --exec tsx src/server.ts",
     "test": "pnpm run test:unit && pnpm run test:env",
     "test:unit": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:env": "tsx scripts/test-env.ts",
     "lint": "eslint src scripts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "build": "tsc -p tsconfig.build.json",
+    "db:migrate": "tsx scripts/migrate.ts up",
+    "db:migrate:status": "tsx scripts/migrate.ts status",
+    "db:migrate:undo": "tsx scripts/migrate.ts down",
     "db:dedupe-indexes": "tsx scripts/dedupe-mysql-redundant-indexes.ts",
     "db:drop-create": "tsx scripts/reset-db.ts",
     "db:seed-categories": "tsx scripts/it-seed-categories.ts",
-    "db:seed-post": "tsx scripts/dedupe-mysql-redundant-indexes.ts && tsx scripts/synthetic-it-clear-posts.ts && tsx scripts/synthetic-it-run.ts"
+    "db:seed-post": "tsx scripts/synthetic-it-clear-posts.ts && tsx scripts/synthetic-it-run.ts"
   },
   "dependencies": {
     "@express-vue3-monorepo/shared": "workspace:*",

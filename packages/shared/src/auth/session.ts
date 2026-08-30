@@ -1,4 +1,4 @@
-import type { TokenStorage } from "../utils/storage";
+import type { TokenStorage } from "../utils/storage.js";
 import type { Ref } from "vue";
 
 export function isAuthError(e: unknown): boolean {

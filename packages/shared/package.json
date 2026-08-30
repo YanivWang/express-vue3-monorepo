@@ -4,38 +4,48 @@
   "private": true,
   "type": "module",
   "description": "PC 端共享源码（类型、Token 存储、auth 会话、request-pc preset）；HTTP 与 apps/backend/rest-api 对齐；依赖 @express-vue3-monorepo/request-core",
+  "//exports": [
+    "条件顺序即优先级：",
+    "  types   —— 仅 TypeScript 读取，恒指向 src，故 `pnpm typecheck` 无需先构建本包；",
+    "  node    —— 仅 Node 运行时读取，指向 dist（编译后的 rest-api 消费的就是这条）；",
+    "  default —— Vite/打包器读取，直接消费 src，保留 HMR 与源码调试。",
+    "新增子路径时三条必须同时补齐，否则 Node 侧会落到 default 的 .ts 上。"
+  ],
   "exports": {
     ".": {
       "types": "./src/index.ts",
-      "import": "./src/index.ts"
+      "node": "./dist/index.js",
+      "default": "./src/index.ts"
     },
     "./types": {
       "types": "./src/types/index.ts",
-      "import": "./src/types/index.ts"
+      "node": "./dist/types/index.js",
+      "default": "./src/types/index.ts"
     },
-    "./types/*": "./src/types/*",
     "./constants": {
       "types": "./src/constants/index.ts",
-      "import": "./src/constants/index.ts"
+      "node": "./dist/constants/index.js",
+      "default": "./src/constants/index.ts"
     },
-    "./constants/*": "./src/constants/*",
     "./utils": {
       "types": "./src/utils/index.ts",
-      "import": "./src/utils/index.ts"
+      "node": "./dist/utils/index.js",
+      "default": "./src/utils/index.ts"
     },
     "./auth": {
       "types": "./src/auth/index.ts",
-      "import": "./src/auth/index.ts"
+      "node": "./dist/auth/index.js",
+      "default": "./src/auth/index.ts"
     },
-    "./auth/*": "./src/auth/*",
     "./request-pc": {
       "types": "./src/request-pc/index.ts",
-      "import": "./src/request-pc/index.ts"
+      "node": "./dist/request-pc/index.js",
+      "default": "./src/request-pc/index.ts"
     },
-    "./request-pc/*": "./src/request-pc/*",
     "./package.json": "./package.json"
   },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint src --ext .ts"
   },

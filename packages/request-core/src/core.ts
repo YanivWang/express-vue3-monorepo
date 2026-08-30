@@ -1,6 +1,6 @@
 import axios, { AxiosHeaders } from "axios";
 
-import { HttpCode } from "./types";
+import { HttpCode } from "./types.js";
 import {
   createNormalizedError,
   getRequestKey,
@@ -8,7 +8,7 @@ import {
   isRecord,
   stripRestApiEnvelope,
   retryDelay,
-} from "./utils";
+} from "./utils.js";
 
 import type {
   RequestConfig,
@@ -16,7 +16,7 @@ import type {
   TokenProvider,
   LoadingHandler,
   RequestHooks,
-} from "./types";
+} from "./types.js";
 import type { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from "axios";
 
 /**

@@ -1,9 +1,37 @@
+# 构建上下文瘦身：这些目录要么在镜像内重建，要么与运行时无关
 node_modules
+**/node_modules
 .git
+.github
+.husky
+.vscode
+.idea
+.cursor
+.claude
+
+# 环境文件：镜像内不烘焙密钥，一律由 compose 的 env_file / environment 注入
 .env
 .env.*
+
+# 各包构建产物：由 builder 阶段在镜像内重新生成，避免宿主脏产物混入
+dist
+**/dist
+**/dist-types
+*.tsbuildinfo
+**/.tmp
+
+# 运行期数据与日志
+logs
+uploads
+.data
+.pnpm-store
 *.log
 npm-debug.log*
 pnpm-debug.log*
+
+# 文档站截图等大体积且运行时不需要的资源
+docs/pc-portal-screenshots
+docs/pc-admin-screenshots
+
 .DS_Store
 nodemon.json

@@ -1,4 +1,4 @@
-import type { RequestConfig, NormalizedError } from "./types";
+import type { RequestConfig, NormalizedError } from "./types.js";
 
 export function isRecord(data: unknown): data is Record<string, unknown> {
   return typeof data === "object" && data !== null;

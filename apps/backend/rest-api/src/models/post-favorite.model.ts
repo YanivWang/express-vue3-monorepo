@@ -13,13 +13,14 @@ export function definePostFavoriteModel(
     },
   );
 
+  // 与迁移 0003 一致：收藏必然同时归属某文章与某用户，库层已是 NOT NULL
   PostFavorite.belongsTo(Post, {
-    foreignKey: "postId",
+    foreignKey: { name: "postId", allowNull: false },
     as: "post",
     onDelete: "CASCADE",
   });
   PostFavorite.belongsTo(User, {
-    foreignKey: "userId",
+    foreignKey: { name: "userId", allowNull: false },
     as: "user",
     onDelete: "CASCADE",
   });

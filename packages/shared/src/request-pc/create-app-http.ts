@@ -1,6 +1,6 @@
-import { createTokenStorage, type TokenStorage } from "../utils/storage";
+import { createTokenStorage, type TokenStorage } from "../utils/storage.js";
 
-import { createPcHttp, type HttpRequest } from "./create-pc-http";
+import { createPcHttp, type HttpRequest } from "./create-pc-http.js";
 
 export interface CreateAppPcHttpOptions {
   tokenKey: string;

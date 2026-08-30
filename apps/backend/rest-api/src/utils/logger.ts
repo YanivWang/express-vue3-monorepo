@@ -8,7 +8,17 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const logDir = path.resolve(__dirname, "../../logs");
 
-fs.mkdirSync(logDir, { recursive: true });
+/**
+ * 容器里把日志写进容器内文件是反模式：`docker logs` 看不到、容器重建即丢、
+ * 日志采集器（Loki / Fluent Bit / CloudWatch）默认只收 stdout。
+ * 因此文件落盘改为「显式开启」，默认只走 stdout（12-Factor 的 logs as event streams）。
+ * 本地开发想留存文件时设 LOG_TO_FILE=1。
+ */
+const fileLoggingEnabled = process.env.LOG_TO_FILE === "1";
+
+if (fileLoggingEnabled) {
+  fs.mkdirSync(logDir, { recursive: true });
+}
 
 const { combine, timestamp, errors, json, colorize, printf } = winston.format;
 
@@ -59,26 +69,36 @@ const consoleFormat = printf(({ level, message, timestamp: ts, stack, ...meta })
   return `${tsPart} ${levelPart}: ${body}${metaText}`;
 });
 
+const isProduction = process.env.NODE_ENV === "production";
+
+/**
+ * stdout 是唯一始终启用的 transport。
+ * 生产输出结构化 JSON（便于采集与检索），开发输出带颜色的可读单行。
+ */
+const consoleTransport = new winston.transports.Console({
+  format: isProduction
+    ? combine(timestamp(), errors({ stack: true }), json())
+    : combine(colorize(), timestamp(), errors({ stack: true }), consoleFormat),
+});
+
 export const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || "info",
   format: combine(timestamp(), errors({ stack: true }), json()),
-  transports: [
-    // 只记录 error 级别日志
+  transports: [consoleTransport],
+});
+
+if (fileLoggingEnabled) {
+  // 只记录 error 级别日志
+  logger.add(
     new winston.transports.File({
       filename: path.join(logDir, "error.log"),
       level: "error",
     }),
-    // 所有日志
+  );
+  // 所有日志
+  logger.add(
     new winston.transports.File({
       filename: path.join(logDir, "combined.log"),
-    }),
-  ],
-});
-
-if (process.env.NODE_ENV !== "production") {
-  logger.add(
-    new winston.transports.Console({
-      format: combine(colorize(), timestamp(), errors({ stack: true }), consoleFormat),
     }),
   );
 }
