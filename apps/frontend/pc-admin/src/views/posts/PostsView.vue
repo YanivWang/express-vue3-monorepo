@@ -137,7 +137,13 @@ async function saveEdit() {
 
 async function rm(row: PostItem) {
   if (!canDeleteRow(row)) return;
-  await ElMessageBox.confirm("确定删除该文章？", "删除确认");
+  try {
+    await ElMessageBox.confirm("确定删除该文章？", "删除确认");
+  } catch {
+    // 用户点了取消：Element Plus 用 reject 表达取消，不接住就会逃逸成
+    // unhandled rejection（本仓库接了 web-monitor，会被当成线上错误上报）
+    return;
+  }
   await httpDeletePost(row.id);
   await reloadList();
 }
