@@ -11,6 +11,19 @@ import vueParser from "vue-eslint-parser";
 
 const tsconfigRootDir = path.dirname(fileURLToPath(import.meta.url));
 
+/**
+ * import 插件的模块解析。
+ *
+ * typescript 解析器实测占 `eslint .` 约 12.7s CPU（总 39.9s，约三成）：
+ * 同机器对照，去掉它是 27.1s，只去掉 project 是 37.4s——成本在解析器本身，
+ * 不在 project 的自动发现，因此调 project 无济于事。
+ *
+ * 仍然保留它。当前只启用了 import/order 与 import/no-duplicates，
+ * 曾用探针逐条比对过：别名、相对路径、workspace 包、.vue 的分组与重复判定，
+ * 去掉该解析器后结果一字不差。但它保的是往后——一旦启用 import/no-unresolved
+ * 或在 tsconfig 里加新的 paths 映射，node 解析器解不出 `@/*` 这类别名，
+ * 规则会静默给出错误结论。为省这十来秒换掉这份可信度不划算。
+ */
 const importPluginSettings = {
   "import/resolver": {
     typescript: {
