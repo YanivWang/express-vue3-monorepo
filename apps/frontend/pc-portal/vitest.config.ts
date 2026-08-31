@@ -25,7 +25,7 @@ export default defineConfig({
   },
   css: {
     // 改用 sass 新编译器 API，避免每次跑测试都刷一屏 legacy-js-api 弃用告警。
-    // 注：vite.config.ts（应用构建）目前仍走旧 API、同样会告警，那是既有问题，不在本次改动范围内。
+    // vite.config.ts（应用构建）现已取同一个值，测试与构建用的是同一套 Sass 实现。
     preprocessorOptions: { scss: { api: "modern-compiler" } },
   },
   test: {

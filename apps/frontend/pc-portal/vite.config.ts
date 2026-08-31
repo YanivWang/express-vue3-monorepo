@@ -30,10 +30,11 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [vue()],
     css: {
-      // Vite 5 默认走 Sass 的 legacy JS API，构建时每个 SCSS 入口都会刷一条
-      // legacy-js-api 弃用告警；verify 要求零 warning，故显式切到 modern API。
+      // Vite 5 默认走 Sass 的 legacy JS API（Dart Sass 2.0 将移除），构建时每个 SCSS
+      // 入口都会刷一条 legacy-js-api 弃用告警；verify 要求零 warning，故切到新编译器 API。
+      // 与 vitest.config.ts 取同一个值，避免测试与构建用两套 Sass 实现。
       preprocessorOptions: {
-        scss: { api: "modern" as const },
+        scss: { api: "modern-compiler" as const },
       },
     },
     resolve: {
