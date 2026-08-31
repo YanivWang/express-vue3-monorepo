@@ -1,7 +1,7 @@
 /** 上传面板的纯展示格式化：不依赖组件状态，拆分后由多个子组件共用 */
 
-/** 耗时：满一秒按秒读（两位小数），不足一秒按毫秒读（取整） */
-export function formatDuration(ms: number): string {
+/** 耗时：满一秒按秒读（两位小数），不足一秒按毫秒读（取整）。仅供本模块内部使用 */
+function formatDuration(ms: number): string {
   if (ms >= 1000) {
     return `${(ms / 1000).toFixed(2)} s`;
   }
