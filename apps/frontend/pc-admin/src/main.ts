@@ -15,7 +15,19 @@ import pinia from "./stores/pinia";
 const app = createApp(App as Component);
 
 app.use(pinia);
-app.use(router);
-await useAuthStore().bootstrapSession();
-app.use(ElementPlus, { locale: zhCn });
-app.mount("#app");
+
+// 会话恢复必须排在 app.use(router) 之前，而不只是排在 mount 之前：
+// vue-router 在 install 时就同步发起首次导航，守卫随即读 isLoggedIn 决定去留。
+// 访问令牌只存内存、刷新页面必然丢失，若此刻还没用 HttpOnly 刷新 Cookie 换回令牌，
+// 守卫读到的恒为「未登录」。管理端所有非白名单路由都要求登录，
+// 因此这个顺序错位的表现就是「每次刷新都被踢回登录页」——哪怕刷新 Cookie 完全有效。
+//
+// 这里刻意不写成顶层 await：顶层 await 要求构建 target 抬到 es2022+，
+// 等于用一个构建报错替我们决定了放弃 Safari 14 / Chrome 87。
+// main.ts 是入口、无人 import，本就不需要模块级 await 语义。
+void (async () => {
+  await useAuthStore().bootstrapSession();
+  app.use(router);
+  app.use(ElementPlus, { locale: zhCn });
+  app.mount("#app");
+})();

@@ -29,6 +29,13 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [vue()],
+    css: {
+      // Vite 5 默认走 Sass 的 legacy JS API，构建时每个 SCSS 入口都会刷一条
+      // legacy-js-api 弃用告警；verify 要求零 warning，故显式切到 modern API。
+      preprocessorOptions: {
+        scss: { api: "modern" as const },
+      },
+    },
     resolve: {
       alias: [{ find: "@", replacement: fileURLToPath(new URL("./src", import.meta.url)) }],
     },

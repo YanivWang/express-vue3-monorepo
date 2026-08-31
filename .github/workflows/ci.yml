@@ -1,8 +1,11 @@
 name: CI
 
 # 门禁定位：
-#   verify —— 与本地 `pnpm verify` 完全同一套命令（类型 / Lint / 样式 / 格式 / 单测），
+#   verify —— 与本地 `pnpm verify` 完全同一套命令（类型 / Lint / 样式 / 格式 / 单测 / 前端生产构建），
 #             使 husky 的本地检查不再是「可被 --no-verify 绕过」的唯一防线。
+#             历史教训：main.ts 的顶层 await 让两个前端的生产构建坏了很久，
+#             而 verify 当时只跑 dev 侧的检查、不跑 build，于是没有任何一道门禁看得见它。
+#             前端构建现已并入 verify（并行约 10s），本地与 CI 因此天然同步。
 #   docker —— 真实构建三个镜像并把 rest-api 拉起来打通 /health。
 #             历史教训：docker/Dockerfile 曾漏拷 packages/，pnpm 装出悬空软链使 install 假成功，
 #             tsc 报 TS2307 导致生产镜像长期构建不出来而无人发现。仅构建不启动是发现不了启动期问题的，
