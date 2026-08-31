@@ -29,7 +29,7 @@
     "typecheck": "pnpm -r --parallel run --if-present typecheck",
     "typecheck:solution": "tsc -b --pretty",
     "typecheck:packages": "pnpm -r --parallel --filter './packages/**' run --if-present typecheck",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",
     "lint:style": "stylelint '{apps/frontend,packages}/**/*.{css,scss,vue}'",
     "lint:style:fix": "stylelint '{apps/frontend,packages}/**/*.{css,scss,vue}' --fix",

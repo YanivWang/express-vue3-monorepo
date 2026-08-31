@@ -18,7 +18,7 @@
   - **`pnpm typecheck`**：各包并行自有脚本（**日常与 CI 权威入口**）
   - **`pnpm typecheck:solution`**：根 `tsc -b`，**仅** `request-core` / `js-bridge` / `web-monitor`
   - **`pnpm typecheck:packages`**：仅 `packages/**` 并行 typecheck
-  - `pnpm lint`、`pnpm lint:style`、`pnpm format:check`
+  - `pnpm lint`（带 `--max-warnings 0`：**warning 与 error 同样会让门禁失败**，不要用 eslint-disable 或放宽规则来消化告警）、`pnpm lint:style`、`pnpm format:check`
   - 提交前全套校验：`pnpm verify`（typecheck → lint → lint:style → format:check → 全仓单测 → 前端生产构建）
 - Docker：`pnpm docker:dev`、`pnpm docker:dev:down`、`pnpm docker:dev:debug`（详见 README「Docker 开发」）
 - 单独跑某个包的测试：`pnpm --filter @express-vue3-monorepo/js-bridge test`（根 `pnpm test` 已并行覆盖全仓，单独跑仅用于调试）
