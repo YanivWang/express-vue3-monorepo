@@ -33,3 +33,10 @@ export function formatFeedTime(iso: string) {
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}.${m}.${day}`;
 }
+
+/** 互动计数的展示值：负数与缺失按 0 计，超过五位收敛为 99999+ 以免撑破卡片 */
+export function displayStat(n: number | undefined): string {
+  const v = Math.max(0, n ?? 0);
+  if (v > 99999) return "99999+";
+  return String(v);
+}

@@ -8,35 +8,18 @@ import { ref } from "vue";
 import { LARGE_UPLOAD_MAX_FILE_MB } from "@express-vue3-monorepo/shared/constants";
 
 import LargeFileUploadPanel from "./components/LargeFileUploadPanel.vue";
+import { formatOptionalDuration } from "./formatters";
 
-/** 本页内存中的成功记录；刷新即清空；最新在前 */
-type SuccessRecord = {
-  url: string;
-  fileName: string;
-  size: number;
-  hashDurationMs: number | null;
-  uploadTotalDurationMs: number | null;
-  at: number;
-};
+import type { LargeFileUploadSuccess } from "./composables/useLargeFileUploadPanel";
 
-type SuccessPayload = Omit<SuccessRecord, "at">;
+/** 本页内存中的成功记录；刷新即清空；最新在前。载荷结构以面板导出的类型为准，避免两处各写一份 */
+type SuccessRecord = LargeFileUploadSuccess & { at: number };
 
 const MAX_HISTORY = 100;
 
 const successHistory = ref<SuccessRecord[]>([]);
 
-function formatDuration(ms: number): string {
-  if (ms >= 1000) {
-    return `${(ms / 1000).toFixed(2)} s`;
-  }
-  return `${Math.round(ms)} ms`;
-}
-
-function durationOrDash(ms: number | null): string {
-  return ms != null ? formatDuration(ms) : "—";
-}
-
-function onSuccess(payload: SuccessPayload) {
+function onSuccess(payload: LargeFileUploadSuccess) {
   const next: SuccessRecord[] = [{ ...payload, at: Date.now() }, ...successHistory.value];
   successHistory.value = next.length > MAX_HISTORY ? next.slice(0, MAX_HISTORY) : next;
 }
@@ -79,8 +62,10 @@ function shortFileName(name: string): string {
             }}
             字节）
           </p>
-          <p><strong>MD5 计算耗时</strong>：{{ durationOrDash(row.hashDurationMs) }}</p>
-          <p><strong>上传总耗时</strong>：{{ durationOrDash(row.uploadTotalDurationMs) }}</p>
+          <p><strong>MD5 计算耗时</strong>：{{ formatOptionalDuration(row.hashDurationMs) }}</p>
+          <p>
+            <strong>上传总耗时</strong>：{{ formatOptionalDuration(row.uploadTotalDurationMs) }}
+          </p>
           <details class="history__url-details">
             <summary class="history__url-summary">显示链接</summary>
             <p class="history__url-body">

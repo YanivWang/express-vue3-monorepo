@@ -1,0 +1,10 @@
+// 上传面板的配色。
+// 拆分后按钮区、指标区、结果区分属不同组件、各自 scoped，
+// 这几个取自 Element Plus 文字色阶的值集中放在这里。
+
+$text-regular: #303133;
+$text-secondary: #606266;
+$text-muted: #909399;
+$text-placeholder: #c0c4cc;
+$danger: #f56c6c;
+$border: #e4e4e4;
