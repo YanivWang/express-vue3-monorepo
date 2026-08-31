@@ -19,9 +19,33 @@
   - **`pnpm typecheck:solution`**：根 `tsc -b`，**仅** `request-core` / `js-bridge` / `web-monitor`
   - **`pnpm typecheck:packages`**：仅 `packages/**` 并行 typecheck
   - `pnpm lint`、`pnpm lint:style`、`pnpm format:check`
-  - 提交前全套校验：`pnpm verify`（含 `pnpm test`，即 rest-api 的 Vitest 单测 + `scripts/test-env.ts` 环境冒烟）
+  - 提交前全套校验：`pnpm verify`（typecheck → lint → lint:style → format:check → 全仓单测 → 前端生产构建）
 - Docker：`pnpm docker:dev`、`pnpm docker:dev:down`、`pnpm docker:dev:debug`（详见 README「Docker 开发」）
-- **js-bridge 包内测试**（不在根 `pnpm test` 范围内）：`pnpm --filter @express-vue3-monorepo/js-bridge test`
+- 单独跑某个包的测试：`pnpm --filter @express-vue3-monorepo/js-bridge test`（根 `pnpm test` 已并行覆盖全仓，单独跑仅用于调试）
+
+## 组件重构与测试基线
+
+前端两个 app 有一套组件行为测试（`apps/frontend/*/src/**/*.spec.ts`，测试台在 `src/test/`）。
+它们的用途是**证明重构没有改变行为**，因此动结构时按这个顺序：
+
+1. 先给要动的组件写行为基线，跑通；
+2. 再拆分或重写；
+3. 同一批断言**一行不改**地继续通过。
+
+用例一律按「用户看到什么、点了什么」定位——可见文案、渲染结果、对外调用，
+不碰组件内部的 ref 与方法。组件拆分会重排层级，但按钮上的字不会变，
+基线因此才能跨拆分复用；反过来，断言一旦贴着内部实现写，拆分时就只能跟着改，
+那就失去了作为证据的意义。
+
+审阅重构类改动时，核对既有基线没有被改动或删除：
+
+```bash
+git diff --diff-filter=MD <重构前的提交> HEAD -- "*.spec.ts" "apps/frontend/*/src/test/"
+```
+
+输出为空即合规。**新增** spec 是鼓励的（上面第 1 步本来就会新增），
+被禁止的是修改或删除既有断言——那等于把球门挪到球已经落地的地方。
+所以这里过滤的是 `MD`（修改/删除）而不是全部改动。
 
 ## 前端环境变量
 

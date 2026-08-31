@@ -50,7 +50,7 @@
 | **契约与文档**    | OpenAPI 3.0（[`docs/openapi.yaml`](docs/openapi.yaml)）+ 运行时 Swagger UI（`/api-docs`）                                                                                                                                   |
 | **Docker 网关**   | Compose 一体拉起 **MySQL**、**Redis**、**rest-api**、**pc-portal**、**pc-admin** 与 **Nginx**；浏览器单端口访问（默认网关 **2026**），门户 `/`、管理端 **`/pc-admin/`**、API `/api` 等同源                                  |
 | **工程规范**      | ESLint 9 flat、typescript-eslint、Prettier、Stylelint、Husky、lint-staged、Commitlint（Conventional Commits）                                                                                                               |
-| **质量门禁**      | `pnpm verify`（类型 + Lint + 样式 + 格式 + 单测）本地与 CI 同一套命令；GitHub Actions 三作业：`verify`、集成测试（真实 MySQL + Redis）、镜像构建并真实启动冒烟                                                              |
+| **质量门禁**      | `pnpm verify`（类型 + Lint + 样式 + 格式 + 单测 + 前端生产构建）本地与 CI 同一套命令；GitHub Actions 三作业：`verify`、集成测试（真实 MySQL + Redis）、镜像构建并真实启动冒烟                                               |
 | **数据与链路**    | Sequelize + MySQL，**表结构由 `src/migrations/*` 版本化管理**（不再使用 `sequelize.sync()`）；**Redis**（访问令牌黑名单、刷新令牌、RBAC 缓存）；**类目**与 **合成灌帖** 见 `pnpm db:seed-categories` 与 `pnpm db:seed-post` |
 
 ---
@@ -167,14 +167,14 @@ _「权限矩阵」弹窗：为指定角色勾选一般权限（读写类目、�
 
 ## 技术栈
 
-| 类别       | 技术                                                                                                                                                                                                      |
-| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 后端       | Node.js、Express（ESM）、TypeScript、Sequelize（迁移版本化）、MySQL、**Redis**（令牌黑名单 / 刷新令牌 / RBAC 缓存）、短时效 JWT + 可撤销刷新令牌、Zod                                                     |
-| 前端       | Vue 3、Vite、TypeScript、Pinia、Vue Router（pc-portal 等与 shared 对齐的栈，含 Element Plus 等）                                                                                                          |
-| 共享包     | `@express-vue3-monorepo/*`：`shared`、`request-core`（已用于 pc-portal / pc-admin）；`js-bridge`、`web-monitor`（workspace 库，**待接入**）                                                               |
-| 工程化     | pnpm workspace、pnpm catalog、ESLint、typescript-eslint、Prettier、Stylelint、Husky、lint-staged、Commitlint                                                                                              |
-| 契约与观测 | OpenAPI 3.0、Swagger UI；`web-monitor` 提供 Web Vitals / 客户端错误上报（可选接入）                                                                                                                       |
-| 测试       | `pnpm test` 跑 rest-api 单测（无外部依赖，构成 `verify` 一环）；`pnpm test:integration` 跑集成测试，需真实 MySQL + Redis，拉起完整应用打真实 HTTP；`js-bridge` 包内另有 Vitest。**前端 app 目前仍无测试** |
+| 类别       | 技术                                                                                                                                                                                                                                                                                                       |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 后端       | Node.js、Express（ESM）、TypeScript、Sequelize（迁移版本化）、MySQL、**Redis**（令牌黑名单 / 刷新令牌 / RBAC 缓存）、短时效 JWT + 可撤销刷新令牌、Zod                                                                                                                                                      |
+| 前端       | Vue 3、Vite、TypeScript、Pinia、Vue Router（pc-portal 等与 shared 对齐的栈，含 Element Plus 等）                                                                                                                                                                                                           |
+| 共享包     | `@express-vue3-monorepo/*`：`shared`、`request-core`（已用于 pc-portal / pc-admin）；`js-bridge`、`web-monitor`（workspace 库，**待接入**）                                                                                                                                                                |
+| 工程化     | pnpm workspace、pnpm catalog、ESLint、typescript-eslint、Prettier、Stylelint、Husky、lint-staged、Commitlint                                                                                                                                                                                               |
+| 契约与观测 | OpenAPI 3.0、Swagger UI；`web-monitor` 提供 Web Vitals / 客户端错误上报（可选接入）                                                                                                                                                                                                                        |
+| 测试       | `pnpm test` 并行跑全仓单测（rest-api + pc-portal + pc-admin + js-bridge，无外部依赖，构成 `verify` 一环）；`pnpm test:integration` 跑集成测试，需真实 MySQL + Redis，拉起完整应用打真实 HTTP；前端两个 app 用 Vitest + `@vue/test-utils` + happy-dom 做组件行为测试，见 CONTRIBUTING「组件重构与测试基线」 |
 
 ---
 
@@ -259,7 +259,7 @@ pnpm pc-admin:dev
 | 仅 MySQL 索引去重（历史库补救用；新库已由迁移 0002 根治）  | `pnpm db:dedupe-indexes`                                                                   |
 | 写入 IT 示例类目（会 `connectDatabase`；仅空类目表时写入） | `pnpm db:seed-categories`                                                                  |
 | 幂等创建/更新超级管理员                                    | `pnpm --filter @express-vue3-monorepo/rest-api exec tsx scripts/ensure-super-admin.ts`     |
-| 单元测试                                                   | `pnpm test`（rest-api 的 Vitest + `scripts/test-env.ts` 环境冒烟；无需外部依赖）           |
+| 单元测试                                                   | `pnpm test`（全仓并行：rest-api + pc-portal + pc-admin + js-bridge；无需外部依赖）         |
 | 集成测试（需 MySQL + Redis）                               | `pnpm test:integration`                                                                    |
 | 类型检查（全仓权威入口）                                   | `pnpm typecheck`                                                                           |
 | 纯 TS workspace 包的 `tsc -b` 构图                         | `pnpm typecheck:solution`                                                                  |
