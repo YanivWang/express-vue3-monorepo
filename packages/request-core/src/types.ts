@@ -17,7 +17,11 @@ export interface RequestConfig extends AxiosRequestConfig {
   withToken?: boolean;
   /** 为 true 时 401 不调用 onUnauthorized（如登录、静默拉取 /me） */
   skipUnauthorizedDialog?: boolean;
-  /** 为 true 时 401 不尝试静默刷新（刷新接口自身、登录接口必须置为 true，否则会递归） */
+  /**
+   * 为 true 时 401 不尝试静默刷新。
+   * `withToken: false` 的请求（登录、注册等匿名接口）已由核心层自动排除，无需重复标注；
+   * 这个开关留给「带令牌、但确实不该触发刷新」的场景。
+   */
   skipAuthRefresh?: boolean;
   /** 内部：本请求是否已因 401 刷新并重放过，防止无限循环 */
   _authRetried?: boolean;

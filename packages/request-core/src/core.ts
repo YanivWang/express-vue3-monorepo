@@ -242,10 +242,19 @@ export class HttpRequest {
             return "登录已过期";
           };
 
-          // 访问令牌过期先尝试静默刷新并重放一次；刷新接口自身与登录接口须置 skipAuthRefresh
+          /**
+           * 访问令牌过期先尝试静默刷新并重放一次。
+           *
+           * `withToken === false` 的请求直接排除：这类请求本来就没带令牌
+           * （登录、注册等），它的 401 只能是「用户名或密码错误」之类的业务结果，
+           * 不是令牌过期。对它们刷新既救不了这次请求，还会白白轮换掉当前会话的刷新令牌、
+           * 并多消耗一次刷新接口的限流额度。靠每个调用点记得写 skipAuthRefresh 是不牢靠的，
+           * 所以这条判断放在这里，让新增的匿名接口自动获得正确行为。
+           */
           const canRefresh =
             this.refreshAccessToken !== undefined &&
             customConfig.skipAuthRefresh !== true &&
+            customConfig.withToken !== false &&
             customConfig._authRetried !== true;
 
           if (canRefresh) {

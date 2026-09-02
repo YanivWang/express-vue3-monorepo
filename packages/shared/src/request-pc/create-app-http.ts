@@ -16,6 +16,19 @@ interface RefreshResponse {
   token?: string;
 }
 
+/**
+ * 刷新请求的超时（毫秒）。
+ *
+ * 应用启动时会先等这一次刷新拿回访问令牌再挂载路由（见各 app 的 main.ts），
+ * 因此它必须有超时：后端不可达或被中间设备黑洞掉时，fetch 默认会一直挂着，
+ * 表现就是整个站点停在白屏——而正确的行为是「按未登录渲染」，
+ * 至少首页、文章页这些公开内容仍然可用。
+ *
+ * 用 AbortController + setTimeout 而不是 AbortSignal.timeout：
+ * 后者要 Chrome 103 / Safari 16，会把支持面收窄到比 main.ts 里那条注释更高的基线。
+ */
+const REFRESH_TIMEOUT_MS = 10000;
+
 export function createAppPcHttp(options: CreateAppPcHttpOptions): {
   http: HttpRequest;
   tokenStorage: TokenStorage;
@@ -34,11 +47,23 @@ export function createAppPcHttp(options: CreateAppPcHttpOptions): {
    * `credentials: "include"` 保证跨域开发（Vite 5173 → API 3000）下也会带上刷新 Cookie。
    */
   async function requestNewAccessToken(): Promise<string> {
-    const res = await fetch(`${baseURL.replace(/\/$/, "")}/api/auth/refresh`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json;charset=UTF-8" },
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      controller.abort();
+    }, REFRESH_TIMEOUT_MS);
+
+    let res: Response;
+    try {
+      res = await fetch(`${baseURL.replace(/\/$/, "")}/api/auth/refresh`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json;charset=UTF-8" },
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+
     if (!res.ok) {
       throw new Error("刷新登录状态失败");
     }
