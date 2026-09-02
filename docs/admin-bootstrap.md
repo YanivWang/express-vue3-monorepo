@@ -54,11 +54,15 @@ pnpm exec tsx scripts/ensure-super-admin.ts
 
 **`pnpm db:seed-post` 不包含类目种子**；灌帖前须已通过 **`pnpm db:seed-categories`**（或管理端）写入 synthetic-it 所需的 IT 分类树，否则接口会因缺少类目而失败。
 
-合成帖子经 HTTP 调 API，凭证可为（**优先级从高到低**，见 `synthetic-it-resolve-import-token.ts`）：
+合成帖子经 HTTP 调 API，凭证可为（**优先级从高到低**，见 `synthetic-it-resolve-import-token.ts` 的 `initAdminImportSession`）：
 
 1. **`REST_API_IMPORT_TOKEN`**：管理员 JWT（Bearer）。
 2. **`REST_API_IMPORT_USERNAME`** + **`REST_API_IMPORT_PASSWORD`**：须**成对**非空。
 3. 否则使用根目录 **`.env.*`** 中的 **`ADMIN_BOOTSTRAP_USERNAME`** / **`ADMIN_BOOTSTRAP_PASSWORD`** 调用 **`POST /api/login`**（`REST_API_BASE` 已含 `/api` 后缀时等价于 `{REST_API_BASE}/login`）。
+
+> **访问令牌的时效**：认证改造后访问令牌默认只有 15 分钟，而一次灌帖（LLM 生成 + 拉图 + 限速）常常跑得更久。
+> 走 **2**、**3** 两种方式时，脚本会在收到 401 后用同一套口令自动重新登录并继续（见 `synthetic-it-session.ts`）；
+> 而方式 **1** 直接给的是一枚现成令牌，脚本没有口令可用、**无法续期**，长时间导入请改用账号口令。
 
 `apps/backend/rest-api/scripts/synthetic-it.env` **只**会覆盖种子相关键（`REST_API_*`、`SYNTHETIC_*`、`DEDUPE_INDEXES*`），**不会**从该文件注入 **`ADMIN_BOOTSTRAP_*`**；超级管理员账号口令应只放在 monorepo 根 **`.env.*`**。
 
