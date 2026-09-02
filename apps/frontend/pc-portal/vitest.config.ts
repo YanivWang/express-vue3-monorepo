@@ -3,6 +3,8 @@ import { fileURLToPath, URL } from "node:url";
 import vue from "@vitejs/plugin-vue";
 import { defineConfig } from "vitest/config";
 
+import { workspaceSrcAliases } from "../../../scripts/vitest-workspace-src-alias.js";
+
 /**
  * pc-portal 组件单测：真实挂载 Element Plus，只在「外部系统」处设挡板
  * （HTTP 由各用例 vi.mock @/api/*，富文本编辑器见 src/test/stubs/yaniv-editor.ts）。
@@ -14,6 +16,8 @@ export default defineConfig({
   plugins: [vue()],
   resolve: {
     alias: [
+      // workspace 包一律解析到源码，与应用构建一致（见该函数说明）
+      ...workspaceSrcAliases(),
       { find: "@", replacement: fileURLToPath(new URL("./src", import.meta.url)) },
       // 富文本编辑器是第三方 ProseMirror 重组件，且非本次重构对象；
       // 真身在 happy-dom 下既慢又脆，替换为最小挡板以保留「宿主怎么用它」的可断言性。

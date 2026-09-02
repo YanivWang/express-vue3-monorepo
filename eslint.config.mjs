@@ -192,5 +192,19 @@ export default tseslint.config(
       globals: { ...globals.browser, ...globals.node },
     },
   },
+  {
+    /**
+     * 仓库根 `scripts/` 下的构建期辅助脚本。
+     * 它们不在任何包的 tsconfig 里（被 vite / vitest 的配置直接消费），因此只做语法与基础规则检查，
+     * 不开类型感知规则——但也不能一个规则都不套：不匹配任何 config 的文件会被 ESLint 静默跳过，
+     * 那等于在门禁上留了一块盲区。
+     */
+    files: ["scripts/**/*.{ts,mts}"],
+    extends: [js.configs.recommended, tseslint.configs.disableTypeChecked],
+    languageOptions: {
+      parser: tseslint.parser,
+      globals: { ...globals.node },
+    },
+  },
   prettier,
 );

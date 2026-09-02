@@ -3,6 +3,8 @@ import { fileURLToPath, URL } from "node:url";
 import vue from "@vitejs/plugin-vue";
 import { defineConfig } from "vitest/config";
 
+import { workspaceSrcAliases } from "../../../scripts/vitest-workspace-src-alias.js";
+
 /**
  * pc-admin 组件单测：与 pc-portal 同构（真实 Element Plus + happy-dom），
  * 差别只在这里没有富文本编辑器需要挡。

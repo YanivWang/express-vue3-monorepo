@@ -1,5 +1,6 @@
 // 真实产物构建：Node 侧经 package.json 的 `node` 条件消费本 dist；
 // 前端（Vite）仍走 `default` 条件直接消费 src。与 packages/shared 保持同一形态。
+// 测试文件不进产物：它们 import vitest（devDependency），随 dist 发出去只会在运行时炸。
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
@@ -14,5 +15,5 @@
     "types": []
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", "dist", "src/**/*.test.ts", "src/**/*.spec.ts"]
 }
