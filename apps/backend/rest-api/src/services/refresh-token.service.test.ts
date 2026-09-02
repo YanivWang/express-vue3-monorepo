@@ -9,11 +9,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // vi.mock 的工厂会被提升到文件顶部，因此它引用的东西必须由 vi.hoisted 一起提升
-const { GRACE_SECONDS, strings, sets } = vi.hoisted(() => ({
+const { GRACE_SECONDS, strings, sets, hooks } = vi.hoisted(() => ({
   GRACE_SECONDS: 30,
   /** 只实现 service 真正用到的那几个命令；TTL 不参与断言，故忽略过期语义 */
   strings: new Map<string, string>(),
   sets: new Map<string, Set<string>>(),
+  /** 用来在指定命令之间插入并发操作，从而确定性地复现交错，而不是靠碰运气 */
+  hooks: { beforeSAdd: null as null | (() => Promise<void>) },
 }));
 
 vi.mock("../env.js", () => ({
@@ -42,14 +44,22 @@ vi.mock("../redis.js", () => ({
       return Promise.resolve(removed);
     },
     exists: (key: string) => Promise.resolve(strings.has(key) || sets.has(key) ? 1 : 0),
-    sAdd: (key: string, member: string) => {
+    sAdd: async (key: string, member: string) => {
+      const hook = hooks.beforeSAdd;
+      if (hook) {
+        hooks.beforeSAdd = null;
+        await hook();
+      }
       const set = sets.get(key) ?? new Set<string>();
       set.add(member);
       sets.set(key, set);
-      return Promise.resolve(1);
+      return 1;
     },
     sRem: (key: string, member: string) => {
-      sets.get(key)?.delete(member);
+      const set = sets.get(key);
+      set?.delete(member);
+      // 真实 Redis 里集合空了键就没了；假替身必须照做，否则 exists 会谎报家族仍在
+      if (set && set.size === 0) sets.delete(key);
       return Promise.resolve(1);
     },
     sMembers: (key: string) => Promise.resolve([...(sets.get(key) ?? [])]),
@@ -76,6 +86,7 @@ function withWrongSecret(token: string): string {
 beforeEach(() => {
   strings.clear();
   sets.clear();
+  hooks.beforeSAdd = null;
   vi.mocked(logger.warn).mockClear();
   vi.useRealTimers();
 });
@@ -196,6 +207,47 @@ describe("只知道 tokenId 的一方什么也做不了", () => {
     await revokeRefreshTokenByRaw(withWrongSecret(issued.token));
 
     expect((await rotateRefreshToken(issued.token)).status).toBe("rotated");
+  });
+});
+
+describe("登出与刷新并发", () => {
+  /** 活令牌记录的条数——登出之后必须归零，否则就是「登出了，但会话还能续期」 */
+  function liveTokenKeys(): string[] {
+    return [...strings.keys()].filter((k) => k.startsWith("auth:refresh:token:"));
+  }
+  function familyKeys(): string[] {
+    return [...sets.keys()].filter((k) => k.startsWith("auth:refresh:family:"));
+  }
+
+  it("登出恰好发生在刷新写入之后时，在途刷新不会把已撤销的家族种回来", async () => {
+    const issued = await issueRefreshToken(USER_ID);
+
+    // 在刷新把新令牌登记进家族的那一刻插入一次登出，精确复现最要命的那种交错
+    hooks.beforeSAdd = async () => {
+      await revokeRefreshTokenByRaw(issued.token);
+    };
+
+    const outcome = await rotateRefreshToken(issued.token);
+
+    // 会话已经结束，刷新就该失败——而不是发出一枚「登出后仍然有效」的令牌
+    expect(outcome.status).toBe("invalid");
+    expect(liveTokenKeys()).toHaveLength(0);
+    expect(familyKeys()).toHaveLength(0);
+  });
+
+  it("宽限窗口内的补发同样受撤销约束", async () => {
+    const issued = await issueRefreshToken(USER_ID);
+    const first = await rotateRefreshToken(issued.token);
+    if (first.status !== "rotated") throw new Error("首次轮换应当成功");
+
+    // 另一个标签页拿着旧令牌在宽限窗口内赶来，同时用户点了登出
+    hooks.beforeSAdd = async () => {
+      await revokeRefreshTokenByRaw(first.next.token);
+    };
+
+    const concurrent = await rotateRefreshToken(issued.token);
+    expect(concurrent.status).toBe("invalid");
+    expect(liveTokenKeys()).toHaveLength(0);
   });
 });
 

@@ -26,6 +26,7 @@
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 
 import { REFRESH_ROTATION_GRACE_SECONDS, REFRESH_TOKEN_TTL_SECONDS } from "../env.js";
+import { createInternalServerError } from "../middlewares/error.middleware.js";
 import { redis } from "../redis.js";
 import { logger } from "../utils/logger.js";
 
@@ -35,6 +36,8 @@ const TOKEN_KEY_PREFIX = "auth:refresh:token:";
 const FAMILY_KEY_PREFIX = "auth:refresh:family:";
 /** 已使用令牌的墓碑，用于识别重放 */
 const USED_KEY_PREFIX = "auth:refresh:used:";
+/** 家族撤销墓碑：阻止「已在飞行中的刷新」把刚被撤销的家族重新种回来 */
+const REVOKED_FAMILY_KEY_PREFIX = "auth:refresh:revoked-family:";
 
 /** 墓碑保留时间：覆盖住「令牌被复制后延迟重放」的现实窗口即可，无需与令牌等长 */
 const USED_TOMBSTONE_TTL_SECONDS = 24 * 60 * 60;
@@ -73,6 +76,9 @@ function familyKey(familyId: string) {
 function usedKey(tokenId: string) {
   return `${USED_KEY_PREFIX}${tokenId}`;
 }
+function revokedFamilyKey(familyId: string) {
+  return `${REVOKED_FAMILY_KEY_PREFIX}${familyId}`;
+}
 
 function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex");
@@ -103,8 +109,16 @@ function parseJson<T>(raw: string | null): T | null {
   }
 }
 
-/** 签发一枚刷新令牌并登记进指定家族 */
-async function issueInFamily(userId: number, familyId: string): Promise<IssuedRefreshToken> {
+/**
+ * 签发一枚刷新令牌并登记进指定家族；家族已被撤销时返回 null。
+ *
+ * 「写完再验墓碑」而不是「先验墓碑再写」，是为了封住登出与刷新的并发：
+ * 撤销的顺序是**先立墓碑、再清理成员**，于是两种交错都被覆盖——
+ * 在立碑之前写入的令牌，会被撤销的清理阶段删掉；在立碑之后写入的，一定看得到碑，于是自己回滚。
+ * 反过来写（先验后写）留下的正是最要命的那条缝：验的时候还没撤销，写的时候已经撤销完了，
+ * 于是登出成功、SADD 却把家族集合重新建了起来，用户手上留着一枚 7 天有效、谁都不知道的活令牌。
+ */
+async function issueInFamily(userId: number, familyId: string): Promise<IssuedRefreshToken | null> {
   const tokenId = randomUUID();
   // randomUUID 提供 122 位熵，足以作为不可猜测的密钥部分；两段拼接后仍是一次性凭证
   const secret = `${randomUUID()}${randomUUID()}`.replace(/-/g, "");
@@ -115,16 +129,34 @@ async function issueInFamily(userId: number, familyId: string): Promise<IssuedRe
   await redis.sAdd(familyKey(familyId), tokenId);
   await redis.expire(familyKey(familyId), REFRESH_TOKEN_TTL_SECONDS);
 
+  if (await familyIsRevoked(familyId)) {
+    await redis.del(tokenKey(tokenId));
+    // 空集合会被 Redis 自动删除，无需再显式删家族键
+    await redis.sRem(familyKey(familyId), tokenId);
+    return null;
+  }
+
   return { token: `${tokenId}.${secret}`, expiresInSeconds: REFRESH_TOKEN_TTL_SECONDS };
 }
 
 /** 登录时调用：开启一个新的令牌家族 */
 export async function issueRefreshToken(userId: number): Promise<IssuedRefreshToken> {
-  return issueInFamily(userId, randomUUID());
+  // 家族 id 是此刻新生成的 UUID，不可能已被撤销；兜底只为让类型收敛，真触发说明有更深的问题
+  const issued = await issueInFamily(userId, randomUUID());
+  if (!issued) {
+    throw createInternalServerError("刷新令牌签发失败：新建的令牌家族竟已被标记为撤销");
+  }
+  return issued;
 }
 
-/** 撤销整个家族（登出，或检测到重放时） */
+/**
+ * 撤销整个家族（登出，或检测到重放时）。
+ * 墓碑必须**先于**清理写下，理由见 issueInFamily；TTL 取令牌有效期，
+ * 覆盖住任何可能与本次撤销并发的签发。
+ */
 export async function revokeRefreshFamily(familyId: string): Promise<void> {
+  await redis.set(revokedFamilyKey(familyId), "1", { EX: REFRESH_TOKEN_TTL_SECONDS });
+
   const tokenIds = await redis.sMembers(familyKey(familyId));
   if (tokenIds.length > 0) {
     await redis.del(tokenIds.map(tokenKey));
@@ -132,8 +164,13 @@ export async function revokeRefreshFamily(familyId: string): Promise<void> {
   await redis.del(familyKey(familyId));
 }
 
+async function familyIsRevoked(familyId: string): Promise<boolean> {
+  return (await redis.exists(revokedFamilyKey(familyId))) === 1;
+}
+
 /** 家族是否仍然存活；已被撤销（登出 / 重放）的家族不能靠宽限窗口复活 */
 async function familyIsAlive(familyId: string): Promise<boolean> {
+  if (await familyIsRevoked(familyId)) return false;
   return (await redis.exists(familyKey(familyId))) === 1;
 }
 
@@ -177,6 +214,8 @@ export async function rotateRefreshToken(rawToken: string): Promise<RefreshOutco
     await redis.sRem(familyKey(stored.familyId), tokenId);
 
     const next = await issueInFamily(stored.userId, stored.familyId);
+    // 并发登出：家族在本次刷新写入的同时被撤销，新令牌已回滚，如实告知调用方会话已结束
+    if (!next) return { status: "invalid" };
     return { status: "rotated", userId: stored.userId, next };
   }
 
@@ -200,6 +239,7 @@ export async function rotateRefreshToken(rawToken: string): Promise<RefreshOutco
       message: "刷新令牌在宽限窗口内被重复提交，按并发竞态处理并补发新令牌",
     });
     const next = await issueInFamily(tombstone.userId, tombstone.familyId);
+    if (!next) return { status: "invalid" };
     return { status: "rotated", userId: tombstone.userId, next };
   }
 
