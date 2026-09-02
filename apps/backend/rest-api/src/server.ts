@@ -1,4 +1,3 @@
-import app from "./app.js";
 import { ensureUploadsRoot } from "./config/upload.config.js";
 import { connectDatabase, sequelize } from "./db.js";
 import { APP_ENV, PORT, SHUTDOWN_TIMEOUT_MS } from "./env.js";
@@ -7,6 +6,16 @@ import { logger, serializeError } from "./utils/logger.js";
 
 await connectDatabase();
 await connectRedis();
+
+/**
+ * 应用在基础设施就绪之后才装配，因此这里是**动态** import，不能改回顶部的静态 import。
+ *
+ * 静态 import 会先于本文件的任何语句执行 app.ts 的模块体，而模块体里的限流中间件在构造时
+ * 就要向 Redis 加载 Lua 脚本；那一刻客户端还没连上，rate-limit-redis 会把这个失败的 promise
+ * 缓存下来，之后每次计数都拿到同一个拒绝结果——限流永久失效，且只会安静地放行。
+ * 顺序颠倒的代价是「一个安全机制看起来在、其实没在」，所以这条依赖关系必须显式。
+ */
+const { default: app } = await import("./app.js");
 
 ensureUploadsRoot();
 

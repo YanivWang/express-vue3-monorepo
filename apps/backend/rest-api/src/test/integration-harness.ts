@@ -100,13 +100,11 @@ export interface TestApi {
  * 应用模块在此处才被动态 import：确保 prepareTestEnv 已经生效。
  */
 export async function startTestApi(): Promise<TestApi> {
-  const [{ default: app }, models, { runMigrations }, { connectRedis, disconnectRedis }] =
-    await Promise.all([
-      import("../app.js"),
-      import("../db.js"),
-      import("../db/migrator.js"),
-      import("../redis.js"),
-    ]);
+  const [models, { runMigrations }, { connectRedis, disconnectRedis }] = await Promise.all([
+    import("../db.js"),
+    import("../db/migrator.js"),
+    import("../redis.js"),
+  ]);
   const { sequelize } = models;
 
   await sequelize.authenticate();
@@ -116,6 +114,9 @@ export async function startTestApi(): Promise<TestApi> {
   await bootstrapRbacIfNeeded();
 
   await connectRedis();
+
+  // 与 server.ts 同一条约束：限流中间件在 app 的模块体里就要访问 Redis，故 app 必须最后导入
+  const { default: app } = await import("../app.js");
 
   const server: Server = createServer(app);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
