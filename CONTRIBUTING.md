@@ -20,9 +20,10 @@
   - **`pnpm typecheck:packages`**：仅 `packages/**` 并行 typecheck
   - `pnpm lint`（带 `--max-warnings 0`：**warning 与 error 同样会让门禁失败**，不要用 eslint-disable 或放宽规则来消化告警）、`pnpm lint:style`、`pnpm format:check`
   - 提交前全套校验：`pnpm verify`（**先构建 workspace 包** → typecheck → lint → lint:style → format:check → 全仓单测 → 前端生产构建）
-    - 第一步不是可有可无的：`packages/*` 的 `exports` 在 **`node` 条件**下指向 `dist`，而前端组件测试正是走这条路。
-      不先构建，改了 `packages/*/src` 的测试就会**悄悄跑在上一次编译的旧产物上**——CI 因为有独立的构建作业不会重现，
-      本地却可能既看不到自己的改动，也看不到自己引入的问题。
+    - 第一步不是可有可无的：`packages/*` 的 `exports` 在 **`node` 条件**下指向 `dist`，后端（rest-api）无论运行还是跑测试都走这条路。
+      不先构建，改了包源码的测试就会**悄悄跑在上一次编译的旧产物上**——CI 因为有独立的构建作业不会重现，本地却看不出来。
+    - 前端两个 app 的组件测试则通过 [`scripts/vitest-workspace-src-alias.ts`](scripts/vitest-workspace-src-alias.ts)
+      把 workspace 包解析到 **`src`**，与浏览器构建吃的是同一份源码——测试和线上不应该验证两个不同的产物。
 - Docker：`pnpm docker:dev`、`pnpm docker:dev:down`、`pnpm docker:dev:debug`（详见 README「Docker 开发」）
 - 单独跑某个包的测试：`pnpm --filter @express-vue3-monorepo/js-bridge test`（根 `pnpm test` 已并行覆盖全仓，单独跑仅用于调试）
 
@@ -57,7 +58,9 @@ git diff --diff-filter=MD <重构前的提交> HEAD -- "*.spec.ts" "apps/fronten
 | pc-portal | `apps/frontend/pc-portal/.env.development` | `VITE_API_BASE_URL`、`VITE_DEV_PROXY_TARGET`、`VITE_DEV_HMR_CLIENT_PORT`；示例见 [`.env.example`](apps/frontend/pc-portal/.env.example) |
 | pc-admin  | `apps/frontend/pc-admin/.env.development`  | 同上；网关/生产子路径另设 **`VITE_ADMIN_BASE=/pc-admin/`**（Compose 与生产镜像已注入）                                                  |
 
-两 app 经 `@express-vue3-monorepo/shared` 的 `createAppPcHttp` 发请求。**访问令牌只存在于内存**（`createTokenStorage`），刷新页面必然丢失，会话延续由服务端下发的 HttpOnly 刷新令牌 Cookie （`evm_refresh_token`）承担：启动时 `restoreSession()` 静默换回访问令牌，401 时由 request-core 单飞刷新并重放。因此前端**不再有** `pc_portal_access_token` / `pc_admin_access_token` 这类 JS 可读的令牌 Cookie。
+两 app 经 `@express-vue3-monorepo/shared` 的 `createAppPcHttp` 发请求。**访问令牌只存在于内存**（`createTokenStorage`），刷新页面必然丢失，会话延续由服务端下发的 HttpOnly 刷新令牌 Cookie（`evm_refresh_token`）承担：启动时 `restoreSession()` 静默换回访问令牌，401 时由 request-core 单飞刷新并重放。因此前端**不再有** `pc_portal_access_token` / `pc_admin_access_token` 这类 JS 可读的令牌 Cookie。
+
+刷新令牌是**同源共享的一枚 Cookie**，所以刷新还经 **Web Locks** 串行化（`evm:auth:refresh`）：多标签页、或门户与管理端同时开着时，后到的那个会等前一个完成再发起，读到的已是轮换后的新 Cookie，于是变成连续的正常轮换，而不是让服务端靠「并发宽限窗口」去兜一次本可避免的竞态。锁不可用（Safari < 15.4、非安全上下文）时自动降级，仍由服务端窗口兜底。
 
 ## 文档
 
