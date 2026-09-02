@@ -37,7 +37,7 @@ import {
   uploadSeedPlaceholderImage,
 } from "./synthetic-it-media.js";
 import { mergeDotenvFromMonorepoRoot } from "./synthetic-it-merge-monorepo-dotenv.js";
-import { resolveAdminImportToken } from "./synthetic-it-resolve-import-token.js";
+import { initAdminImportSession } from "./synthetic-it-resolve-import-token.js";
 
 import type { SyntheticBundle } from "./synthetic-it-data-static.js";
 
@@ -119,7 +119,6 @@ function assertCategoryPostCounts(): void {
 
 async function resolveCoverUrl(opts: {
   apiBase: string;
-  token: string;
   post: PostPayload;
   bundle: { categoryName: string; keyPrefix: string };
   idx: number;
@@ -129,7 +128,7 @@ async function resolveCoverUrl(opts: {
   reuseLastCoverOnMiss: boolean;
   reuseCoverUrl: string | null;
 }): Promise<string> {
-  const { apiBase, token, post, bundle, idx, fetchImages, pexelsKey, usedPexelsPhotoIds } = opts;
+  const { apiBase, post, bundle, idx, fetchImages, pexelsKey, usedPexelsPhotoIds } = opts;
   const label = `${bundle.keyPrefix}-${idx}`;
 
   if (fetchImages && pexelsKey) {
@@ -140,7 +139,6 @@ async function resolveCoverUrl(opts: {
     const selectionSalt = `${SYNTHETIC_IT_EXTERNAL_SOURCE}|${bundle.categoryName}|${label}`;
     const uploaded = await fetchPexelsPhotoAndUpload({
       apiBase,
-      restToken: token,
       pexelsApiKey: pexelsKey,
       query,
       refineHint: "developer",
@@ -166,7 +164,7 @@ async function resolveCoverUrl(opts: {
   }
 
   console.warn(`  [cover] ${label} 上传内置占位 PNG 至 /uploads/posts/…`);
-  return uploadSeedPlaceholderImage(apiBase, token, `${bundle.categoryName}-${label}`);
+  return uploadSeedPlaceholderImage(apiBase, `${bundle.categoryName}-${label}`);
 }
 
 async function prepareSyntheticPostPayload(
@@ -175,7 +173,6 @@ async function prepareSyntheticPostPayload(
   idx: number,
   ctx: {
     apiBase: string;
-    token: string;
     rateMs: number;
     fetchImages: boolean;
     pexelsKey: string;
@@ -189,7 +186,6 @@ async function prepareSyntheticPostPayload(
 
   const coverUrl = await resolveCoverUrl({
     apiBase: ctx.apiBase,
-    token: ctx.token,
     post,
     bundle,
     idx,
@@ -209,14 +205,13 @@ async function prepareSyntheticPostPayload(
 
 async function postCommentChain(
   apiBase: string,
-  token: string,
   postId: number,
   body: string,
   replies: string[] | undefined,
   rateMs: number,
 ) {
   const trimmed = body.trim().slice(0, 5000);
-  const r = await apiSuccessJson("POST", apiBase, token, `/posts/${postId}/comments`, {
+  const r = await apiSuccessJson("POST", apiBase, `/posts/${postId}/comments`, {
     content: trimmed,
   });
   await sleep(rateMs);
@@ -224,7 +219,7 @@ async function postCommentChain(
   const parentId = commentObj.id;
 
   for (const rep of replies ?? []) {
-    await apiSuccessJson("POST", apiBase, token, `/posts/${postId}/comments`, {
+    await apiSuccessJson("POST", apiBase, `/posts/${postId}/comments`, {
       content: rep.trim().slice(0, 5000),
       parentId,
     });
@@ -234,7 +229,6 @@ async function postCommentChain(
 
 async function injectBundlePosts(
   apiBase: string,
-  token: string,
   categories: unknown[],
   bundle: { categoryName: string; keyPrefix: string },
   posts: PostPayload[],
@@ -257,7 +251,6 @@ async function injectBundlePosts(
 
   const prepBase = {
     apiBase,
-    token,
     rateMs,
     fetchImages,
     pexelsKey,
@@ -269,7 +262,6 @@ async function injectBundlePosts(
   if (fetchImages && pexelsKey) {
     const prime = await fetchPexelsPhotoAndUpload({
       apiBase,
-      restToken: token,
       pexelsApiKey: pexelsKey,
       query: "technology laptop workspace",
       fallbackQueries: ["software developer computer", "coding workspace desk"],
@@ -300,7 +292,7 @@ async function injectBundlePosts(
       throw e;
     }
 
-    const created = await apiSuccessJson("POST", apiBase, token, "/posts", {
+    const created = await apiSuccessJson("POST", apiBase, "/posts", {
       title: payload.title,
       content: payload.html,
       published: true,
@@ -326,7 +318,7 @@ async function injectBundlePosts(
     }
 
     for (const c of post.comments) {
-      await postCommentChain(apiBase, token, postId, c.body, c.replies, rateMs);
+      await postCommentChain(apiBase, postId, c.body, c.replies, rateMs);
       commentsWritten += 1 + (c.replies?.length ?? 0);
     }
 
@@ -343,7 +335,7 @@ async function main() {
     "",
   );
 
-  const token = await resolveAdminImportToken(apiBase);
+  await initAdminImportSession(apiBase);
   assertCategoryPostCounts();
 
   const rateMs = Number(process.env.SYNTHETIC_RATE_MS ?? "120");
@@ -399,7 +391,7 @@ async function main() {
   const commentDone = await loadCommentManifest();
   const usedPexelsPhotoIds = new Set<number>();
 
-  const tree = await apiSuccessJson("GET", apiBase, token, "/categories");
+  const tree = await apiSuccessJson("GET", apiBase, "/categories");
   const categories = tree.categories as unknown[];
 
   let postsProcessed = 0;
@@ -410,7 +402,6 @@ async function main() {
     for (const bundle of SYNTHETIC_IT_STATIC_BUNDLES) {
       const r = await injectBundlePosts(
         apiBase,
-        token,
         categories,
         bundle,
         bundle.posts,
@@ -457,7 +448,6 @@ async function main() {
 
       const r = await injectBundlePosts(
         apiBase,
-        token,
         categories,
         bundle,
         posts,

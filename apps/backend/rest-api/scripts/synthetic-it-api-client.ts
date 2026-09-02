@@ -1,4 +1,5 @@
 import { SYNTHETIC_IT_HTTP_UA } from "./synthetic-it-constants.js";
+import { importAuthHeader, renewImportTokenOnUnauthorized } from "./synthetic-it-session.js";
 
 const TRANSIENT_HTTP_STATUSES = new Set([502, 503, 504]);
 
@@ -26,37 +27,49 @@ function isTransientApiFailure(status: number, payload: Record<string, unknown>)
   return status >= 500 && payload.code == null;
 }
 
+/** 令牌来自 synthetic-it-session（长跑期间会被续期），故每次尝试都重新取一遍 */
+function requestHeaders(hasBody: boolean): Record<string, string> {
+  const headers: Record<string, string> = {
+    "User-Agent": SYNTHETIC_IT_HTTP_UA,
+    Accept: "application/json",
+    Authorization: importAuthHeader(),
+  };
+  if (hasBody) {
+    headers["Content-Type"] = "application/json";
+  }
+  return headers;
+}
+
 export async function apiSuccessJson(
   method: string,
   apiBase: string,
-  token: string,
   pathname: string,
   body?: unknown,
 ): Promise<Record<string, unknown>> {
   const url = `${apiBase.replace(/\/$/, "")}${pathname}`;
-  const headers: Record<string, string> = {
-    "User-Agent": SYNTHETIC_IT_HTTP_UA,
-    Accept: "application/json",
-    Authorization: `Bearer ${token}`,
-  };
-  if (body !== undefined) {
-    headers["Content-Type"] = "application/json";
-  }
 
   const maxAttempts = apiRetryMax() + 1;
   const retryDelayMs = apiRetryDelayMs();
   let lastError: Error | undefined;
+  /** 令牌过期只该换一次；换完仍 401 说明是真的没权限，不该无限重登 */
+  let renewed = false;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const res = await fetch(url, {
         method,
-        headers,
+        headers: requestHeaders(body !== undefined),
         body: body !== undefined ? JSON.stringify(body) : undefined,
       });
       const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       if (res.ok && j.code === 200) {
         return j;
+      }
+
+      // 访问令牌只有 15 分钟，而灌帖常常跑得更久：过期就续期后重试
+      if (!renewed && attempt < maxAttempts && (await renewImportTokenOnUnauthorized(res.status))) {
+        renewed = true;
+        continue;
       }
 
       if (attempt < maxAttempts && isTransientApiFailure(res.status, j)) {

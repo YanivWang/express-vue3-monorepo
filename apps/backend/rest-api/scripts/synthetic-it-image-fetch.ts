@@ -4,6 +4,7 @@
  */
 
 import { SYNTHETIC_IT_HTTP_UA } from "./synthetic-it-constants.js";
+import { importAuthHeader, renewImportTokenOnUnauthorized } from "./synthetic-it-session.js";
 
 type PexelsPhotoRow = {
   id?: number;
@@ -36,7 +37,6 @@ export function syntheticImagePickIndex(len: number, salt: string, pageHint: num
 
 async function uploadMultipartImage(
   apiBase: string,
-  bearerToken: string,
   bytes: Uint8Array,
   filename: string,
   contentType: string,
@@ -48,13 +48,16 @@ async function uploadMultipartImage(
   const res = await fetch(url, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${bearerToken}`,
+      // 每次调用都重新取：长跑期间令牌可能已被续期
+      Authorization: importAuthHeader(),
       "User-Agent": SYNTHETIC_IT_HTTP_UA,
     },
     body: form,
   });
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (!res.ok || j.code !== 200) {
+    // 令牌过期时先续期，外层 uploadMultipartImageWithRetries 会重试本次上传
+    await renewImportTokenOnUnauthorized(res.status);
     throw new Error(`POST ${url} failed: HTTP ${res.status} ${JSON.stringify(j)}`);
   }
   const urls = j.urls as string[] | undefined;
@@ -67,7 +70,6 @@ async function uploadMultipartImage(
 
 async function uploadMultipartImageWithRetries(
   apiBase: string,
-  bearerToken: string,
   bytes: Uint8Array,
   filename: string,
   contentType: string,
@@ -76,7 +78,7 @@ async function uploadMultipartImageWithRetries(
   let lastErr: unknown;
   for (let i = 0; i < maxAttempts; i++) {
     try {
-      return await uploadMultipartImage(apiBase, bearerToken, bytes, filename, contentType);
+      return await uploadMultipartImage(apiBase, bytes, filename, contentType);
     } catch (e) {
       lastErr = e;
       if (i < maxAttempts - 1) {
@@ -106,7 +108,6 @@ export type PexelsUploadedImage = {
  */
 export async function fetchPexelsPhotoAndUpload(opts: {
   apiBase: string;
-  restToken: string;
   pexelsApiKey: string;
   query: string;
   /** 第二次检索追加词（与 query 拼接成第二条检索） */
@@ -204,7 +205,6 @@ export async function fetchPexelsPhotoAndUpload(opts: {
 
         const uploadUrl = await uploadMultipartImageWithRetries(
           opts.apiBase,
-          opts.restToken,
           buf,
           `pexels-${picked.id}.${ext}`,
           ct,

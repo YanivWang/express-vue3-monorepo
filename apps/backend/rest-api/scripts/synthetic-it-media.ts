@@ -5,6 +5,7 @@
 import { postUploadDiskSegment } from "../src/config/upload.config.js";
 
 import { SYNTHETIC_IT_HTTP_UA } from "./synthetic-it-constants.js";
+import { importAuthHeader, renewImportTokenOnUnauthorized } from "./synthetic-it-session.js";
 
 /** 1×1 PNG，用于无 Pexels Key 或拉图失败时的兜底上传 */
 const MINIMAL_PNG_BYTES = Uint8Array.from([
@@ -26,7 +27,6 @@ export function isPostUploadPublicUrl(src: string): boolean {
 
 export async function uploadImageBytesViaApi(opts: {
   apiBase: string;
-  bearerToken: string;
   bytes: Uint8Array;
   filename: string;
   contentType: string;
@@ -43,13 +43,16 @@ export async function uploadImageBytesViaApi(opts: {
       const res = await fetch(url, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${opts.bearerToken}`,
+          // 每次尝试都重新取：长跑期间令牌可能已被续期
+          Authorization: importAuthHeader(),
           "User-Agent": SYNTHETIC_IT_HTTP_UA,
         },
         body: form,
       });
       const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       if (!res.ok || j.code !== 200) {
+        // 令牌在长跑中过期：续期后由下一轮重试，而不是把整场灌帖断在这里
+        await renewImportTokenOnUnauthorized(res.status);
         throw new Error(`POST ${url} failed: HTTP ${res.status} ${JSON.stringify(j)}`);
       }
       const urls = j.urls as string[] | undefined;
@@ -70,15 +73,10 @@ export async function uploadImageBytesViaApi(opts: {
 }
 
 /** 上传内置 1×1 PNG，返回 `/uploads/posts/<年>/<月>/…` */
-export async function uploadSeedPlaceholderImage(
-  apiBase: string,
-  bearerToken: string,
-  label: string,
-): Promise<string> {
+export async function uploadSeedPlaceholderImage(apiBase: string, label: string): Promise<string> {
   const safe = label.replace(/[^a-zA-Z0-9._-]+/g, "-").slice(0, 48) || "seed";
   return uploadImageBytesViaApi({
     apiBase,
-    bearerToken,
     bytes: MINIMAL_PNG_BYTES,
     filename: `synthetic-seed-${safe}.png`,
     contentType: "image/png",

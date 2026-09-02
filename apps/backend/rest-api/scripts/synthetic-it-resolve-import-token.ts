@@ -1,12 +1,21 @@
 import { loginForAdminJwt } from "./synthetic-it-api-client.js";
+import { initImportSession } from "./synthetic-it-session.js";
 
 /**
+ * 建立本次灌帖的认证会话。
+ *
  * 优先 `REST_API_IMPORT_TOKEN`；否则用账号密码调 `POST /api/login`（`apiBase` 通常为 `…/api`，故实际请求 `{apiBase}/login`）。
  * 账号：`REST_API_IMPORT_USERNAME` + `REST_API_IMPORT_PASSWORD`（须成对非空）或 `ADMIN_BOOTSTRAP_*`（须成对非空，通常 `.env.development`）。
+ *
+ * 走账号密码时会把「重新登录」注册进会话：访问令牌只有 15 分钟，而灌帖常常跑得更久，
+ * 令牌过期后由 synthetic-it-session 自动续期（直接指定 `REST_API_IMPORT_TOKEN` 时没有口令可用，无法续期）。
  */
-export async function resolveAdminImportToken(apiBase: string): Promise<string> {
+export async function initAdminImportSession(apiBase: string): Promise<void> {
   const existing = (process.env.REST_API_IMPORT_TOKEN ?? "").trim();
-  if (existing) return existing;
+  if (existing) {
+    initImportSession(existing);
+    return;
+  }
 
   const importUser = (process.env.REST_API_IMPORT_USERNAME ?? "").trim();
   const importPwd = (process.env.REST_API_IMPORT_PASSWORD ?? "").trim();
@@ -36,5 +45,7 @@ export async function resolveAdminImportToken(apiBase: string): Promise<string> 
   console.warn(
     `[synthetic-it] 未设置 REST_API_IMPORT_TOKEN：正以用户 «${username}» 调用 POST /api/login（请确保其为管理员；本地可在 apps/backend/rest-api 执行 pnpm exec tsx scripts/ensure-super-admin.ts）`,
   );
-  return loginForAdminJwt(apiBase, username, password);
+
+  const login = () => loginForAdminJwt(apiBase, username, password);
+  initImportSession(await login(), login);
 }
