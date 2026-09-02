@@ -18,24 +18,18 @@ export async function resolveJwtUser(token: string): Promise<AppJwtUser | null> 
   }
 }
 
-/** 校验 JWT；失败抛 Error，供 auth 中间件映射为 401 */
+/**
+ * 校验 JWT；失败抛 Error，供 auth 中间件映射为 401。
+ * 不加 try/catch：这里没有任何需要就地处理的错误，包一层只把「原样上抛」写得更长。
+ * 已登出（拉黑）的令牌按过期处理，中间件因此会给出「登录已过期，请重新登录」。
+ */
 export async function requireJwtUser(token: string): Promise<AppJwtUser> {
-  try {
-    const user = jwt.verify(token, JWT_SECRET) as AppJwtUser;
-    if (!user.jti) {
-      throw new jwt.JsonWebTokenError("missing jti");
-    }
-    if (await isJwtBlacklisted(user.jti)) {
-      throw new jwt.TokenExpiredError("blacklisted", new Date());
-    }
-    return user;
-  } catch (error) {
-    if (error instanceof jwt.TokenExpiredError) {
-      throw error;
-    }
-    if (error instanceof jwt.JsonWebTokenError) {
-      throw error;
-    }
-    throw error;
+  const user = jwt.verify(token, JWT_SECRET) as AppJwtUser;
+  if (!user.jti) {
+    throw new jwt.JsonWebTokenError("missing jti");
   }
+  if (await isJwtBlacklisted(user.jti)) {
+    throw new jwt.TokenExpiredError("blacklisted", new Date());
+  }
+  return user;
 }

@@ -10,7 +10,6 @@ import { trimmedStringFromUnknown } from "../utils/trimmedStringFromUnknown.js";
 import { clearRbacSnapshotCacheForRole } from "./rbac.service.js";
 
 import type { RoleAttributes, RoleModel } from "../models/index.js";
-import type { Model } from "sequelize";
 
 /** 枚举全部权限 definition（前端矩阵） */
 export async function findAllPermissions() {
@@ -92,7 +91,8 @@ export async function createCustomRole(payload: {
     isStaff,
     isSystem: false,
   });
-  await (row as unknown as { setPermissions: (p: unknown[]) => Promise<void> }).setPermissions([]);
+  // 新建角色一律从「无权限」起步，由管理端在权限矩阵里逐项勾选
+  await row.setPermissions([]);
   return Role.findByPk(row.id, {
     include: [
       {
@@ -145,9 +145,8 @@ export async function updateRoleById(
     if (perms.length !== codes.length) {
       throw createHttpError(400, "存在无效的权限码");
     }
-    await (row as unknown as { setPermissions: (p: Model[]) => Promise<void> }).setPermissions(
-      perms,
-    );
+    // RoleModel 已显式声明 setPermissions（belongsToMany 生成），无需再 as unknown as 绕一圈
+    await row.setPermissions(perms);
     //一个角色的权限变了，所有绑定这个角色的用户缓存都旧了。
     await clearRbacSnapshotCacheForRole(roleId);
   }

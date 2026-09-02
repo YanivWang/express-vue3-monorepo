@@ -1,24 +1,16 @@
-import Cookies from "js-cookie";
-
 /**
- * 通用存储工具（Cookie / localStorage / sessionStorage）
- * - Cookie 基于 js-cookie，仅适用于可被 JavaScript 读写的 Cookie；HttpOnly 需由服务端 Set-Cookie，本模块无法读写
+ * 通用存储工具（localStorage / sessionStorage）
  * - localStorage 支持 JSON 序列化 + 可选过期时间（秒）
  * - sessionStorage 支持 JSON 序列化
  *
- * 具体 key 由消费方（如 pc-portal / pc-admin 的 `tokenKey`）传入 `createTokenStorage`。
- * 本模块只提供行为。Token 封装保留可直接按 key 调用的顶层 API，方便 request 包使用。
+ * 访问令牌不再落任何持久化存储（见文件末尾 `createTokenStorage` 的说明），
+ * 因此这里也不再有 `tokenKey` 之类的入参；本模块只提供通用存储行为。
+ *
+ * 原先还有一组 js-cookie 封装，随认证改造一起删除：它最后的消费者就是「把 JWT 写进
+ * JS 可读的 Cookie」这一被淘汰的做法。留着它既多背一个运行时依赖，
+ * 又等于在 createTokenStorage 旁边摆着一条通往同一个坑的近路。
+ * 确有可读 Cookie 需求时，再按当时的场景引入即可。
  */
-
-// ────────────────────────────────────────────────────────────
-//  Cookie 通用 API
-// ────────────────────────────────────────────────────────────
-
-export const cookie = {
-  get: (key: string) => Cookies.get(key),
-  set: (key: string, value: string, expires = 1) => Cookies.set(key, value, { expires }),
-  remove: (key: string) => Cookies.remove(key),
-};
 
 // ────────────────────────────────────────────────────────────
 //  localStorage 封装（带 JSON + 过期 TTL）

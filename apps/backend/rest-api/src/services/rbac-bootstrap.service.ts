@@ -103,10 +103,11 @@ export async function bootstrapRbacIfNeeded(): Promise<void> {
   const password = trimUnset(process.env.ADMIN_BOOTSTRAP_PASSWORD);
 
   if (!username || !password) {
-    logger.warn(
-      "rbac_bootstrap_no_super_admin",
-      "库中无任何 super_admin。请在 monorepo 根 .env.* 设置非空的 ADMIN_BOOTSTRAP_USERNAME 与 ADMIN_BOOTSTRAP_PASSWORD 后重启以创建首个后台账号，或通过数据库将某用户 roleId 指向 super_admin。",
-    );
+    logger.warn("rbac_bootstrap_no_super_admin", {
+      message:
+        "库中无任何 super_admin。请在 monorepo 根 .env.* 设置非空的 ADMIN_BOOTSTRAP_USERNAME 与 " +
+        "ADMIN_BOOTSTRAP_PASSWORD 后重启以创建首个后台账号，或通过数据库将某用户 roleId 指向 super_admin。",
+    });
     return;
   }
 

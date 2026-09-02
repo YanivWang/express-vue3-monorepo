@@ -13,7 +13,6 @@ catalog:
   "@vueuse/core": ^10.11.0
   dayjs: ^1.11.11
   lodash-es: ^4.17.21
-  js-cookie: ^3.0.5
   echarts: ^6.0.0
   web-vitals: ^5.2.0
   # ---------- 构建工具 ----------
@@ -67,5 +66,4 @@ catalog:
   "@types/swagger-ui-express": ^4.1.8
   "@types/bcrypt": ^5.0.2
   "@types/js-yaml": ^4.0.9
-  "@types/js-cookie": ^3.0.6
   "@types/lodash-es": ^4.17.12

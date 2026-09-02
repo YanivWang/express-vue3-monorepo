@@ -30,9 +30,6 @@ catalogs:
     '@types/express':
       specifier: ^4.17.21
       version: 4.17.25
-    '@types/js-cookie':
-      specifier: ^3.0.6
-      version: 3.0.6
     '@types/js-yaml':
       specifier: ^4.0.9
       version: 4.0.9
@@ -87,9 +84,6 @@ catalogs:
     husky:
       specifier: ^9.1.7
       version: 9.1.7
-    js-cookie:
-      specifier: ^3.0.5
-      version: 3.0.5
     lint-staged:
       specifier: ^16.4.0
       version: 16.4.0
@@ -604,13 +598,7 @@ importers:
       '@express-vue3-monorepo/request-core':
         specifier: workspace:*
         version: link:../request-core
-      js-cookie:
-        specifier: 'catalog:'
-        version: 3.0.5
     devDependencies:
-      '@types/js-cookie':
-        specifier: 'catalog:'
-        version: 3.0.6
       element-plus:
         specifier: 'catalog:'
         version: 2.14.0(vue@3.5.34(typescript@5.5.4))
@@ -1817,9 +1805,6 @@ packages:
 
   '@types/http-errors@2.0.5':
     resolution: {integrity: sha512-r8Tayk8HJnX0FztbZN7oVqGccWgw98T/0neJphO91KkmOzug1KkofZURD4UaD5uH8AqcFLfdPErnBod0u71/qg==}
-
-  '@types/js-cookie@3.0.6':
-    resolution: {integrity: sha512-wkw9yd1kEXOPnvEeEV1Go1MmxtBJL0RR79aOTAApecWFVu7w0NNXNqhcWgvw2YgZDYadliXkl14pa3WXw5jlCQ==}
 
   '@types/js-yaml@4.0.9':
     resolution: {integrity: sha512-k4MGaQl5TGo/iipqb2UDG2UwjXziSWkh0uysQelTlJpX1qGlpUZYm8PnO4DxG1qBomtJUdYJ6qR6xdIah10JLg==}
@@ -3518,10 +3503,6 @@ packages:
     resolution: {integrity: sha512-cyFbh3tkPhknnTD/0bLf0T0yy2ZIbqL05mttzbt4y1Zfr7NxqXQZ62dkBLKs3oHH/lpjmDRAnciJiSUyOy8XwQ==}
     engines: {node: '>=14'}
     hasBin: true
-
-  js-cookie@3.0.5:
-    resolution: {integrity: sha512-cEiJEAEoIbWfCZYKWhVwFuvPX1gETRYPw6LlaTKoxD3s2AkXzkCjnp6h0V77ozyqj0jakteJ4YqDJT830+lVGw==}
-    engines: {node: '>=14'}
 
   js-cookie@3.0.8:
     resolution: {integrity: sha512-yeJd4aNAdYZQjaon2bpD/Gb0B/omw7HQOsynXXcOiWVCacbBcPlgn8S/d1X6blFSaHao7ozqtW7NZW19xpCtIw==}
@@ -5976,8 +5957,6 @@ snapshots:
 
   '@types/http-errors@2.0.5': {}
 
-  '@types/js-cookie@3.0.6': {}
-
   '@types/js-yaml@4.0.9': {}
 
   '@types/json-schema@7.0.15': {}
@@ -7907,8 +7886,6 @@ snapshots:
       glob: 13.0.6
       js-cookie: 3.0.8
       nopt: 10.0.1
-
-  js-cookie@3.0.5: {}
 
   js-cookie@3.0.8: {}
 
