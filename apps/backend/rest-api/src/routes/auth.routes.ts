@@ -3,7 +3,10 @@ import express from "express";
 import { login, logout, refresh, register } from "../controllers/auth.controller.js";
 import { asyncHandler } from "../middlewares/asyncHandler.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
-import { authRateLimitMiddleware } from "../middlewares/rateLimit.middleware.js";
+import {
+  authRateLimitMiddleware,
+  refreshRateLimitMiddleware,
+} from "../middlewares/rateLimit.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import { registerSchema, loginSchema } from "../schema/auth.schema.js";
 
@@ -26,9 +29,9 @@ router.post(
 /**
  * 刷新访问令牌。不经 authMiddleware：调用它的前提正是访问令牌已经过期，
  * 身份由 HttpOnly Cookie 里的刷新令牌承担。
- * 复用登录/注册的限流窗口，避免被拿来做刷新令牌枚举。
+ * 限流用刷新专用的那一档（只统计失败），不与登录共用——理由见 rateLimit.middleware.ts。
  */
-router.post("/auth/refresh", authRateLimitMiddleware, asyncHandler(refresh, "刷新登录状态失败"));
+router.post("/auth/refresh", refreshRateLimitMiddleware, asyncHandler(refresh, "刷新登录状态失败"));
 
 router.post("/logout", authMiddleware, asyncHandler(logout, "退出登录失败"));
 

@@ -15,6 +15,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { QueryTypes } from "sequelize";
+
 import { logger } from "../utils/logger.js";
 
 import type { QueryInterface, Sequelize } from "sequelize";
@@ -72,7 +74,7 @@ async function ensureMetaTable(sequelize: Sequelize): Promise<void> {
 
 async function getAppliedNames(sequelize: Sequelize): Promise<Set<string>> {
   const rows = await sequelize.query<{ name: string }>(`SELECT \`name\` FROM \`${META_TABLE}\``, {
-    type: "SELECT" as never,
+    type: QueryTypes.SELECT,
   });
   return new Set(rows.map((r) => r.name));
 }
@@ -100,25 +102,51 @@ async function loadMigration(file: string): Promise<Migration> {
 }
 
 /**
- * 跨副本互斥：MySQL 的 GET_LOCK 是连接级命名锁，同一时刻只有一个连接能持有。
+ * 跨副本互斥：MySQL 的 GET_LOCK 是**连接级**命名锁，同一时刻只有一个连接能持有。
  * 没有这层保护时，多副本同时启动会并发执行同一批 DDL，轻则报重复建表，重则把表改坏。
+ *
+ * 为什么要额外开一个事务来"钉住"连接：
+ * `sequelize.query()` 每次都从连接池里另取一条连接，GET_LOCK 与 RELEASE_LOCK 因此可能落在
+ * 两条不同的连接上。而 RELEASE_LOCK 在非持有连接上执行会返回 0、**并不会真的释放锁**，
+ * 于是锁一直挂在池里那条闲置连接上，直到它被回收——下一次发布的所有副本都会先干等
+ * 120 秒再报「未取得迁移锁」而启动失败。单进程顺序执行时池子往往复用同一条连接，
+ * 所以这个错误平时看不出来，偏偏在多副本、连接池被占满时才发作。
+ *
+ * Sequelize 里能稳定拿到「同一条连接」的公开手段就是事务：加锁、解锁都挂在它上面。
+ * 迁移本身仍走各自的连接（MySQL 的 DDL 会隐式提交，本来就不可能包在事务里），
+ * 这个事务只负责持有锁，不写任何数据，故最后 rollback 即可。
  */
 async function withMigrationLock<T>(sequelize: Sequelize, fn: () => Promise<T>): Promise<T> {
-  const [acquired] = await sequelize.query<{ got: number | null }>("SELECT GET_LOCK(?, ?) AS got", {
-    replacements: [MIGRATION_LOCK, MIGRATION_LOCK_TIMEOUT_SECONDS],
-    type: "SELECT" as never,
-  });
-
-  if (acquired?.got !== 1) {
-    throw new Error(
-      `[migrate] ${MIGRATION_LOCK_TIMEOUT_SECONDS}s 内未取得迁移锁，疑似另一副本正在执行迁移且耗时过长`,
-    );
-  }
+  const lockTx = await sequelize.transaction();
 
   try {
-    return await fn();
+    const [acquired] = await sequelize.query<{ got: number | null }>(
+      "SELECT GET_LOCK(?, ?) AS got",
+      {
+        replacements: [MIGRATION_LOCK, MIGRATION_LOCK_TIMEOUT_SECONDS],
+        type: QueryTypes.SELECT,
+        transaction: lockTx,
+      },
+    );
+
+    if (acquired?.got !== 1) {
+      throw new Error(
+        `[migrate] ${MIGRATION_LOCK_TIMEOUT_SECONDS}s 内未取得迁移锁，疑似另一副本正在执行迁移且耗时过长`,
+      );
+    }
+
+    try {
+      return await fn();
+    } finally {
+      // 命名锁不随事务回滚释放，必须显式 RELEASE_LOCK，且同样要落在持锁的那条连接上
+      await sequelize.query("SELECT RELEASE_LOCK(?)", {
+        replacements: [MIGRATION_LOCK],
+        transaction: lockTx,
+      });
+    }
   } finally {
-    await sequelize.query("SELECT RELEASE_LOCK(?)", { replacements: [MIGRATION_LOCK] });
+    // 只用于钉住连接、未写入任何数据，rollback 与 commit 等价，取语义更弱的那个
+    await lockTx.rollback();
   }
 }
 
@@ -139,7 +167,7 @@ async function adoptLegacySchemaIfNeeded(
   const [existing] = await sequelize.query<{ cnt: number | string }>(
     `SELECT COUNT(*) AS cnt FROM information_schema.tables
       WHERE table_schema = DATABASE() AND table_name = 'Users'`,
-    { type: "SELECT" as never },
+    { type: QueryTypes.SELECT },
   );
 
   if (!existing || Number(existing.cnt) === 0) return false;

@@ -34,3 +34,22 @@ export const authRateLimitMiddleware = rateLimit({
     return fail(res, 429, "请求过于频繁，请稍后再试");
   },
 });
+
+/**
+ * 刷新接口专用限流。
+ *
+ * 与登录共用一个桶是错的：登录是人触发的，而刷新是每个已登录标签页每 15 分钟一次的**自动**行为。
+ * 办公室 / 校园网 NAT 后几十号人共用一个出口 IP 时，「1 分钟 10 次」正常使用就能打满，
+ * 而刷新一旦被 429，前端的会话恢复就会失败——限流的效果变成了把自己人挡在门外。
+ *
+ * `skipSuccessfulRequests` 让成功的刷新不计数：正常用户永远碰不到阈值，
+ * 只有反复失败（枚举刷新令牌）的来源才会被逐步收紧。
+ */
+export const refreshRateLimitMiddleware = rateLimit({
+  windowMs: RATE_LIMIT.refreshWindowMs,
+  limit: RATE_LIMIT.refreshMax,
+  skipSuccessfulRequests: true,
+  handler: (_req, res) => {
+    return fail(res, 429, "请求过于频繁，请稍后再试");
+  },
+});

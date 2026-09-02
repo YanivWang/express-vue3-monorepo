@@ -168,6 +168,30 @@ export const REFRESH_TOKEN_TTL_SECONDS = positiveIntEnv(
 );
 
 /**
+ * 刷新令牌轮换的并发宽限（秒），`0` 表示严格模式。
+ *
+ * 轮换 + 重放检测的经典副作用：同一个浏览器里多个标签页（乃至门户与管理端两个前端，
+ * 它们同源、共用同一枚刷新 Cookie）可能在同一瞬间拿着**同一枚**令牌去刷新。
+ * 严格模式下先到的那个轮换成功，其余全被判成「重放」，于是整个家族被撤销——
+ * 用户什么都没做错，却被强制重新登录。
+ *
+ * 因此给刚轮换掉的令牌留一段极短的宽限窗口：窗口内的重复提交视为并发竞态，
+ * 在同一家族内补发新令牌；窗口之外仍按重放处理，家族照旧撤销。
+ * 这与 Auth0 的 refresh token reuse interval 是同一取舍：用极小的检测盲区，
+ * 换掉一个几乎必然发生的误杀。窗口越大越宽容、也越钝，默认 30 秒。
+ */
+export const REFRESH_ROTATION_GRACE_SECONDS = (() => {
+  const raw = trimUnset(process.env.REFRESH_ROTATION_GRACE_SECONDS);
+  if (raw === undefined) return 30;
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isInteger(n) || n < 0) {
+    console.error(`[env] REFRESH_ROTATION_GRACE_SECONDS 必须是非负整数（当前: ${raw}）`);
+    process.exit(1);
+  }
+  return n;
+})();
+
+/**
  * 刷新令牌 Cookie 名与作用路径。
  *
  * Path 取 `/api` 而非更窄的 `/api/auth`：登出（`POST /api/logout`）同样需要读到这枚 Cookie
@@ -181,14 +205,37 @@ export const REFRESH_COOKIE_NAME = "evm_refresh_token";
 export const REFRESH_COOKIE_PATH = "/api";
 
 /**
- * 生产默认要求 HTTPS；本地 http://localhost 调试时浏览器不会回传 Secure Cookie，
- * 故非生产环境默认关闭，可用 AUTH_COOKIE_SECURE=1 显式打开。
+ * 刷新令牌 Cookie 的 Secure 属性。
+ *
+ * 取值：`1` / `true` 恒开，`0` / `false` 恒关，`auto` 按「本次请求是否走 HTTPS」逐请求判定
+ * （经 Express 的 `req.secure`，代理场景需同时配置 TRUST_PROXY，见下）。
+ * 未设置时：生产 = 开，其余 = 关（本地 http://localhost 调试浏览器不会保存 Secure Cookie）。
+ *
+ * 为什么需要 `auto`：浏览器会**静默丢弃**由非 HTTPS 响应下发的 Secure Cookie。
+ * 本仓自带的 Compose 生产栈默认只在网关上暴露明文 HTTP（`GATEWAY_HOST_PORT`，默认 2026），
+ * 若前面没有再套一层 TLS 终端，恒开 Secure 的表现就是「能登录，但刷新页面即掉登录态」，
+ * 而服务端日志一切正常——这类问题极难从表象反推。`auto` 让同一份镜像在
+ * 「已上 HTTPS」与「内网明文」两种部署下都能正常工作，且一旦上了 TLS 就自动收紧。
  */
-export const AUTH_COOKIE_SECURE = (() => {
+export type AuthCookieSecureMode = boolean | "auto";
+
+export const AUTH_COOKIE_SECURE: AuthCookieSecureMode = (() => {
   const raw = trimUnset(process.env.AUTH_COOKIE_SECURE);
   if (raw === undefined) return appEnv === "production";
-  return raw === "1" || raw.toLowerCase() === "true";
+  const lower = raw.toLowerCase();
+  if (lower === "auto") return "auto";
+  if (lower === "1" || lower === "true") return true;
+  if (lower === "0" || lower === "false") return false;
+  console.error(`[env] AUTH_COOKIE_SECURE 只能是 1 / true / 0 / false / auto（当前: ${raw}）`);
+  process.exit(1);
 })();
+
+/**
+ * 优雅退出的最长等待时间。
+ * 需小于编排层的宽限期（`docker stop` 默认 10s、K8s terminationGracePeriodSeconds 默认 30s），
+ * 否则超时兜底还没来得及执行，进程就已经被 SIGKILL 了。
+ */
+export const SHUTDOWN_TIMEOUT_MS = positiveIntEnv("SHUTDOWN_TIMEOUT_MS", 8000);
 
 /**
  * 限流阈值。默认值面向生产：
@@ -201,6 +248,14 @@ export const RATE_LIMIT = {
   globalMax: positiveIntEnv("RATE_LIMIT_GLOBAL_MAX", 1000),
   authWindowMs: positiveIntEnv("RATE_LIMIT_AUTH_WINDOW_MS", 60 * 1000),
   authMax: positiveIntEnv("RATE_LIMIT_AUTH_MAX", 10),
+  /**
+   * 刷新接口单独一档，且只统计失败的请求（见 rateLimit.middleware.ts）。
+   * 与登录共用「1 分钟 10 次」是不成立的：刷新是每个登录用户每 15 分钟一次的**自动**行为，
+   * 办公室 NAT 后几十号人共用一个出口 IP 时，正常使用就能把桶打满；
+   * 而刷新失败 = 会话恢复失败 = 用户被判定成未登录，等于限流把自己人锁在门外。
+   */
+  refreshWindowMs: positiveIntEnv("RATE_LIMIT_REFRESH_WINDOW_MS", 60 * 1000),
+  refreshMax: positiveIntEnv("RATE_LIMIT_REFRESH_MAX", 30),
 } as const;
 
 /**

@@ -22,6 +22,7 @@ export function prepareTestEnv(databaseName: string): void {
   // 集成测试会在极短时间内密集调用登录/注册，生产阈值会误伤；此处放宽的是测试进程自身的环境
   process.env.RATE_LIMIT_GLOBAL_MAX = "100000";
   process.env.RATE_LIMIT_AUTH_MAX = "100000";
+  process.env.RATE_LIMIT_REFRESH_MAX = "100000";
   process.env.JWT_SECRET =
     process.env.JWT_SECRET ?? "integration_test_secret_at_least_32_chars_long";
   // 迁移由基座显式驱动，避免与应用启动期迁移重复执行

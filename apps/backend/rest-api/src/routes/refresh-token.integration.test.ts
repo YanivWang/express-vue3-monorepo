@@ -17,6 +17,11 @@ import {
 
 const DB_NAME = "evm_it_refresh";
 const REFRESH_COOKIE = "evm_refresh_token";
+/**
+ * 轮换宽限窗口压到 1 秒：既能测「窗口内的并发刷新不该踢人」，
+ * 又不必为了测「窗口外的重放要撤销家族」而让用例干等半分钟。
+ */
+const GRACE_SECONDS = 1;
 
 let api: TestApi;
 
@@ -63,6 +68,8 @@ async function loginFresh(username: string) {
 
 beforeAll(async () => {
   prepareTestEnv(DB_NAME);
+  // 必须早于 startTestApi 内部的动态 import：src/env.ts 在模块加载时就固化了配置
+  process.env.REFRESH_ROTATION_GRACE_SECONDS = String(GRACE_SECONDS);
   await recreateTestDatabase(DB_NAME);
   api = await startTestApi();
 });
@@ -135,8 +142,35 @@ describe("轮换", () => {
   });
 });
 
+describe("并发刷新", () => {
+  /**
+   * 多标签页（乃至同源部署的门户与管理端）共用同一枚刷新 Cookie，
+   * 会话恢复时可能在同一瞬间拿着同一枚令牌来刷新。
+   * 若把这种竞态当成重放，用户什么都没做错就被强制登出——这是轮换式刷新最常见的线上事故。
+   */
+  it("同一枚令牌被并发提交时，双方都拿到可用令牌，会话不被踢掉", async () => {
+    const { refreshToken } = await loginFresh("it_rt_concurrent");
+
+    const [a, b] = await Promise.all([
+      rawPost("/api/auth/refresh", { cookie: refreshToken }),
+      rawPost("/api/auth/refresh", { cookie: refreshToken }),
+    ]);
+
+    expect(a.status).toBe(200);
+    expect(b.status).toBe(200);
+
+    // 两个标签页各自拿到的新令牌都要能继续用
+    for (const res of [a, b]) {
+      const next = refreshTokenFromSetCookie(res.setCookie);
+      expect(next).toBeDefined();
+      const again = await rawPost("/api/auth/refresh", { cookie: next });
+      expect(again.status).toBe(200);
+    }
+  });
+});
+
 describe("重放检测", () => {
-  it("旧刷新令牌被再次使用时，整个令牌家族一并作废", async () => {
+  it("旧刷新令牌在宽限窗口之外被再次使用时，整个令牌家族一并作废", async () => {
     const { refreshToken: first } = await loginFresh("it_rt_reuse");
 
     // 正常轮换一次，first 就此作废
@@ -144,6 +178,9 @@ describe("重放检测", () => {
     expect(rotated.status).toBe(200);
     const second = refreshTokenFromSetCookie(rotated.setCookie);
     expect(second).toBeDefined();
+
+    // 等过并发宽限窗口：此时再出现的旧令牌只可能是被复制走的
+    await new Promise((resolve) => setTimeout(resolve, (GRACE_SECONDS + 0.5) * 1000));
 
     // 攻击者拿着被复制走的旧令牌再来一次 —— 必须被识破
     const replayed = await rawPost("/api/auth/refresh", { cookie: first });
@@ -153,6 +190,18 @@ describe("重放检测", () => {
     // 否则攻击者与用户会并行持有会话
     const afterRevoke = await rawPost("/api/auth/refresh", { cookie: second });
     expect(afterRevoke.status).toBe(401);
+  });
+
+  it("只知道 tokenId 而不知道 secret 时，无法把别人的会话踢下线", async () => {
+    const { refreshToken } = await loginFresh("it_rt_forged_secret");
+    const tokenId = refreshToken.split(".")[0];
+
+    const forged = await rawPost("/api/auth/refresh", { cookie: `${tokenId}.not-the-secret` });
+    expect(forged.status).toBe(401);
+
+    // 真实令牌毫发无损：tokenId 会出现在日志里，不能成为撤销他人会话的钥匙
+    const stillValid = await rawPost("/api/auth/refresh", { cookie: refreshToken });
+    expect(stillValid.status).toBe(200);
   });
 });
 
