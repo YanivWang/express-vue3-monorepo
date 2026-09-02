@@ -16,7 +16,10 @@ WORKDIR /app
 ENV HUSKY=0
 
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
-COPY tsconfig.base.json ./
+# tsconfig.pkg.json 必须一起进来：packages/shared 的 tsconfig.json `extends` 它，
+# 而 Vite 构建时 esbuild 会为 packages/shared/src 下的每个 .ts 读取最近的 tsconfig；
+# 解析不到 extends 会直接让 `vite build` 失败（后端镜像一直是两份一起拷的，这里漏了）。
+COPY tsconfig.base.json tsconfig.pkg.json ./
 COPY .npmrc ./
 # 根 package.json 的 prepare 钩子实现（生产安装缺 husky 时安静跳过）
 COPY scripts/prepare-husky.mjs scripts/prepare-husky.mjs
