@@ -41,6 +41,11 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.pc-portal
+      # 私有 scope @yanivjs/*，同 docker-compose.yaml 的安排（临时，私仓转公网后删除）
+      extra_hosts:
+        - "verdaccio.wxbjq.net.cn:host-gateway"
+      secrets:
+        - npmrc
     container_name: express-vue3-monorepo-pc-portal-test
     restart: unless-stopped
     depends_on:
@@ -62,3 +67,9 @@ services:
 
 volumes:
   mysql_test_data:
+
+# 构建期凭据：私有 scope @yanivjs/* 的 authToken，不进镜像层。
+# 临时安排，私仓转公网后应改由仓库 .npmrc + CI secret 承担。
+secrets:
+  npmrc:
+    file: ${HOME}/.npmrc

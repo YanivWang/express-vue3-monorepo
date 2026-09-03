@@ -58,7 +58,14 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.dev
+      # 私有 scope @yanivjs/*：把域名指回宿主，并注入构建期凭据（详见文件末尾说明）
+      extra_hosts:
+        - "verdaccio.wxbjq.net.cn:host-gateway"
+      secrets:
+        - npmrc
     container_name: express-vue3-monorepo-rest-api-dev
+    extra_hosts:
+      - "verdaccio.wxbjq.net.cn:host-gateway"
     env_file:
       - ../.env.development
     environment:
@@ -72,6 +79,8 @@ services:
     ports:
       - "9229:9229"
     volumes:
+      # 运行期 pnpm install 同样要读私有 scope 凭据（只读挂载，容器内不改它）
+      - ${HOME}/.npmrc:/root/.npmrc:ro
       - ..:/app
       - app_node_modules:/app/node_modules
     command:
@@ -84,7 +93,14 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.dev
+      # 私有 scope @yanivjs/*：把域名指回宿主，并注入构建期凭据（详见文件末尾说明）
+      extra_hosts:
+        - "verdaccio.wxbjq.net.cn:host-gateway"
+      secrets:
+        - npmrc
     container_name: express-vue3-monorepo-pc-portal-dev
+    extra_hosts:
+      - "verdaccio.wxbjq.net.cn:host-gateway"
     restart: unless-stopped
     env_file:
       - ../.env.development
@@ -98,6 +114,8 @@ services:
       VITE_DEV_HMR_CLIENT_PORT: ${GATEWAY_HOST_PORT:-2026}
       CHOKIDAR_USEPOLLING: "1"
     volumes:
+      # 运行期 pnpm install 同样要读私有 scope 凭据（只读挂载，容器内不改它）
+      - ${HOME}/.npmrc:/root/.npmrc:ro
       - ..:/app
       - app_node_modules:/app/node_modules
     command:
@@ -112,7 +130,14 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.dev
+      # 私有 scope @yanivjs/*：把域名指回宿主，并注入构建期凭据（详见文件末尾说明）
+      extra_hosts:
+        - "verdaccio.wxbjq.net.cn:host-gateway"
+      secrets:
+        - npmrc
     container_name: express-vue3-monorepo-pc-admin-dev
+    extra_hosts:
+      - "verdaccio.wxbjq.net.cn:host-gateway"
     restart: unless-stopped
     env_file:
       - ../.env.development
@@ -125,6 +150,8 @@ services:
       VITE_DEV_HMR_CLIENT_PORT: ${GATEWAY_HOST_PORT:-2026}
       CHOKIDAR_USEPOLLING: "1"
     volumes:
+      # 运行期 pnpm install 同样要读私有 scope 凭据（只读挂载，容器内不改它）
+      - ${HOME}/.npmrc:/root/.npmrc:ro
       - ..:/app
       - app_node_modules:/app/node_modules
     command:
@@ -139,3 +166,14 @@ volumes:
   mysql_dev_data:
   app_node_modules:
   redis_dev_data:
+
+# 私有 scope @yanivjs/* 的解析与凭据（**临时安排**，私仓转公网后整段删除）：
+#   extra_hosts —— 把 verdaccio.wxbjq.net.cn 指回宿主，容器内才路由得到。
+#                  沿用原域名而非 host.docker.internal，是为了让 ~/.npmrc 里
+#                  `//verdaccio.wxbjq.net.cn/:_authToken=` 那条仍能匹配上。
+#   secrets     —— 镜像构建期的凭据，不落进镜像层。
+#   ~/.npmrc 卷 —— 这三个服务在**启动时**还会各跑一次 pnpm install，
+#                  而 BuildKit secret 只在构建期有效，故运行期另行只读挂载。
+secrets:
+  npmrc:
+    file: ${HOME}/.npmrc

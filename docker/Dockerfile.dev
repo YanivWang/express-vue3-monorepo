@@ -26,7 +26,11 @@ COPY packages/request-core/package.json packages/request-core/
 COPY packages/js-bridge/package.json packages/js-bridge/
 COPY packages/web-monitor/package.json packages/web-monitor/
 # 预装工作区依赖，运行时 Compose 挂载源码后可复用 app_node_modules 卷。
-RUN pnpm install --frozen-lockfile
+#
+# 整仓安装会拉到私有 scope @yanivjs/*，凭据经 BuildKit secret 注入、不落进镜像层
+# （与 Dockerfile.pc-portal 同一套安排，理由见那里的说明）。
+RUN --mount=type=secret,id=npmrc,target=/root/.npmrc \
+    pnpm install --frozen-lockfile
 
 ENV NODE_ENV=development
 ENV PORT=3000
