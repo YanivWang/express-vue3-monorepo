@@ -449,8 +449,8 @@ importers:
         specifier: ^3.7.2
         version: 3.23.5(@tiptap/extensions@3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5))
       '@tiptap/extension-subscript':
-        specifier: ^3.7.2
-        version: 3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5)
+        specifier: ^3.30.5
+        version: 3.30.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5)
       '@tiptap/extension-superscript':
         specifier: ^3.7.2
         version: 3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5)
@@ -504,7 +504,7 @@ importers:
         version: 10.11.1(vue@3.5.34(typescript@5.5.4))
       '@yanivjs/yaniv-editor':
         specifier: ^0.1.3
-        version: 0.1.3(059e0d25a62e9f697f348b4cfeb63f14)
+        version: 0.1.3(786db83e23cc397b03ac5766c1afdb10)
       ant-design-vue:
         specifier: ^4.2.6
         version: 4.2.6(vue@3.5.34(typescript@5.5.4))
@@ -1680,11 +1680,11 @@ packages:
     peerDependencies:
       '@tiptap/core': 3.23.5
 
-  '@tiptap/extension-subscript@3.23.5':
-    resolution: {integrity: sha512-q4O6qmrh6aD2Nt+voLJ4uICEexjF6LBvxf7psYMI4bYII7vDJaFZ+8XR6pDOl5JCJCwl1WYboxF2a4U2XrMAxQ==}
+  '@tiptap/extension-subscript@3.30.5':
+    resolution: {integrity: sha512-rO9ed4f6LkGVS9u1GWp3ofyIFUFSjISkZMHTjnTNGnbN6G3mzawacbNTiaaz32VBOWh9ZHUZ35rY0Ju5ZLYp9Q==}
     peerDependencies:
-      '@tiptap/core': 3.23.5
-      '@tiptap/pm': 3.23.5
+      '@tiptap/core': 3.30.5
+      '@tiptap/pm': 3.30.5
 
   '@tiptap/extension-superscript@3.23.5':
     resolution: {integrity: sha512-TLCvZ/38lkx0jcVPMm6L2p0wWn8uziJKQPQp/rgR3Cfkn4jzL1Y/Vmq5JpN2NoX69XdusdtGlh4tl594BT0FLQ==}
@@ -3179,6 +3179,7 @@ packages:
   git-raw-commits@5.0.1:
     resolution: {integrity: sha512-Y+csSm2GD/PCSh6Isd/WiMjNAydu0VBiG9J7EdQsNA5P9uXvLayqjmTsNlK5Gs9IhblFZqOU0yid5Il5JPoLiQ==}
     engines: {node: '>=18'}
+    deprecated: Deprecated and no longer maintained. Use @conventional-changelog/git-client instead.
     hasBin: true
 
   glob-parent@5.1.2:
@@ -5840,7 +5841,7 @@ snapshots:
     dependencies:
       '@tiptap/core': 3.23.5(@tiptap/pm@3.23.5)
 
-  '@tiptap/extension-subscript@3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5)':
+  '@tiptap/extension-subscript@3.30.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5)':
     dependencies:
       '@tiptap/core': 3.23.5(@tiptap/pm@3.23.5)
       '@tiptap/pm': 3.23.5
@@ -6431,7 +6432,7 @@ snapshots:
 
   '@xmldom/xmldom@0.8.13': {}
 
-  '@yanivjs/yaniv-editor@0.1.3(059e0d25a62e9f697f348b4cfeb63f14)':
+  '@yanivjs/yaniv-editor@0.1.3(786db83e23cc397b03ac5766c1afdb10)':
     dependencies:
       '@ant-design/icons-vue': 7.0.1(vue@3.5.34(typescript@5.5.4))
       '@tiptap/core': 3.23.5(@tiptap/pm@3.23.5)
@@ -6443,7 +6444,7 @@ snapshots:
       '@tiptap/extension-image': 3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))
       '@tiptap/extension-link': 3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5)
       '@tiptap/extension-placeholder': 3.23.5(@tiptap/extensions@3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5))
-      '@tiptap/extension-subscript': 3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5)
+      '@tiptap/extension-subscript': 3.30.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5)
       '@tiptap/extension-superscript': 3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5)
       '@tiptap/extension-table': 3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5)
       '@tiptap/extension-table-header': 3.23.5(@tiptap/extension-table@3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5))
