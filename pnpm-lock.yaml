@@ -432,10 +432,10 @@ importers:
         version: 3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/extension-code-block@3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5)(highlight.js@11.11.1)(lowlight@3.3.0)
       '@tiptap/extension-color':
         specifier: ^3.7.2
-        version: 3.23.5(@tiptap/extension-text-style@3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5)))
+        version: 3.23.5(@tiptap/extension-text-style@3.30.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5)))
       '@tiptap/extension-font-family':
         specifier: ^3.7.2
-        version: 3.23.5(@tiptap/extension-text-style@3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5)))
+        version: 3.23.5(@tiptap/extension-text-style@3.30.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5)))
       '@tiptap/extension-highlight':
         specifier: ^3.7.2
         version: 3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))
@@ -479,8 +479,8 @@ importers:
         specifier: ^3.7.2
         version: 3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))
       '@tiptap/extension-text-style':
-        specifier: ^3.7.2
-        version: 3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))
+        specifier: ^3.30.5
+        version: 3.30.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))
       '@tiptap/extension-underline':
         specifier: ^3.7.2
         version: 3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))
@@ -504,7 +504,7 @@ importers:
         version: 10.11.1(vue@3.5.34(typescript@5.5.4))
       '@yanivjs/yaniv-editor':
         specifier: ^0.1.3
-        version: 0.1.3(059e0d25a62e9f697f348b4cfeb63f14)
+        version: 0.1.3(22706e412eff254600627b91b2438a88)
       ant-design-vue:
         specifier: ^4.2.6
         version: 4.2.6(vue@3.5.34(typescript@5.5.4))
@@ -1734,10 +1734,10 @@ packages:
     peerDependencies:
       '@tiptap/core': 3.23.5
 
-  '@tiptap/extension-text-style@3.23.5':
-    resolution: {integrity: sha512-BLf/1gPxHGfLZbLT/nnnDzGdmcqZukOHlMfeufdgjakGY90CpZHSNq0VXgwO9xLda5Ijr5aUilU0/HLX0VreEg==}
+  '@tiptap/extension-text-style@3.30.5':
+    resolution: {integrity: sha512-libXk+nSBOQmUiKneMegnipSVz7n/YfCuSVUxXn4LjAdD9zdpWgH2uBXbxo2q211dA7KxJyUhkPGoCpG0RmPQA==}
     peerDependencies:
-      '@tiptap/core': 3.23.5
+      '@tiptap/core': 3.30.5
 
   '@tiptap/extension-text@3.23.5':
     resolution: {integrity: sha512-GLa+AaA2NC5XYRZad/Qq/oH5Pa95s+uA17J7+RCkF8j1RNREUBkYQ5CD5MT8kT+D3DHgU8MRyYdTd28I46HBDQ==}
@@ -3179,6 +3179,7 @@ packages:
   git-raw-commits@5.0.1:
     resolution: {integrity: sha512-Y+csSm2GD/PCSh6Isd/WiMjNAydu0VBiG9J7EdQsNA5P9uXvLayqjmTsNlK5Gs9IhblFZqOU0yid5Il5JPoLiQ==}
     engines: {node: '>=18'}
+    deprecated: Deprecated and no longer maintained. Use @conventional-changelog/git-client instead.
     hasBin: true
 
   glob-parent@5.1.2:
@@ -5753,9 +5754,9 @@ snapshots:
     dependencies:
       '@tiptap/core': 3.23.5(@tiptap/pm@3.23.5)
 
-  '@tiptap/extension-color@3.23.5(@tiptap/extension-text-style@3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5)))':
+  '@tiptap/extension-color@3.23.5(@tiptap/extension-text-style@3.30.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5)))':
     dependencies:
-      '@tiptap/extension-text-style': 3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))
+      '@tiptap/extension-text-style': 3.30.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))
 
   '@tiptap/extension-document@3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))':
     dependencies:
@@ -5772,9 +5773,9 @@ snapshots:
       '@tiptap/pm': 3.23.5
     optional: true
 
-  '@tiptap/extension-font-family@3.23.5(@tiptap/extension-text-style@3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5)))':
+  '@tiptap/extension-font-family@3.23.5(@tiptap/extension-text-style@3.30.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5)))':
     dependencies:
-      '@tiptap/extension-text-style': 3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))
+      '@tiptap/extension-text-style': 3.30.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))
 
   '@tiptap/extension-gapcursor@3.23.5(@tiptap/extensions@3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5))':
     dependencies:
@@ -5885,7 +5886,7 @@ snapshots:
     dependencies:
       '@tiptap/core': 3.23.5(@tiptap/pm@3.23.5)
 
-  '@tiptap/extension-text-style@3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))':
+  '@tiptap/extension-text-style@3.30.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))':
     dependencies:
       '@tiptap/core': 3.23.5(@tiptap/pm@3.23.5)
 
@@ -6431,14 +6432,14 @@ snapshots:
 
   '@xmldom/xmldom@0.8.13': {}
 
-  '@yanivjs/yaniv-editor@0.1.3(059e0d25a62e9f697f348b4cfeb63f14)':
+  '@yanivjs/yaniv-editor@0.1.3(22706e412eff254600627b91b2438a88)':
     dependencies:
       '@ant-design/icons-vue': 7.0.1(vue@3.5.34(typescript@5.5.4))
       '@tiptap/core': 3.23.5(@tiptap/pm@3.23.5)
       '@tiptap/extension-character-count': 3.23.5(@tiptap/extensions@3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5))
       '@tiptap/extension-code-block-lowlight': 3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/extension-code-block@3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5)(highlight.js@11.11.1)(lowlight@3.3.0)
-      '@tiptap/extension-color': 3.23.5(@tiptap/extension-text-style@3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5)))
-      '@tiptap/extension-font-family': 3.23.5(@tiptap/extension-text-style@3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5)))
+      '@tiptap/extension-color': 3.23.5(@tiptap/extension-text-style@3.30.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5)))
+      '@tiptap/extension-font-family': 3.23.5(@tiptap/extension-text-style@3.30.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5)))
       '@tiptap/extension-highlight': 3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))
       '@tiptap/extension-image': 3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))
       '@tiptap/extension-link': 3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5)
@@ -6452,7 +6453,7 @@ snapshots:
       '@tiptap/extension-task-item': 3.23.5(@tiptap/extension-list@3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5))
       '@tiptap/extension-task-list': 3.23.5(@tiptap/extension-list@3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5))
       '@tiptap/extension-text-align': 3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))
-      '@tiptap/extension-text-style': 3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))
+      '@tiptap/extension-text-style': 3.30.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))
       '@tiptap/extension-underline': 3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))
       '@tiptap/extension-unique-id': 3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5)
       '@tiptap/pm': 3.23.5
