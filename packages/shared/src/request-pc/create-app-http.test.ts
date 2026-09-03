@@ -13,6 +13,8 @@ vi.mock("./create-pc-http.js", () => ({
   createPcHttp: vi.fn(() => ({})),
 }));
 
+import { SESSION_HINT_COOKIE_NAME } from "../constants/auth.js";
+
 import { createAppPcHttp } from "./create-app-http.js";
 
 const originalFetch = globalThis.fetch;
@@ -58,8 +60,20 @@ function createHttp(onClearSession = vi.fn()) {
   });
 }
 
+/**
+ * 会话标记 Cookie 的替身。
+ *
+ * node 环境没有 document，而 restoreSession 现在会先看标记再决定发不发请求，
+ * 所以除「专门验证门禁」的用例外，其余用例都要先把标记装上——
+ * 它们验的是刷新链路本身（串行、超时、带 Cookie），前提就是「本机有会话」。
+ */
+function installSessionHint(cookie = `${SESSION_HINT_COOKIE_NAME}=1`) {
+  vi.stubGlobal("document", { cookie });
+}
+
 beforeEach(() => {
   vi.unstubAllGlobals();
+  installSessionHint();
 });
 
 afterEach(() => {
@@ -149,5 +163,55 @@ describe("跨标签页串行", () => {
 
     await expect(restoreSession()).resolves.toBe(true);
     expect(tokenStorage.getToken()).toBe("t-4");
+  });
+});
+
+/**
+ * 会话标记门禁。
+ *
+ * 改造前 restoreSession 是无条件发请求的，匿名访客也发、且必然 401。
+ * 而刷新那一档限流只统计失败，于是匿名首屏会一格一格吃掉额度，
+ * 最终把同一出口 IP 上真正登录的用户挡在 429 外面——这正是限流本想避免的事故。
+ * 因此「没有标记就不发请求」必须是一条有用例守着的硬约束，而不是一次性的优化。
+ */
+describe("会话标记门禁", () => {
+  it("没有标记时压根不发刷新请求，直接按未登录返回", async () => {
+    vi.stubGlobal("document", { cookie: "" });
+    const fetchSpy = vi.fn(() => Promise.resolve(jsonResponse({ code: 200, token: "t-5" })));
+    globalThis.fetch = fetchSpy;
+
+    const { restoreSession, tokenStorage } = createHttp();
+
+    await expect(restoreSession()).resolves.toBe(false);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(tokenStorage.getToken()).toBeUndefined();
+  });
+
+  it("有标记时照常发起刷新", async () => {
+    installSessionHint();
+    const fetchSpy = vi.fn(() => Promise.resolve(jsonResponse({ code: 200, token: "t-6" })));
+    globalThis.fetch = fetchSpy;
+
+    await expect(createHttp().restoreSession()).resolves.toBe(true);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("只按名字匹配，不会被同前缀的其他 Cookie 误判", async () => {
+    vi.stubGlobal("document", { cookie: `${SESSION_HINT_COOKIE_NAME}_other=1; unrelated=2` });
+    const fetchSpy = vi.fn(() => Promise.resolve(jsonResponse({ code: 200, token: "t-7" })));
+    globalThis.fetch = fetchSpy;
+
+    await expect(createHttp().restoreSession()).resolves.toBe(false);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("标记在但服务端已失效时，走一次真实刷新并按失败收场", async () => {
+    installSessionHint();
+    globalThis.fetch = vi.fn(() => Promise.resolve(jsonResponse({ code: 401 }, 401)));
+
+    const { restoreSession, tokenStorage } = createHttp();
+
+    await expect(restoreSession()).resolves.toBe(false);
+    expect(tokenStorage.getToken()).toBeUndefined();
   });
 });

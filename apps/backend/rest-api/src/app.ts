@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import cors from "cors";
 import express, { type RequestHandler } from "express";
 import helmet from "helmet";
@@ -46,7 +48,38 @@ app.use(helmetPick);
 app.use(cors({ origin: getCorsOriginOption(), credentials: true }));
 app.use(requestIdMiddleware);
 app.use(httpRequestLogMiddleware);
-app.use("/uploads", express.static(uploadsRoot));
+/**
+ * 用户上传物与前端**同源**，因此这里必须假定「万一有文件带着危险扩展名落了盘」。
+ *
+ * 第一道防线在 large-upload.service.ts（成品扩展名只能取自白名单）；这里是第二道：
+ * 凡不属于「需要被浏览器内嵌渲染」的类型，一律带 `Content-Disposition: attachment` 下发，
+ * 于是即便真有 `.html` 落盘，直接访问它也只会触发下载而不是渲染成同源文档。
+ *
+ * 内嵌白名单只放图片与视频：它们是正文里 `<img>` / `<video>` 的引用目标。
+ * 子资源加载（img/video/audio）本就不理会 Content-Disposition，把它们列出来是为了让意图显式，
+ * 而不是依赖浏览器的这条实现细节。
+ */
+const INLINE_SAFE_UPLOAD_EXT = new Set([
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".gif",
+  ".webp",
+  ".mp4",
+  ".webm",
+  ".mov",
+]);
+
+app.use(
+  "/uploads",
+  express.static(uploadsRoot, {
+    setHeaders(res, filePath) {
+      if (!INLINE_SAFE_UPLOAD_EXT.has(path.extname(filePath).toLowerCase())) {
+        res.setHeader("Content-Disposition", "attachment");
+      }
+    },
+  }),
+);
 app.use(healthRoutes);
 app.use(globalRateLimitMiddleware);
 app.use(compressionMiddleware);

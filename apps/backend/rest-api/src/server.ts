@@ -1,6 +1,7 @@
 import { ensureUploadsRoot } from "./config/upload.config.js";
 import { connectDatabase, sequelize } from "./db.js";
-import { APP_ENV, PORT, SHUTDOWN_TIMEOUT_MS } from "./env.js";
+import { APP_ENV, PORT, SHUTDOWN_DRAIN_MS, SHUTDOWN_TIMEOUT_MS } from "./env.js";
+import { isShuttingDown, markShuttingDown } from "./lifecycle.js";
 import { connectRedis, disconnectRedis } from "./redis.js";
 import { logger, serializeError } from "./utils/logger.js";
 
@@ -48,13 +49,21 @@ server.on("error", (err: NodeJS.ErrnoException) => {
  * 会一直等到它们自己超时），等在途请求自然结束后，再关闭 Redis 与数据库连接。
  * 超时兜底存在的意义是「卡住的连接不能拖着整个发布」，超时即强制退出并留下日志。
  */
-let shuttingDown = false;
-
 async function gracefulShutdown(signal: NodeJS.Signals) {
-  if (shuttingDown) return;
-  shuttingDown = true;
+  // 重入保护与就绪探针共用同一个标志位（lifecycle.ts）：两个含义相同的布尔量迟早会漂移
+  if (isShuttingDown()) return;
 
-  logger.info("shutdown_started", { signal, timeoutMs: SHUTDOWN_TIMEOUT_MS });
+  /**
+   * 第一件事就是把就绪探针翻成 503（见 routes/health.routes.ts），
+   * 早于任何连接关闭动作——编排层要靠它决定「还要不要往这里发流量」。
+   */
+  markShuttingDown();
+
+  logger.info("shutdown_started", {
+    signal,
+    timeoutMs: SHUTDOWN_TIMEOUT_MS,
+    drainMs: SHUTDOWN_DRAIN_MS,
+  });
 
   const forceExit = setTimeout(() => {
     logger.error("shutdown_timeout", {
@@ -68,6 +77,20 @@ async function gracefulShutdown(signal: NodeJS.Signals) {
   forceExit.unref();
 
   try {
+    /**
+     * 摘流量窗口：`/ready` 已经在答 503，这里留出编排层探到它并把本实例摘掉的时间。
+     * 没有这段等待，探针的 503 很可能根本来不及被采集，翻转就白做了。
+     * 默认 0（单机 Compose 无滚动更新），K8s 场景应显式配置，见 env.ts。
+     */
+    if (SHUTDOWN_DRAIN_MS > 0) {
+      logger.info("shutdown_draining", {
+        signal,
+        drainMs: SHUTDOWN_DRAIN_MS,
+        message: "就绪探针已置为 not_ready，等待编排层摘除本实例后再停止接受连接",
+      });
+      await new Promise((resolve) => setTimeout(resolve, SHUTDOWN_DRAIN_MS));
+    }
+
     await new Promise<void>((resolve, reject) => {
       server.close((err) => (err ? reject(err) : resolve()));
       // Node ≥18.2：不主动踢掉空闲 keep-alive 连接，close() 会一直挂到它们超时

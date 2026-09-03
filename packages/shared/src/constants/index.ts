@@ -29,3 +29,4 @@ export const HTTP_STATUS = Object.freeze({
 });
 
 export { LARGE_UPLOAD_MAX_FILE_BYTES, LARGE_UPLOAD_MAX_FILE_MB } from "./largeUpload.js";
+export { SESSION_HINT_COOKIE_NAME, SESSION_HINT_COOKIE_VALUE } from "./auth.js";

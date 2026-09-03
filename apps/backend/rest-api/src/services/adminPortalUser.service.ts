@@ -6,6 +6,8 @@ import { ROLE_SLUG_USER } from "../rbac/permission-codes.js";
 import { escapeMysqlLikePattern } from "../utils/escapeMysqlLike.js";
 import { trimmedStringFromUnknown } from "../utils/trimmedStringFromUnknown.js";
 
+import { revokeAllSessionsForUser } from "./refresh-token.service.js";
+
 const roleBrief = ["id", "slug", "name", "isStaff"] as const;
 
 async function loadPortalTargetOrThrow(userId: number) {
@@ -99,4 +101,12 @@ export async function removePortalUserById(id: number) {
   } catch {
     throw createHttpError(400, "该用户仍有关联文章或评论等数据，无法删除");
   }
+  /**
+   * 账号没了，会话也必须跟着没。
+   *
+   * 光靠「刷新时重新读库、读不到就 401」是不够的：那条路只在**下一次刷新**才触发，
+   * 而对方手里的访问令牌在此之前一直有效（默认 15 分钟），RBAC 快照还额外缓存 5 分钟。
+   * 删号是个明确动作，就该有明确的即时效果。
+   */
+  await revokeAllSessionsForUser(id);
 }

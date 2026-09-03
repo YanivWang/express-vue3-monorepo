@@ -26,10 +26,22 @@ let baseUrl: string;
 let redisClient: typeof import("../redis.js").redis;
 let closeRedis: () => Promise<void>;
 
-async function post(path: string): Promise<number> {
-  const res = await fetch(`${baseUrl}${path}`, { method: "POST" });
+async function post(path: string, cookie?: string): Promise<number> {
+  const res = await fetch(`${baseUrl}${path}`, {
+    method: "POST",
+    headers: cookie === undefined ? {} : { Cookie: cookie },
+  });
   return res.status;
 }
+
+/**
+ * 一枚格式合法但服务端认不出的刷新令牌：足以让请求「携带了凭证」，
+ * 又不需要连库或事先登录（rotateRefreshToken 认不出它时在任何 DB 访问之前就返回 invalid）。
+ *
+ * Cookie 名写成字面量而不是从 `../env.js` 导入：env.ts 在模块加载时就固化配置，
+ * 而本用例的环境变量要到 beforeAll 才设好，顶层导入它会让整套配置在错误的时刻定型。
+ */
+const BOGUS_REFRESH_COOKIE = "evm_refresh_token=00000000-0000-4000-8000-000000000000.deadbeef";
 
 beforeAll(async () => {
   // env.ts 在模块加载时即固化配置，因此这些必须先于任何应用模块的 import
@@ -71,13 +83,30 @@ afterAll(async () => {
 });
 
 describe("刷新接口限流", () => {
-  it("阈值内放行、超过阈值返回 429（失败的刷新才计数）", async () => {
+  /**
+   * 「只统计失败」的反噬：**没带凭证的请求也是失败**。
+   *
+   * 前端启动时要凭刷新 Cookie 换回访问令牌，改造前这一步无条件发送，匿名访客也发、且必然 401。
+   * 于是「一次匿名首屏 = 一次计数」，同一出口 IP（公司 NAT / CGNAT / CDN 回源）
+   * 上够数的匿名首屏就能打满桶，把该 IP 上**真正登录**的用户挡在 429 外面。
+   * 主要修法在前端（会话标记 Cookie），这里守的是服务端那一半：无凭证的尝试不占额度。
+   */
+  it("没带刷新 Cookie 的请求不占额度，再多也只会是 401", async () => {
     const statuses: number[] = [];
-    for (let i = 0; i < REFRESH_LIMIT + 2; i++) {
+    for (let i = 0; i < REFRESH_LIMIT * 3; i++) {
       statuses.push(await post("/api/auth/refresh"));
     }
 
-    // 没有 Cookie 的刷新一律 401；到达阈值后被限流器接管，返回 429
+    expect(statuses).toEqual(Array(REFRESH_LIMIT * 3).fill(401));
+  });
+
+  it("带着刷新 Cookie 的失败尝试照常计数，超过阈值返回 429", async () => {
+    const statuses: number[] = [];
+    for (let i = 0; i < REFRESH_LIMIT + 2; i++) {
+      statuses.push(await post("/api/auth/refresh", BOGUS_REFRESH_COOKIE));
+    }
+
+    // 认不出的令牌一律 401；到达阈值后被限流器接管，返回 429
     expect(statuses.slice(0, REFRESH_LIMIT)).toEqual(Array(REFRESH_LIMIT).fill(401));
     expect(statuses.slice(REFRESH_LIMIT)).toEqual([429, 429]);
   });

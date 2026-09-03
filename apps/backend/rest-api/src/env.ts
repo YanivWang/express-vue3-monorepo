@@ -176,7 +176,8 @@ export const REFRESH_TOKEN_TTL_SECONDS = positiveIntEnv(
  * 用户什么都没做错，却被强制重新登录。
  *
  * 因此给刚轮换掉的令牌留一段极短的宽限窗口：窗口内的重复提交视为并发竞态，
- * 在同一家族内补发新令牌；窗口之外仍按重放处理，家族照旧撤销。
+ * 原样返回**当初已经发出去的那一枚**继任令牌（幂等重放，不补发新的——补发会让一枚已用令牌
+ * 在窗口内重放 N 次就铸出 N 条彼此独立的令牌链）；窗口之外仍按重放处理，家族照旧撤销。
  * 这与 Auth0 的 refresh token reuse interval 是同一取舍：用极小的检测盲区，
  * 换掉一个几乎必然发生的误杀。窗口越大越宽容、也越钝，默认 30 秒。
  */
@@ -186,6 +187,29 @@ export const REFRESH_ROTATION_GRACE_SECONDS = (() => {
   const n = Number.parseInt(raw, 10);
   if (!Number.isInteger(n) || n < 0) {
     console.error(`[env] REFRESH_ROTATION_GRACE_SECONDS 必须是非负整数（当前: ${raw}）`);
+    process.exit(1);
+  }
+  return n;
+})();
+
+/**
+ * 绝对会话寿命（秒），`0` 关闭。默认 30 天。
+ *
+ * 为什么滑动过期一个人扛不住：刷新令牌每轮换一次就重置一次有效期，
+ * 所以只要保持每周至少刷新一次，同一次登录派生出的会话就能无限期活下去——
+ * 包括拿着被盗令牌、且恰好一直没触发重放检测的那个人。「7 天有效期」在这种用法下
+ * 从来不会真的到期。
+ *
+ * 绝对上限给每次登录压一条硬线：无论中间刷新过多少次，到点就必须重新做一次
+ * 真正的身份认证（输密码）。这也是把「改密码 / 封号」的最坏生效时延兜住的最后一道。
+ * 交互密集的产品可以调长，高敏感场景应当调短。
+ */
+export const REFRESH_SESSION_ABSOLUTE_TTL_SECONDS = (() => {
+  const raw = trimUnset(process.env.REFRESH_SESSION_ABSOLUTE_TTL_SECONDS);
+  if (raw === undefined) return 30 * 24 * 60 * 60;
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isInteger(n) || n < 0) {
+    console.error(`[env] REFRESH_SESSION_ABSOLUTE_TTL_SECONDS 必须是非负整数（当前: ${raw}）`);
     process.exit(1);
   }
   return n;
@@ -228,6 +252,53 @@ export const AUTH_COOKIE_SECURE: AuthCookieSecureMode = (() => {
   if (lower === "0" || lower === "false") return false;
   console.error(`[env] AUTH_COOKIE_SECURE 只能是 1 / true / 0 / false / auto（当前: ${raw}）`);
   process.exit(1);
+})();
+
+/**
+ * 是否对外提供 API 文档（`/api-docs` 与 `/openapi.yaml`）。
+ *
+ * 取值：`1` / `true` 开，`0` / `false` 关；未设置时**生产默认关闭**，其余环境默认开启。
+ *
+ * 为什么生产要默认关：openapi.yaml 是这套服务最完整的一份攻击面清单——每个路由、每个参数、
+ * 每条权限码、连「哪些接口不需要 Bearer」都写得清清楚楚。它对开发是资产，对外网是地图。
+ * 而 Swagger UI 本身还得为它单独放宽 CSP（见 app.ts 的 helmetPick），等于又多一处例外。
+ * 真需要在生产查文档，就显式 `API_DOCS_ENABLED=1` 打开，并且让它只经内网/鉴权后的入口可达。
+ */
+export const API_DOCS_ENABLED: boolean = (() => {
+  const raw = trimUnset(process.env.API_DOCS_ENABLED);
+  if (raw === undefined) return appEnv !== "production";
+  const lower = raw.toLowerCase();
+  if (lower === "1" || lower === "true") return true;
+  if (lower === "0" || lower === "false") return false;
+  console.error(`[env] API_DOCS_ENABLED 只能是 1 / true / 0 / false（当前: ${raw}）`);
+  process.exit(1);
+})();
+
+/**
+ * 优雅退出前的「摘流量」等待（毫秒），`0` 表示不等待。
+ *
+ * 收到 SIGTERM 后 `/ready` 会立刻翻成 503（见 routes/health.routes.ts），但**探针是轮询的**：
+ * 如果翻完就立即关掉监听，编排层根本来不及探到那个 503，也就来不及把本实例从
+ * Service / 负载均衡的后端列表里摘掉——滚动更新期间因此出现零星 502，
+ * 而进程日志一切正常（它确实优雅退出了，只是比 LB 的反应快）。
+ *
+ * 这段等待就是留给编排层「看见并摘掉」的时间，取值应当略大于一个就绪探针周期
+ * （K8s readinessProbe.periodSeconds 默认 10s，实践中常配 2～5s，则本值取 5000 上下）。
+ *
+ * 默认 `0`：本仓自带的单机 Compose 前面只有一台 nginx、没有滚动更新，等待纯属拖慢发布；
+ * 且它会挤占 SHUTDOWN_TIMEOUT_MS 的预算。上 K8s 或多副本滚动更新时**应当显式配置**，
+ * 并确保 SHUTDOWN_DRAIN_MS + 在途请求收尾时间 < 编排层的宽限期。
+ * （等价做法是用 K8s 的 preStop `sleep`，两者择一即可。）
+ */
+export const SHUTDOWN_DRAIN_MS = (() => {
+  const raw = trimUnset(process.env.SHUTDOWN_DRAIN_MS);
+  if (raw === undefined) return 0;
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isInteger(n) || n < 0) {
+    console.error(`[env] SHUTDOWN_DRAIN_MS 必须是非负整数（当前: ${raw}）`);
+    process.exit(1);
+  }
+  return n;
 })();
 
 /**

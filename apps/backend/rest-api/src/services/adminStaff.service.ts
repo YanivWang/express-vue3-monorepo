@@ -14,6 +14,7 @@ import {
   loadRbacSnapshot,
   clearRbacSnapshotCache,
 } from "./rbac.service.js";
+import { revokeAllSessionsForUser } from "./refresh-token.service.js";
 
 import type { RoleModel } from "../models/index.js";
 
@@ -178,6 +179,16 @@ export async function updateStaffUser(
   if (payload.roleId !== undefined) {
     await clearRbacSnapshotCache(targetId);
   }
+  /**
+   * 管理员重置了密码 → 此前发出的一切凭证都不该再作数。
+   *
+   * 不撤销会话的话，改密码只挡住了「用旧密码再登录」，挡不住「已经登着的那个人」：
+   * 他手里的刷新令牌照常续期，最长还能再用满一个刷新周期（默认 7 天）。
+   * 而管理员重置密码的场景，十有八九正是「怀疑账号被别人拿着」。
+   */
+  if (payload.password !== undefined) {
+    await revokeAllSessionsForUser(targetId);
+  }
   return User.findByPk(targetId, {
     attributes: { exclude: ["password"] },
     include: [{ model: Role, as: "role", attributes: [...roleBrief] }],
@@ -206,6 +217,9 @@ export async function revokeStaffUser(operatorId: number, targetId: number) {
   const userRid = await getRoleIdBySlugOrThrow(ROLE_SLUG_USER);
   await row.update({ roleId: userRid });
   await clearRbacSnapshotCache(targetId);
+  // 撤销后台身份是一次「收权」，应当立刻生效：不撤销会话的话，
+  // 对方手里那枚访问令牌在过期前仍带着旧角色，管理端页面照开不误。
+  await revokeAllSessionsForUser(targetId);
 }
 
 /** 供管理员账号页绑定角色下拉用；需路由层 `admin.staff.read` */

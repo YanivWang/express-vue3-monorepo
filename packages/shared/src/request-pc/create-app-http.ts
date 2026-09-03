@@ -1,3 +1,4 @@
+import { SESSION_HINT_COOKIE_NAME } from "../constants/auth.js";
 import { createTokenStorage, type TokenStorage } from "../utils/storage.js";
 
 import { createPcHttp, type HttpRequest } from "./create-pc-http.js";
@@ -51,6 +52,21 @@ function withRefreshLock<T>(run: () => Promise<T>): Promise<T> {
   const locks = typeof navigator === "undefined" ? undefined : navigator.locks;
   if (!locks) return run();
   return locks.request(REFRESH_LOCK_NAME, run);
+}
+
+/**
+ * 本机是否**可能**存在会话：登录与每次刷新时由服务端下发的一枚 JS 可读标记位。
+ *
+ * 只用来决定「要不要发那次静默刷新」，不参与任何鉴权判断——
+ * 它没有身份信息，伪造它的唯一后果是让自己多发一次注定 401 的请求。
+ * 读不到 document.cookie（SSR / 测试环境等）时按「没有会话」处理：
+ * 宁可漏发一次恢复，也不要退回到「所有匿名访客都去挤刷新接口」的老路。
+ */
+function hasSessionHint(): boolean {
+  if (typeof document === "undefined") return false;
+  return document.cookie
+    .split(";")
+    .some((segment) => segment.trim().startsWith(`${SESSION_HINT_COOKIE_NAME}=`));
 }
 
 export function createAppPcHttp(options: CreateAppPcHttpOptions): {
@@ -118,8 +134,21 @@ export function createAppPcHttp(options: CreateAppPcHttpOptions): {
   /**
    * 访问令牌只在内存中，刷新页面必然丢失；启动时用刷新 Cookie 静默换一枚回来。
    * 未登录用户这里会失败，属正常路径，因此只返回布尔值而不抛错。
+   *
+   * 但「未登录也发一次」这件事本身是有代价的，且代价落在别人身上：
+   * 刷新那一档限流只统计失败的请求，于是每一次匿名首屏都要占一格额度，
+   * 同一出口 IP（公司 NAT / CGNAT / CDN 回源）上的匿名流量足够多时会把桶打满，
+   * 把该 IP 上**真正登录**的用户挡在 429 外面 —— 他们的会话恢复因此失败，表现为莫名其妙被登出。
+   * 顺带的第二笔代价：会话恢复排在路由挂载之前，所有访客的首屏都要白等这一个 API 往返。
+   *
+   * 会话标记 Cookie 让这两笔代价一起消失：没有标记 = 确定没登录 = 根本不发请求。
+   * 它只是标记位、不是凭证，所以「有标记但服务端已失效」时照常走一次真实刷新并按失败处理。
    */
   async function restoreSession(): Promise<boolean> {
+    if (!hasSessionHint()) {
+      tokenStorage.removeToken();
+      return false;
+    }
     try {
       tokenStorage.setToken(await requestNewAccessToken());
       return true;

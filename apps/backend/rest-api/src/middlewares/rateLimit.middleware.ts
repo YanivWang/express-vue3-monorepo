@@ -15,10 +15,13 @@
 import rateLimit, { type Logger, type Store } from "express-rate-limit";
 import { RedisStore } from "rate-limit-redis";
 
-import { RATE_LIMIT } from "../env.js";
+import { RATE_LIMIT, REFRESH_COOKIE_NAME } from "../env.js";
 import { connectRedis, redis } from "../redis.js";
+import { readCookie } from "../utils/cookies.js";
 import { logger, serializeError } from "../utils/logger.js";
 import { fail } from "../utils/response.js";
+
+import type { Request } from "express";
 
 /** rate-limit-redis 期望的返回形状；node-redis 的 ReplyUnion 更宽，用泛型参数收窄，避免断言 */
 type RedisRawReply = boolean | number | string | (boolean | number | string)[];
@@ -103,13 +106,29 @@ export const authRateLimitMiddleware = rateLimit({
  *
  * `skipSuccessfulRequests` 让成功的刷新不计数：正常用户永远碰不到阈值，
  * 只有反复失败（枚举刷新令牌）的来源才会被逐步收紧。
+ *
+ * 但「只统计失败」有一个反噬，且它比原问题更容易触发：**根本没带凭证的请求也算失败**。
+ * 前端启动时要用刷新 Cookie 换回访问令牌，改造前这一步是无条件发的，匿名访客也发、且必然 401，
+ * 于是「一次匿名首屏 = 一次计数」——同一出口 IP 上够数的匿名首屏就能打满桶，
+ * 之后该 IP 上**真正登录的用户**刷新拿 429、会话恢复失败被登出。限流反而成了把自己人锁在门外的那把锁。
+ *
+ * 主要修法在前端（会话标记 Cookie，见 shared/constants/auth.ts：没有标记就不发这个请求）。
+ * 这里是配套的第二层：没有携带刷新 Cookie 的请求一律不计数。
+ * 理由很直接——它压根没提交任何凭证，就谈不上是在猜凭证；
+ * 真要拿它打量，挡它的是全局那一档，不该由刷新档来背。
  */
+function refreshAttemptCarriedCredential(req: Request): boolean {
+  return readCookie(req, REFRESH_COOKIE_NAME) !== undefined;
+}
+
 export const refreshRateLimitMiddleware = rateLimit({
   windowMs: RATE_LIMIT.refreshWindowMs,
   limit: RATE_LIMIT.refreshMax,
   store: createRedisStore("refresh"),
   passOnStoreError,
   skipSuccessfulRequests: true,
+  // 「不算失败」= 成功 = 被 skipSuccessfulRequests 跳过；无凭证的尝试因此不占额度
+  requestWasSuccessful: (req, res) => res.statusCode < 400 || !refreshAttemptCarriedCredential(req),
   handler: (_req, res) => {
     return fail(res, 429, "请求过于频繁，请稍后再试");
   },

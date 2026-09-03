@@ -19,6 +19,18 @@ export const LARGE_FINAL_SEGMENT = "large";
 const UPLOAD_TTL_MS = 24 * 60 * 60 * 1000;
 const FILE_MD5_RE = /^[a-f0-9]{32}$/;
 
+/**
+ * 合并成品允许保留的扩展名；不在表内的一律落成无扩展名文件。
+ *
+ * 这层白名单只有配合 safeFileBase（已剥掉原扩展名、且主干里不含 `.`）才成立：
+ * 成品名形如 `<时间戳>-<随机>-<主干><suffix>`，suffix 只能取自本表，
+ * 于是 `/uploads` 这个与前端**同源**的静态目录里不可能出现 `.html` / `.svg` / `.js`——
+ * 否则任何注册用户都能上传一个页面拿到应用源上的存储型 XSS，
+ * 而 XSS 一旦成立，本轮「访问令牌只驻内存 + HttpOnly 刷新 Cookie」的加固就被整体绕过
+ * （脚本读不到 Cookie，但可以直接调 `/api/auth/refresh` 换令牌）。
+ */
+const ALLOWED_FINAL_EXT = [".bin", ".zip", ".pdf", ".mp4", ".mov", ".mkv", ".tar", ".gz", ".7z"];
+
 function doneMarkerPath(uploadId: string): string {
   return path.join(projectRoot, ".data", "large-upload-done", `${uploadId}.json`);
 }
@@ -198,8 +210,18 @@ export function partFileName(chunkIndex: number): string {
   return `part-${String(chunkIndex).padStart(6, "0")}.bin`;
 }
 
+/**
+ * 取出可安全放进落盘文件名的「主干」：去掉目录、**去掉扩展名**，再把其余字符收敛到 `[A-Za-z0-9_-]`。
+ *
+ * 两处都不能省：
+ * - 不去扩展名，`evil.html` 的 `.html` 会被原样带进结果，下游那层扩展名白名单就形同虚设；
+ * - 字符集里不能留 `.`，否则 `evil.html.txt` 去掉 `.txt` 后主干仍是 `evil.html`，绕回同一个洞。
+ *
+ * 结论：主干里不可能再出现 `.`，落盘文件的扩展名**只能**来自 ALLOWED_FINAL_EXT。
+ */
 function safeFileBase(name: string): string {
-  const base = path.basename(name).replace(/[^a-zA-Z0-9._-]/g, "_");
+  const withoutExt = path.basename(name, path.extname(name));
+  const base = withoutExt.replace(/[^a-zA-Z0-9_-]/g, "_");
   return base.length > 0 ? base.slice(0, 120) : "file";
 }
 
@@ -460,8 +482,7 @@ export async function mergeLargeUpload(uploadId: string, userId: number) {
   await fs.mkdir(destDir, { recursive: true });
 
   const ext = path.extname(meta.fileName).toLowerCase();
-  const allowedExt = [".bin", ".zip", ".pdf", ".mp4", ".mov", ".mkv", ".tar", ".gz", ".7z"];
-  const suffix = allowedExt.includes(ext) ? ext : "";
+  const suffix = ALLOWED_FINAL_EXT.includes(ext) ? ext : "";
   const finalName = `${Date.now()}-${randomBytes(8).toString("hex")}-${safeFileBase(meta.fileName)}${suffix}`;
   const finalAbs = path.join(destDir, finalName);
   const finalTmp = `${finalAbs}.part`;
