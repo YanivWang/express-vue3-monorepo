@@ -35,7 +35,22 @@ COPY apps/frontend/pc-admin/package.json apps/frontend/pc-admin/
 COPY packages/request-core/package.json packages/request-core/
 COPY packages/shared/package.json packages/shared/
 
-RUN pnpm install --frozen-lockfile --filter "@express-vue3-monorepo/pc-portal..."
+# `@yanivjs/*` 是私有 scope，只存在于自建 Verdaccio 上，公网 registry 没有。
+# 仓库的 .npmrc 只配了公共镜像源，因此这一步需要额外的 scope 映射与凭据，
+# 两者都在开发者的用户级 `~/.npmrc` 里——那份文件**不该**进仓库（含 authToken）。
+#
+# 所以经 BuildKit secret 挂进来：secret 只在这条 RUN 的生命周期内可见，
+# 不会写进任何镜像层，`docker history` 也翻不到。
+# 挂到 /root/.npmrc 是因为构建阶段以 root 运行，pnpm 正是从那里读用户级配置。
+#
+# secret 缺失时 pnpm 会退回仓库 .npmrc，私有包随即 404——这是有意的：
+# 与其静默装出一个缺包的镜像，不如当场失败。
+#
+# ⚠️ 这一步在 GitHub Actions 上必然失败：私仓当前绑在 127.0.0.1，runner 路由不到。
+# 待私仓迁到公网可达地址后，把 scope 映射写进仓库 .npmrc、凭据走 CI secret，
+# 即可删掉这里的 secret 挂载与 compose 里配套的 extra_hosts。
+RUN --mount=type=secret,id=npmrc,target=/root/.npmrc \
+    pnpm install --frozen-lockfile --filter "@express-vue3-monorepo/pc-portal..."
 
 COPY apps/frontend/pc-portal apps/frontend/pc-portal
 COPY packages/request-core packages/request-core

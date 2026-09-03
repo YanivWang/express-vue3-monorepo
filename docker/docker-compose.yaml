@@ -81,6 +81,15 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.pc-portal
+      # 私有 scope `@yanivjs/*` 只在自建 Verdaccio 上，且它当前绑在宿主 127.0.0.1。
+      # host-gateway 让构建容器把 verdaccio.wxbjq.net.cn 解析回宿主——
+      # 沿用原域名而不是改写成 host.docker.internal，是为了让 ~/.npmrc 里那条
+      # `//verdaccio.wxbjq.net.cn/:_authToken=` 仍然匹配得上。
+      extra_hosts:
+        - "verdaccio.wxbjq.net.cn:host-gateway"
+      # 凭据经 BuildKit secret 注入，不落进镜像层（见 Dockerfile.pc-portal 的说明）
+      secrets:
+        - npmrc
     container_name: express-vue3-monorepo-pc-portal
     restart: unless-stopped
     depends_on:
@@ -109,6 +118,13 @@ services:
         limits:
           cpus: "${STATIC_CPUS:-0.5}"
           memory: ${STATIC_MEMORY:-128m}
+
+# 构建期凭据：开发者的用户级 npmrc，含私有 scope 的 registry 映射与 authToken。
+# 仅作为 BuildKit secret 提供给 pc-portal 的构建阶段，不进镜像、不进运行时。
+# ⚠️ 临时安排：私仓迁到公网可达地址后应当删除，改由仓库 .npmrc + CI secret 承担。
+secrets:
+  npmrc:
+    file: ${HOME}/.npmrc
 
 volumes:
   # MySQL 生产环境数据卷

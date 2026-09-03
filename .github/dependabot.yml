@@ -25,13 +25,6 @@ updates:
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
-      # katex 的 0.x「minor」在语义上等同破坏性变更，且 0.17+ 会直接违背
-      # @yanivjs/yaniv-editor 的 peer 约束（它要求 katex ^0.16.0）。
-      # katex 是编辑器里的公式渲染，而编辑器在组件测试里是被 stub 掉的、没有回归网，
-      # 不挡住的话每周都会收到一个装不上的提议。0.16.x 的补丁仍照常跟进；
-      # 等 yaniv-editor 放行更高版本后删掉这条。
-      - dependency-name: "katex"
-        versions: [">=0.17"]
     groups:
       # 工程化依赖：它们通常需要同步版本，拆成十几个 PR 只会互相冲突
       dev-tooling:
