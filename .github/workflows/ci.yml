@@ -50,11 +50,8 @@ jobs:
       - name: 安装依赖
         run: pnpm install --frozen-lockfile
 
-      # packages/* 的 dist 是 Node 侧（`node` 导出条件）的消费目标，
-      # 先构建可保证 typecheck 与后续作业面对的是与生产一致的解析结果。
-      - name: 构建 workspace 包
-        run: pnpm run build:packages
-
+      # `pnpm verify` 自己的第一步就是 build:packages（packages/* 的 dist 是 Node 侧
+      # `node` 导出条件的消费目标），所以这里不再单独跑一次。
       - name: 质量门禁（等价本地 pnpm verify）
         run: pnpm run verify
 
@@ -123,6 +120,32 @@ jobs:
       # 迁移在真实 MySQL 上执行一遍，等于每次 PR 都回归了 DDL 本身
       - name: 集成测试
         run: pnpm run test:integration
+
+  audit:
+    name: 依赖漏洞扫描
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      # 只看 --prod：devDependencies 的告警不会进生产镜像，把它们也做成门禁
+      # 只会让 CI 常年飘红，然后所有人学会忽略它——那比没有门禁更糟。
+      # 阈值 high：真出 high/critical 的生产依赖就该拦下来人工看一眼。
+      # 仓库 .npmrc 把 registry 指向 npmmirror（国内装包快），但镜像源没有实现 audit 端点，
+      # 直接跑会以 ERR_PNPM_AUDIT_ENDPOINT_NOT_EXISTS 失败——只有这一步需要回官方源。
+      - name: pnpm audit（生产依赖，high 及以上）
+        env:
+          NPM_CONFIG_REGISTRY: https://registry.npmjs.org
+        run: pnpm audit --prod --audit-level high
 
   docker:
     name: 镜像构建与启动冒烟
@@ -213,7 +236,14 @@ jobs:
             if curl -fsS http://127.0.0.1:3000/health > /dev/null 2>&1; then
               echo "存活探针通过"
               curl -fsS http://127.0.0.1:3000/ready && echo
-              curl -fsS http://127.0.0.1:3000/openapi.yaml -o /dev/null && echo "OpenAPI 契约可服务"
+              # 生产默认不挂 API 文档（API_DOCS_ENABLED）。这里断言的是「测不到」——
+              # 之前反过来断言「可服务」，等于把一条本不该对外的端点写进了门禁。
+              docs_status=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/openapi.yaml)
+              if [ "$docs_status" != "404" ]; then
+                echo "::error::生产镜像不应对外提供 /openapi.yaml（实际 HTTP $docs_status）"
+                exit 1
+              fi
+              echo "API 文档在生产默认关闭（/openapi.yaml -> 404）"
               exit 0
             fi
             sleep 2

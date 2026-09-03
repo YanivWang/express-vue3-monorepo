@@ -19,7 +19,6 @@
     "element-plus": "catalog:",
     "nprogress": "^0.2.0",
     "pinia": "catalog:",
-    "sass": "catalog:",
     "vue": "catalog:",
     "vue-router": "catalog:"
   },
@@ -28,6 +27,7 @@
     "@vitejs/plugin-vue": "catalog:",
     "@vue/test-utils": "catalog:",
     "happy-dom": "catalog:",
+    "sass": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:",

@@ -1,0 +1,46 @@
+# 依赖更新。
+#
+# CI 里的 `pnpm audit --prod` 只负责「拦住已知高危」，它不会让依赖自己变新；
+# 长期不升级的结果是某天一次性面对几十个 breaking change。两者是互补的，缺一不可。
+#
+# 每周一次、每个生态最多 5 个 PR：频率再高就会被当成噪声批量关掉，那等于没开。
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # 工程化依赖一起升：它们通常需要同步版本，拆成十几个 PR 只会互相冲突
+      dev-tooling:
+        patterns:
+          - "eslint*"
+          - "@eslint/*"
+          - "typescript-eslint"
+          - "prettier"
+          - "stylelint*"
+          - "vitest"
+          - "@vitest/*"
+        dependency-type: development
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: docker
+    directory: "/docker"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(docker)"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "ci"
