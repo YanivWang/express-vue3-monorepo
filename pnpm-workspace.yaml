@@ -15,7 +15,7 @@ catalog:
   dayjs: ^1.11.11
   lodash-es: ^4.17.21
   echarts: ^6.0.0
-  web-vitals: ^5.2.0
+  web-vitals: ^6.2.1
   # ---------- 构建工具 ----------
   vite: ^5.3.3
   typescript: ~5.5.3
