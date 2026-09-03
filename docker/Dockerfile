@@ -13,15 +13,20 @@
 
 ARG NODE_VERSION=22-bookworm-slim
 ARG PNPM_VERSION=10.17.0
+# 镜像源可覆盖：默认走 npmmirror（国内构建快得多），但海外 / 公司内网 CI 需要能改，
+# 否则构建会被强行导流到一个它根本连不通的地址。
+#   docker build --build-arg NPM_REGISTRY=https://registry.npmjs.org ...
+ARG NPM_REGISTRY=https://registry.npmmirror.com
 
 # ──────────────────────────────────────────────────────────────
 # 公共基底：pnpm + 原生模块（bcrypt）编译所需工具链
 # ──────────────────────────────────────────────────────────────
 FROM node:${NODE_VERSION} AS base
 ARG PNPM_VERSION
+ARG NPM_REGISTRY
 RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ \
   && rm -rf /var/lib/apt/lists/*
-RUN npm config set registry https://registry.npmmirror.com \
+RUN npm config set registry ${NPM_REGISTRY} \
   && npm install -g pnpm@${PNPM_VERSION}
 WORKDIR /app
 # 镜像内无 git：避免根目录 prepare（husky）在 pnpm install 阶段报错
@@ -82,9 +87,17 @@ COPY --from=builder --chown=node:node /app/apps/backend/rest-api/dist apps/backe
 # swagger.ts 按 monorepo 根定位 docs/openapi.yaml
 COPY --chown=node:node docs docs
 
-# uploads/ 与 logs/ 落在 monorepo 根（src/utils/projectRoot.ts），需对非 root 可写。
-# 生产应通过 compose 的具名卷挂载 /app/uploads，否则容器重建即丢文件。
-RUN mkdir -p uploads logs && chown -R node:node uploads logs
+# uploads/、logs/ 与 .data/ 都落在 monorepo 根（src/utils/projectRoot.ts），需对非 root 可写。
+#
+# `.data/` 不能漏：大文件上传把「上传会话、秒传哈希索引、完成标记」写在这里
+# （services/large-upload.service.ts）。/app 本身是 root 所有（WORKDIR 建的），
+# 进程以 node 运行，因此漏建这个目录的后果是 `mkdir /app/.data` 直接 EACCES——
+# 表现为 `POST /api/uploads/large/init` 恒 500，整个分片上传在生产镜像里是死的，
+# 而开发环境（宿主直接跑、目录可写）完全看不出来。
+#
+# 生产应通过 compose 的具名卷挂载 /app/uploads 与 /app/.data，否则容器重建即丢文件；
+# 两者必须成对挂载：只挂 uploads 会让文件还在、秒传索引却被清空，两边就此对不上。
+RUN mkdir -p uploads logs .data && chown -R node:node uploads logs .data
 
 USER node
 

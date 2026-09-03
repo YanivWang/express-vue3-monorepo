@@ -65,6 +65,10 @@ services:
       # 上传文件落在容器内 /app/uploads（src/utils/projectRoot.ts）。
       # 不挂卷则容器重建即丢文件；多副本部署时本地盘无法共享，须改用对象存储。
       - uploads_data:/app/uploads
+      # 上传会话与秒传哈希索引（services/large-upload.service.ts 的 .data/）。
+      # 必须与 uploads 成对持久化：只挂 uploads 会让成品文件还在、而秒传索引被清空，
+      # 于是同一个文件重传时不再命中秒传，白白多存一份。
+      - appdata:/app/.data
     deploy:
       resources:
         limits:
@@ -113,3 +117,5 @@ volumes:
   redis_data:
   # 上传文件：与容器生命周期解耦（单机方案；多副本请换对象存储）
   uploads_data:
+  # 上传会话 / 秒传索引：与 uploads_data 成对，二者不同步就会「文件在、索引丢」
+  appdata:
