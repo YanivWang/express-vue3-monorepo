@@ -60,7 +60,9 @@ git diff --diff-filter=MD <重构前的提交> HEAD -- "*.spec.ts" "apps/fronten
 
 两 app 经 `@express-vue3-monorepo/shared` 的 `createAppPcHttp` 发请求。**访问令牌只存在于内存**（`createTokenStorage`），刷新页面必然丢失，会话延续由服务端下发的 HttpOnly 刷新令牌 Cookie（`evm_refresh_token`）承担：启动时 `restoreSession()` 静默换回访问令牌，401 时由 request-core 单飞刷新并重放。因此前端**不再有** `pc_portal_access_token` / `pc_admin_access_token` 这类 JS 可读的令牌 Cookie。
 
-刷新令牌是**同源共享的一枚 Cookie**，所以刷新还经 **Web Locks** 串行化（`evm:auth:refresh`）：多标签页、或门户与管理端同时开着时，后到的那个会等前一个完成再发起，读到的已是轮换后的新 Cookie，于是变成连续的正常轮换，而不是让服务端靠「并发宽限窗口」去兜一次本可避免的竞态。锁不可用（Safari < 15.4、非安全上下文）时自动降级，仍由服务端窗口兜底。
+刷新令牌是**同源共享的一枚 Cookie**，所以刷新还经 **Web Locks** 串行化（`evm:auth:refresh`）：多标签页、或门户与管理端同时开着时，后到的那个会等前一个完成再发起，读到的已是轮换后的新 Cookie，于是变成连续的正常轮换，而不是让服务端靠「并发宽限窗口」去兜一次本可避免的竞态。锁不可用（Safari < 15.4、非安全上下文）时自动降级，仍由服务端窗口兜底——而服务端那一层的宽限窗口是**幂等重放**（原样返回同一枚继任令牌），并发轮换也由 `SET NX` 选出唯一赢家，所以降级路径不会让一枚令牌分叉成多条有效链。
+
+应用启动时是否要发这次刷新，由 **`evm_has_session` 会话标记 Cookie** 决定（登录与每次刷新时随刷新 Cookie 一起下发，JS 可读、Path=`/`、值恒为 `1`）。没有它，匿名访客的首屏也会发一次注定 401 的刷新，而刷新档限流只统计失败请求，于是匿名流量会把桶吃满、把同一出口 IP 上真正登录的用户挡在门外。新增前端 app 时若自行实现会话恢复，这条门禁必须一并带上。
 
 ## 文档
 
@@ -88,3 +90,19 @@ git diff --diff-filter=MD <重构前的提交> HEAD -- "*.spec.ts" "apps/fronten
 - 前端：`apps/frontend/pc-portal`、`apps/frontend/pc-admin`（Composition API + `<script setup>`；跨 app 逻辑放 `packages/shared`）
 - 共享库：`packages/shared`（纯 TS，`tsc --noEmit`）、`packages/request-core`、`packages/js-bridge`、`packages/web-monitor`
 - OpenAPI：`docs/openapi.yaml`（相对 monorepo 根）
+
+## 静态站的安全响应头
+
+两个 SPA 由各自容器内的 Nginx 直出，helmet 管不到它们——而真正被浏览器当**文档**渲染的
+恰恰是这两个站发出的 `index.html`。安全头因此写在 `docker/nginx/spa-security-headers.conf`，
+由两份静态站配置 `include` 进来。
+
+改这个文件时有两处容易踩：
+
+1. **`add_header` 不会被继承进「自己也写了 `add_header` 的」子 location。**
+   两个静态站都在 `location /assets/` 与 `location = /index.html` 里加了 Cache-Control，
+   所以那两处必须各自再 `include` 一次，否则最常被请求的路径反而一个安全头都没有。
+2. **CSP 只能靠真实镜像 + 真实浏览器验证。** 写错不会报错，只会让某个页面静默不工作。
+   验证方式：`docker build -f docker/Dockerfile.pc-portal .` 起容器，
+   逐页看控制台有没有 CSP 违规，并把 Web Worker（大文件上传的 MD5）、Word 导入这类
+   非主路径也走一遍——它们恰好是最容易被 CSP 打断的地方。

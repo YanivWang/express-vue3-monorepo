@@ -9,8 +9,8 @@ info:
     - 文档：`GET /openapi.yaml`（YAML 原文）、`GET /api-docs`（Swagger UI）；契约源文件为仓库根 `docs/openapi.yaml`，由 `src/swagger.ts` 加载。
     - 安全与传输：`helmet`（`/api-docs` 路径关闭 CSP 以便 Swagger UI）；`cors` 行为见 `src/env.ts`（生产须配置 `CORS_ORIGINS`）。较大 JSON 响应可能经 `compression.middleware.ts` 压缩（`Content-Encoding: gzip` 等）。
     - 追踪：`requestId.middleware.ts` 写入响应头 **`X-Request-Id`**；客户端可传入同名请求头透传（最长 128 字符）。
-    - 限流（`middlewares/rateLimit.middleware.ts`）：`/health`、`/ready` 与 **GET `/uploads/...` 静态** 在 `src/app.ts` 中先于全局限流挂载，故 **15 分钟窗口计数不作用于这些路径**；限流器内对 `/health`、`/ready` 的 `skip` 为兜底。其余进入全局限流的 API 默认 **15 分钟 / 最多 1000 次**，超限 HTTP 429，`msg` 为「请求过于频繁，请稍后再试」。`POST /api/register`、`POST /api/login` 另挂载默认 **1 分钟 / 最多 10 次**；`POST /api/auth/refresh` 单列一档（默认 **1 分钟 / 最多 30 次**，且**只统计失败的请求**——刷新是每个登录会话的自动行为，与登录共用一个桶会在 NAT 出口把正常用户挡在门外）。阈值均由环境变量 `RATE_LIMIT_*` 控制（见 `src/env.ts`），不再硬编码；计数存于 Redis，多副本共用同一个桶。
-    - 认证：采用「短时效访问令牌 + 可撤销刷新令牌」双凭证。`POST /api/login` 在响应体返回访问令牌（默认 15 分钟），同时通过 **HttpOnly + SameSite=Strict** 的 `evm_refresh_token` Cookie 下发刷新令牌（默认 7 天；`Secure` 由 `AUTH_COOKIE_SECURE` 决定，生产默认开启）。访问令牌过期时调用 **`POST /api/auth/refresh`** 换新，该接口每次调用都会轮换刷新令牌；若一枚已轮换掉的令牌在宽限窗口（`REFRESH_ROTATION_GRACE_SECONDS`，默认 30 秒）之后再次出现，视为重放，撤销整个令牌家族并要求重新登录。`POST /api/register`、`POST /api/login`、`POST /api/auth/refresh` 无需 Bearer；**`POST /api/logout`** 需 Bearer，会同时把访问令牌 `jti` 写入 Redis 黑名单并撤销刷新令牌家族。注册/登录请求体校验见 `src/schema/auth.schema.ts`（用户名 trim 后长度 2～100；密码 6～100）。当前用户资料见 **`GET /api/me`**、**`GET/PATCH /api/me/profile`**（`src/schema/user.schema.ts` 中 `getMeSchema` 等）。
+    - 限流（`middlewares/rateLimit.middleware.ts`）：`/health`、`/ready` 与 **GET `/uploads/...` 静态** 在 `src/app.ts` 中先于全局限流挂载，故 **15 分钟窗口计数不作用于这些路径**；限流器内对 `/health`、`/ready` 的 `skip` 为兜底。其余进入全局限流的 API 默认 **15 分钟 / 最多 1000 次**，超限 HTTP 429，`msg` 为「请求过于频繁，请稍后再试」。`POST /api/register`、`POST /api/login` 另挂载默认 **1 分钟 / 最多 10 次**；`POST /api/auth/refresh` 单列一档（默认 **1 分钟 / 最多 30 次**，且**只统计携带了刷新 Cookie 的失败请求**——刷新是每个登录会话的自动行为，与登录共用一个桶会在 NAT 出口把正常用户挡在门外；而没带凭证的尝试并未在猜凭证，若也计数，匿名访客的首屏就会把桶吃满、反过来把同一 IP 上真正登录的用户挡在门外）。阈值均由环境变量 `RATE_LIMIT_*` 控制（见 `src/env.ts`），不再硬编码；计数存于 Redis，多副本共用同一个桶。
+    - 认证：采用「短时效访问令牌 + 可撤销刷新令牌」双凭证。`POST /api/login` 在响应体返回访问令牌（默认 15 分钟），同时通过 **HttpOnly + SameSite=Strict** 的 `evm_refresh_token` Cookie 下发刷新令牌（默认 7 天；`Secure` 由 `AUTH_COOKIE_SECURE` 决定，生产默认开启）。访问令牌过期时调用 **`POST /api/auth/refresh`** 换新，该接口每次调用都会轮换刷新令牌；若一枚已轮换掉的令牌在宽限窗口（`REFRESH_ROTATION_GRACE_SECONDS`，默认 30 秒）之后再次出现，视为重放，撤销整个令牌家族并要求重新登录；窗口**之内**的重复提交按幂等重放处理，原样返回同一枚继任令牌。登录与刷新还会一并下发 JS 可读的 `evm_has_session` 会话标记 Cookie（Path=`/`，值恒为 `1`，不含身份信息），前端据此判断「本机是否可能有会话」，没有标记就不发刷新请求。`POST /api/register`、`POST /api/login`、`POST /api/auth/refresh` 无需 Bearer；**`POST /api/logout`** 的 Bearer 是**可选**的（撤销依赖刷新 Cookie；带上 Bearer 则额外把该访问令牌的 `jti` 写入 Redis 黑名单），接口幂等、恒返回 200。注册/登录请求体校验见 `src/schema/auth.schema.ts`（用户名 trim 后长度 2～100；密码 6～100）。当前用户资料见 **`GET /api/me`**、**`GET/PATCH /api/me/profile`**（`src/schema/user.schema.ts` 中 `getMeSchema` 等）。
     - 用户：`src/routes/user.routes.ts`：**`GET /api/me`**（需 Bearer）返回轻量资料、**`nickname`**（扩展表）与 **`permissions`** RBAC 快照；**`GET/PATCH /api/me/profile`** 为当前用户扩展资料（`UserProfiles` 全量 / 部分更新 upsert）。注册用户/职员的运维请走 **`/api/admin/portal-users`**、**`/api/admin/staff`**。
     - 分类：`GET /api/categories` 公开；**`POST /api/categories`** 创建二级叶子须在 **Bearer** 下且具备 **`admin.categories.write`**。返回两级树，节点含 `id`、`name`、`parentId`、`sortOrder`，根的 `children` 为二级叶子。文章创建时 `categoryId` 必须为二级叶子 id；`GET /api/posts` 可选 `parentId`（一级 id）或 `categoryId`（叶子 id），二者不得同传。一级分类与 PATCH/DELETE 见 **`/api/admin/categories/...`**。
     - 上传：**`POST /api/uploads`** 与 **`POST /api/uploads/profiles`** 均需 Bearer；`multipart/form-data` 字段名 **`files`**；类型 jpeg/png/gif/webp。
@@ -27,6 +27,9 @@ info:
     - `GET /api/me`：**无**分页用户列表接口；注册用户列表使用 **`GET /api/admin/portal-users`**（须 `admin.portal_users.read`）。
     - `GET /api/posts`、`GET /api/posts/mine/list`：分页与同上分类筛选参数；响应含 `posts` 与 `pagination`。
     - `GET /api/posts/{postId}/comments`：`page`、`limit` 缺省 1、20，`limit` 最大 100；**`pagination.total` / `totalPages` / `hasNext` 仅针对顶层评论（主评）**；**`pagination.commentTotal` 为该文下评论总条数（含全部回复）**。每条顶层评论含 **`replies`：同一楼主下的全部回复的扁平列表**（按 `createdAt` 升序、`id` 升序；**含对回复的再回复**），每项可含 **`replyToUser`**（被直接回复评论的作者快照）以支持「A ▸ B」展示。删文章时评论随 Post 关联 `ON DELETE CASCADE`。
+
+    - API 文档：**`/api-docs`（Swagger UI）与 `/openapi.yaml` 在生产默认不挂载**（`API_DOCS_ENABLED`，见 `src/env.ts`）——本文件是这套服务最完整的一份攻击面清单，对开发是资产、对外网是地图。关闭时两个路径落到全局 404。需要在生产提供时显式设 `API_DOCS_ENABLED=1`，并让该入口只经内网或鉴权之后可达。
+    - 会话作废：管理端「重置密码」「撤销职员身份」「删除注册用户」会**立即撤销该用户的全部刷新令牌家族**（所有设备下线）；此外每次登录派生的会话有绝对寿命上限（`REFRESH_SESSION_ABSOLUTE_TTL_SECONDS`，默认 30 天），到点必须重新输密码，不能靠持续刷新无限续期。
 
 servers:
   - url: http://127.0.0.1:{gw}
@@ -214,7 +217,7 @@ components:
           example: 登录成功
         token:
           type: string
-          description: "JWT（jsonwebtoken）；`jwt.verify` 结果写入 `req.user`，payload 含 `id`、`username`、`roleId`、`roleSlug`；签发 expiresIn 7d。接口授权以库表 RBAC 为准；`GET /api/me` 返回 `permissions` 供前端菜单。"
+          description: "JWT（jsonwebtoken）；`jwt.verify` 结果写入 `req.user`，payload 含 `id`、`username`、`roleId`、`roleSlug`、`jti`；有效期为 `ACCESS_TOKEN_TTL_SECONDS`（默认 15 分钟），过期后走 `POST /api/auth/refresh` 换新。接口授权以库表 RBAC 为准；`GET /api/me` 返回 `permissions` 供前端菜单。"
     CredentialsBody:
       type: object
       required: [username, password]
@@ -255,13 +258,20 @@ components:
               enum: [ok]
     ReadinessFail:
       type: object
-      required: [status, checks, message]
+      description: |
+        503 有两种成因，响应体形状不同，靠 `status` 区分：
+        - `not_ready` —— 依赖不可用，带 `checks` 指明是 MySQL 还是 Redis；
+        - `shutting_down` —— 进程正在优雅退出，此时不再探测依赖（它们正在被关闭），故**不带** `checks`。
+        因此 `checks` 是可选的；判定「为什么不就绪」请读 `status` 而不是假定 `checks` 一定存在。
+      required: [status, message]
       properties:
         status:
           type: string
+          enum: [not_ready, shutting_down]
           example: not_ready
         checks:
           type: object
+          description: 仅 `status` 为 `not_ready` 时出现
           required: [mysql, redis]
           properties:
             mysql:
@@ -993,15 +1003,23 @@ paths:
       description: |
         并行探测 **MySQL**（`sequelize.authenticate()`）与 **Redis**（`PING`）；二者均为 ok 时 HTTP 200，否则 **503**。
         在 `app.ts` 中先于全局限流挂载，不经全局限流计数。响应体见 `ReadinessOk` / `ReadinessFail`（含 `checks.mysql` / `checks.redis`）。
+
+        **进程一旦进入优雅退出（收到 SIGTERM/SIGINT），本接口立即返回 503（`status` 为 `shutting_down`），
+        且先于依赖探测**——编排层要靠它决定「还要不要往这个实例发流量」。
+        与之相对，`/health`（存活探针）在退出期间仍返回 200：进程还活着，重启它没有意义，
+        若两条探针一起翻 503，编排层会把「正在优雅退出」误判成「进程坏了」而直接 kill。
+
+        注意探针是轮询的：翻成 503 之后若立即关闭监听，编排层可能来不及采集到。
+        留给它「看见并摘掉」的时间由 `SHUTDOWN_DRAIN_MS` 控制（默认 0，K8s/多副本应显式配置）。
       responses:
         "200":
-          description: MySQL 与 Redis 均可连接
+          description: MySQL 与 Redis 均可连接，且进程未在退出中
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ReadinessOk"
         "503":
-          description: MySQL 或 Redis 不可用
+          description: 进程正在优雅退出（`status` 为 `shutting_down`），或 MySQL / Redis 不可用
           content:
             application/json:
               schema:
@@ -1078,8 +1096,13 @@ paths:
           headers:
             Set-Cookie:
               description: >-
+                两枚：
                 `evm_refresh_token=<token>; Path=/api; HttpOnly; SameSite=Strict; Max-Age=<REFRESH_TOKEN_TTL_SECONDS>`
-                （是否额外带 `Secure` 由 `AUTH_COOKIE_SECURE` 决定：生产默认开启，`auto` 则按本次请求是否 HTTPS 判定）。
+                与会话标记 `evm_has_session=1; Path=/; SameSite=Strict; Max-Age=<REFRESH_TOKEN_TTL_SECONDS>`。
+                后者**刻意不是 HttpOnly**：前端读不到 HttpOnly 的刷新 Cookie，就无从判断本机有没有会话，
+                只能对所有访客（含匿名）无条件发一次注定 401 的刷新——那会吃掉刷新档限流的额度。
+                它不含任何身份信息，不是凭证。
+                （两枚是否额外带 `Secure` 均由 `AUTH_COOKIE_SECURE` 决定：生产默认开启，`auto` 则按本次请求是否 HTTPS 判定）。
               schema:
                 type: string
           content:
@@ -1132,8 +1155,12 @@ paths:
         **整个令牌家族** 并返回 401，攻击者与真实用户都必须重新登录。
 
         例外是轮换后的**并发宽限窗口**（`REFRESH_ROTATION_GRACE_SECONDS`，默认 30 秒）：
-        窗口内重复提交同一枚令牌，视为多标签页/多前端同时刷新的正常竞态，会在同一家族内补发新令牌，
-        而不是把用户踢下线。窗口之外仍按重放处理。
+        窗口内重复提交同一枚令牌，视为多标签页/多前端同时刷新的正常竞态，会把**当初已经发出去的那一枚**
+        原样再返回一次（幂等重放），而不是把用户踢下线，也**不会**补发新令牌——
+        后者等于让一枚已用令牌在窗口内重放 N 次就铸出 N 条彼此独立的令牌链。窗口之外仍按重放处理。
+
+        同一枚令牌被并发提交时有唯一赢家：各方拿到的是**同一枚**继任令牌。
+        它们本就来自同一个浏览器、共用同一枚 Cookie，要的从来是同一枚新 Cookie。
 
         无论走哪条路径，都要求请求方持有令牌明文中的 secret；仅凭日志里可见的 tokenId 无法触发轮换或撤销。
 
@@ -1143,7 +1170,9 @@ paths:
           description: 刷新成功，返回新的访问令牌并轮换刷新令牌 Cookie
           headers:
             Set-Cookie:
-              description: 轮换后的 `evm_refresh_token`，属性同登录接口。
+              description: >-
+                轮换后的 `evm_refresh_token`，属性同登录接口；
+                同时续期 `evm_has_session` 会话标记。
               schema:
                 type: string
           content:
@@ -1162,7 +1191,10 @@ paths:
                 code: 401
                 msg: 刷新凭证无效或已过期，请重新登录
         "429":
-          description: 刷新专用限流档（默认 1 分钟 30 次，只统计失败请求，见 `RATE_LIMIT_REFRESH_*`）
+          description: >-
+            刷新专用限流档（默认 1 分钟 30 次，见 `RATE_LIMIT_REFRESH_*`）。
+            只统计**携带了刷新 Cookie** 的失败请求：没带凭证的尝试压根没在猜凭证，不占额度，
+            否则匿名访客的首屏会把桶吃满、把同一出口 IP 上真正登录的用户挡在门外。
           content:
             application/json:
               schema:
@@ -1179,12 +1211,22 @@ paths:
       tags: [认证]
       summary: 退出登录
       description: |
-        需在请求头携带 Bearer 访问令牌。服务端会做两件事：
-        1. 把访问令牌的 `jti` 写入 Redis 黑名单直至其自然过期（JWT 无法撤回，只能拉黑）；
-        2. 撤销 `evm_refresh_token` 对应的整个令牌家族，并清除该 Cookie——
-           这一步是真正的撤销，撤销后无法再刷新出新的访问令牌。
+        **Bearer 可选**，撤销真正依赖的是 `evm_refresh_token` Cookie。服务端会做两件事：
+        1. 撤销该 Cookie 对应的整个令牌家族，并清除 Cookie 与 `evm_has_session` 标记——
+           这一步是真正的撤销，撤销后无法再刷新出新的访问令牌；
+        2. 若同时携带了有效的 Bearer，额外把该访问令牌的 `jti` 写入 Redis 黑名单
+           直至其自然过期（JWT 无法撤回，只能拉黑）。没带、已过期或已被拉黑则跳过这一步。
+
+        为什么 Bearer 不是必需：访问令牌默认 15 分钟就过期，若强制要求它，
+        「过期后点登出」会返回 401 而刷新令牌家族原封不动——用户以为退了，
+        服务端的会话还能再续满一个刷新周期。
+
+        本接口是幂等的：什么凭证都没带时同样返回 200，因为「未登录」这个目标状态已经达成。
+        这也不构成 CSRF 面——刷新 Cookie 是 `SameSite=Strict` 的，跨站请求根本不携带它，
+        打过来只是一次什么都没撤销的空操作。
       security:
         - bearerAuth: []
+        - {}
       responses:
         "200":
           description: 退出成功
@@ -1199,15 +1241,6 @@ paths:
                         example: 200
                       msg:
                         example: 退出登录成功
-        "401":
-          description: 未携带、无效 JWT，或 payload 缺少 jti/exp
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MsgBody"
-              example:
-                code: 401
-                msg: 无效登录凭证
         "500":
           description: 服务端异常
           content:
