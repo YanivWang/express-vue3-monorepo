@@ -31,9 +31,9 @@
     "cors": "^2.8.6",
     "cross-env": "^10.1.0",
     "dotenv": "^17.4.2",
-    "express": "4.22.1",
+    "express": "4.22.2",
     "express-rate-limit": "^8.7.0",
-    "helmet": "^8.1.0",
+    "helmet": "^8.3.0",
     "js-yaml": "^4.3.2",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.3.0",
@@ -44,7 +44,7 @@
     "sequelize": "^6.37.8",
     "swagger-ui-express": "^5.0.1",
     "winston": "^3.19.0",
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@types/bcrypt": "catalog:",
