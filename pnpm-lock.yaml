@@ -88,8 +88,8 @@ catalogs:
       specifier: ^16.4.0
       version: 16.4.0
     pinia:
-      specifier: ^2.2.6
-      version: 2.3.1
+      specifier: ^4.0.3
+      version: 4.0.3
     postcss-html:
       specifier: ^1.8.1
       version: 1.8.1
@@ -374,7 +374,7 @@ importers:
         version: 0.2.0
       pinia:
         specifier: 'catalog:'
-        version: 2.3.1(typescript@5.5.4)(vue@3.5.34(typescript@5.5.4))
+        version: 4.0.3(@vue/devtools-api@6.6.4)(typescript@5.5.4)(vue@3.5.34(typescript@5.5.4))
       vue:
         specifier: 'catalog:'
         version: 3.5.34(typescript@5.5.4)
@@ -537,7 +537,7 @@ importers:
         version: 1.12.0
       pinia:
         specifier: 'catalog:'
-        version: 2.3.1(typescript@5.5.4)(vue@3.5.34(typescript@5.5.4))
+        version: 4.0.3(@vue/devtools-api@6.6.4)(typescript@5.5.4)(vue@3.5.34(typescript@5.5.4))
       spark-md5:
         specifier: 'catalog:'
         version: 3.0.2
@@ -3179,6 +3179,7 @@ packages:
   git-raw-commits@5.0.1:
     resolution: {integrity: sha512-Y+csSm2GD/PCSh6Isd/WiMjNAydu0VBiG9J7EdQsNA5P9uXvLayqjmTsNlK5Gs9IhblFZqOU0yid5Il5JPoLiQ==}
     engines: {node: '>=18'}
+    deprecated: Deprecated and no longer maintained. Use @conventional-changelog/git-client instead.
     hasBin: true
 
   glob-parent@5.1.2:
@@ -3899,6 +3900,9 @@ packages:
   normalize-wheel-es@1.2.0:
     resolution: {integrity: sha512-Wj7+EJQ8mSuXr2iWfnujrimU35R2W4FAErEyTmJoJ7ucwTn2hOUSsRehMb5RSYkxXGTM7Y9QpvPmp++w5ftoJw==}
 
+  nostics@1.2.0:
+    resolution: {integrity: sha512-FGqEfhQjrvo1lL8KFifdTQiNwwQHJxC1jtYE1Rc54qF/jxONUNL+kC9gS1krX8Q65PgrQ5fCqH/I4NhWBvdSqg==}
+
   nprogress@0.2.0:
     resolution: {integrity: sha512-I19aIingLgR1fmhftnbWWO3dXc0hSxqHQHQb3H8m+K3TnEn/iSeTZZOyvKXWqQESMwuUVnatlCnZdLBZZt2VSA==}
 
@@ -4038,11 +4042,12 @@ packages:
     resolution: {integrity: sha512-QP88BAKvMam/3NxH6vj2o21R6MjxZUAd6nlwAS/pnGvN9IVLocLHxGYIzFhg6fUQ+5th6P4dv4eW9jX3DSIj7A==}
     engines: {node: '>=12'}
 
-  pinia@2.3.1:
-    resolution: {integrity: sha512-khUlZSwt9xXCaTbbxFYBKDc/bWAGWJjOgvxETwkTN7KRm66EeT1ZdZj6i2ceh9sP2Pzqsbc704r2yngBrxBVug==}
+  pinia@4.0.3:
+    resolution: {integrity: sha512-XMQqpvjgG7LMqVhhFUzKLT4KEbsYbfZZ0CZU9PgdFm1O2VKBmIkykL8+SfNhOaT7sR0wT6BEgKT0YNDYWgmVRA==}
     peerDependencies:
-      typescript: '>=4.4.4'
-      vue: ^2.7.0 || ^3.5.11
+      '@vue/devtools-api': ^8.1.5
+      typescript: '>=5.6.0'
+      vue: ^3.5.11
     peerDependenciesMeta:
       typescript:
         optional: true
@@ -8335,6 +8340,8 @@ snapshots:
 
   normalize-wheel-es@1.2.0: {}
 
+  nostics@1.2.0: {}
+
   nprogress@0.2.0: {}
 
   nth-check@2.1.1:
@@ -8470,15 +8477,13 @@ snapshots:
 
   picomatch@4.0.4: {}
 
-  pinia@2.3.1(typescript@5.5.4)(vue@3.5.34(typescript@5.5.4)):
+  pinia@4.0.3(@vue/devtools-api@6.6.4)(typescript@5.5.4)(vue@3.5.34(typescript@5.5.4)):
     dependencies:
       '@vue/devtools-api': 6.6.4
+      nostics: 1.2.0
       vue: 3.5.34(typescript@5.5.4)
-      vue-demi: 0.14.10(vue@3.5.34(typescript@5.5.4))
     optionalDependencies:
       typescript: 5.5.4
-    transitivePeerDependencies:
-      - '@vue/composition-api'
 
   possible-typed-array-names@1.1.0: {}
 

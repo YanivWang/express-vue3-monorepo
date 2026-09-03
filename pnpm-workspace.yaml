@@ -6,7 +6,7 @@ packages:
 catalog:
   # ---------- 运行时（与迁入 packages 对齐） ----------
   vue: ^3.4.31
-  pinia: ^2.2.6
+  pinia: ^4.0.3
   vue-router: ^4.3.3
   # 1.18.0 修复 GHSA-gcfj-64vw-6mp9（Node adapter 在拦截器克隆后会沿用继承来的 proxy）
   axios: ^1.20.0
