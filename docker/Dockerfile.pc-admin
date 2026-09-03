@@ -47,7 +47,7 @@ ENV VITE_ADMIN_BASE=${VITE_ADMIN_BASE}
 
 RUN pnpm --filter @express-vue3-monorepo/pc-admin run build
 
-FROM nginx:1.27-alpine
+FROM nginx:1.31-alpine
 
 COPY --from=builder /app/apps/frontend/pc-admin/dist /usr/share/nginx/html
 COPY docker/nginx/pc-admin-static.conf /etc/nginx/nginx.conf
