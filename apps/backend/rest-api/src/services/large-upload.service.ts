@@ -53,10 +53,30 @@ function readSessionFileMd5(uploadId: string): string {
   return normalizeFileMd5(j.fileMd5);
 }
 
-/** Multer `destination` 同步回调：分片目录 `chunks-temp/<fileMd5>/<uploadId>/` */
-export function syncResolveLargeUploadChunkDir(uploadId: string): string {
+/**
+ * Multer `destination` 同步回调：分片目录 `chunks-temp/<fileMd5>/<uploadId>/`。
+ *
+ * 归属校验必须在这里做，而不是等到 controller：multer 是先把分片落盘、再交给后续中间件的，
+ * 校验放在 controller 意味着别人的分片已经写进了对方的任务目录（虽然合并时仍会因归属不符而拒绝，
+ * 但磁盘上已经留下了垃圾文件，且写入动作本身就不该发生）。uploadId 是 UUID、猜不到，
+ * 因此这更多是「不该做的事就不要做」，而不是一条现实攻击路径。
+ */
+export function syncResolveLargeUploadChunkDir(uploadId: string, userId: number): string {
   const fileMd5 = readSessionFileMd5(uploadId);
-  return path.join(uploadsRoot, LARGE_CHUNKS_TEMP_SEGMENT, fileMd5, uploadId);
+  const dir = path.join(uploadsRoot, LARGE_CHUNKS_TEMP_SEGMENT, fileMd5, uploadId);
+
+  let raw: string;
+  try {
+    raw = fsSync.readFileSync(path.join(dir, "meta.json"), "utf8");
+  } catch {
+    throw createHttpError(404, "上传任务不存在或已完成清理");
+  }
+  const meta = JSON.parse(raw) as { userId?: number };
+  if (meta.userId !== userId) {
+    throw createHttpError(403, "无权操作该上传任务");
+  }
+
+  return dir;
 }
 
 function hashIndexDir(): string {

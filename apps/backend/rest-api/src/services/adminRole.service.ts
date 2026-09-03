@@ -140,7 +140,10 @@ export async function updateRoleById(
     if (!Array.isArray(payload.permissionCodes)) {
       throw createHttpError(400, "permissionCodes 须为字符串数组");
     }
-    const codes = payload.permissionCodes.map((c) => String(c).trim()).filter(Boolean);
+    // 去重后再比数量：重复项本身无害，但不去重会让「a,a」被误报成「存在无效的权限码」
+    const codes = [
+      ...new Set(payload.permissionCodes.map((c) => String(c).trim()).filter(Boolean)),
+    ];
     const perms = await Permission.findAll({ where: { code: codes } });
     if (perms.length !== codes.length) {
       throw createHttpError(400, "存在无效的权限码");

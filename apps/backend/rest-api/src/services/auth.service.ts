@@ -12,6 +12,12 @@ import { trimmedStringFromUnknown } from "../utils/trimmedStringFromUnknown.js";
 
 import { getRoleIdBySlugOrThrow } from "./rbac.service.js";
 
+/**
+ * 用户名不存在时用来比对的占位哈希（cost 与真实口令一致，故耗时也一致）。
+ * 值本身无意义：它是一段随机口令的哈希，任何真实输入都不会匹配。
+ */
+const DUMMY_PASSWORD_HASH = "$2b$10$kePvKnXiy3wRv8s53wbJBu.zaI/CSQ3p1/WMBOqoTrzVvD9Elx/9O";
+
 function normalizeCredentials(username: unknown, password: unknown) {
   return {
     username: trimmedStringFromUnknown(username),
@@ -100,7 +106,16 @@ export async function loginUser(payload: {
     where: { username },
     include: [{ model: Role, as: "role", attributes: ["id", "slug"] }],
   });
-  const credentialOk = user ? await bcrypt.compare(password, user.password) : false;
+
+  /**
+   * 用户不存在时也走一次 bcrypt：否则「查无此人」会明显快于「密码错误」，
+   * 攻击者据此就能按响应时间枚举出哪些用户名是真的。
+   *
+   * 注意这只堵住了时序这一条：`POST /api/register` 目前仍会对重名返回 409「用户名已存在」，
+   * 那是更直白的枚举入口，但它同时也是注册表单的正常交互。要不要一并收敛，
+   * 属于产品取舍，不在本次改动范围内。
+   */
+  const credentialOk = await bcrypt.compare(password, user ? user.password : DUMMY_PASSWORD_HASH);
 
   if (!credentialOk || !user) {
     throw createHttpError(401, "用户名或密码错误");
