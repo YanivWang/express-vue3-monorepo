@@ -2,7 +2,7 @@
 # 构建上下文为仓库根目录：
 #   docker build -f docker/Dockerfile.pc-portal .
 
-FROM node:22-bookworm-slim AS builder
+FROM node:26-bookworm-slim AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ \
   && rm -rf /var/lib/apt/lists/*
