@@ -12,7 +12,7 @@ catalog:
   axios: ^1.20.0
   vue-i18n: ^9.14.4
   "@vueuse/core": ^10.11.0
-  dayjs: ^1.11.11
+  dayjs: ^1.11.23
   lodash-es: ^4.17.21
   echarts: ^6.0.0
   web-vitals: ^5.2.0
@@ -22,32 +22,32 @@ catalog:
   vue-tsc: ^2.0.26
   "@vitejs/plugin-vue": ^5.0.5
   vite-tsconfig-paths: ^5.0.0
-  sass: ^1.77.6
+  sass: ^1.103.1
   # ---------- PC / H5 UI（shared peer / dev） ----------
-  element-plus: ^2.7.6
+  element-plus: ^2.14.5
   "@element-plus/icons-vue": ^2.3.1
   spark-md5: ^3.0.2
   vant: ^4.9.0
   vconsole: ^3.15.0
   # ---------- 工程化（既有 + 测试） ----------
   eslint: ^9.39.4
-  "@eslint/js": ^9.39.4
-  typescript-eslint: ^8.59.0
-  eslint-plugin-vue: ^10.9.0
+  "@eslint/js": ^9.39.5
+  typescript-eslint: ^8.68.0
+  eslint-plugin-vue: ^10.10.0
   eslint-plugin-import: ^2.32.0
   eslint-import-resolver-typescript: ^3.10.1
   eslint-config-prettier: ^10.1.8
-  vue-eslint-parser: ^10.4.0
+  vue-eslint-parser: ^10.4.1
   globals: ^17.5.0
-  prettier: ^3.8.3
-  stylelint: ^17.9.0
+  prettier: ^3.9.6
+  stylelint: ^17.14.1
   stylelint-config-html: ^1.1.0
-  stylelint-config-recess-order: ^7.7.0
+  stylelint-config-recess-order: ^7.8.0
   stylelint-config-standard: ^40.0.0
   stylelint-config-standard-scss: ^17.0.0
   stylelint-order: ^8.1.1
   stylelint-prettier: ^5.0.3
-  stylelint-scss: ^7.0.0
+  stylelint-scss: ^7.2.0
   postcss-html: ^1.8.1
   "@commitlint/cli": ^20.5.0
   "@commitlint/config-conventional": ^20.5.0
@@ -55,9 +55,9 @@ catalog:
   husky: ^9.1.7
   lint-staged: ^16.4.0
   vitest: ^2.1.9
-  happy-dom: ^20.9.0
+  happy-dom: ^20.12.0
   "@vue/test-utils": ^2.4.6
-  "@types/node": ^20.14.9
+  "@types/node": ^20.19.43
   tsx: ^4.19.2
   "@types/express": ^4.17.21
   "@types/cors": ^2.8.17
