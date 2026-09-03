@@ -3,7 +3,17 @@
 # CI 里的 `pnpm audit --prod` 只负责「拦住已知高危」，它不会让依赖自己变新；
 # 长期不升级的结果是某天一次性面对几十个 breaking change。两者是互补的，缺一不可。
 #
-# 每周一次、每个生态最多 5 个 PR：频率再高就会被当成噪声批量关掉，那等于没开。
+# 但这个机制唯一的失败模式是**噪声**：PR 一多、又常年飘红，就会被批量关掉，
+# 于是等同于没开。所以下面两条约束比「多久跑一次」重要得多：
+#
+#   1. 大版本升级一律不自动开 PR（ignore semver-major）。
+#      大版本是需要人读 changelog、跑一遍回归的迁移动作，交给机器人只会得到一批必红的 PR。
+#      本配置初次上线时就撞上了：一次开出 11 个 PR，其中 pinia 2.3.1 → 4.0.3、
+#      node 22 → 26 直接把 CI 打红。安全侧不受影响——高危由 audit 门禁兜底，
+#      真需要跨大版本时人工发起。
+#   2. 同生态的小版本合并成一个 PR（groups），而不是一个依赖一个 PR。
+#
+# 合起来的预期是每周 2～3 个 PR，且默认能过 CI。
 version: 2
 updates:
   - package-ecosystem: npm
@@ -11,10 +21,14 @@ updates:
     schedule:
       interval: weekly
       day: monday
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
-      # 工程化依赖一起升：它们通常需要同步版本，拆成十几个 PR 只会互相冲突
+      # 工程化依赖：它们通常需要同步版本，拆成十几个 PR 只会互相冲突
       dev-tooling:
+        dependency-type: development
         patterns:
           - "eslint*"
           - "@eslint/*"
@@ -23,7 +37,13 @@ updates:
           - "stylelint*"
           - "vitest"
           - "@vitest/*"
-        dependency-type: development
+      # 其余一切小版本合并成一个 PR
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
     commit-message:
       prefix: "chore(deps)"
 
@@ -32,7 +52,16 @@ updates:
     schedule:
       interval: weekly
       day: monday
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 2
+    # 基础镜像的大版本（node 22 → 26、nginx 1.x → 2.x）是明确的平台决策，
+    # 牵涉运行时行为与原生模块编译，不该由机器人替人做主
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    groups:
+      base-images:
+        patterns:
+          - "*"
     commit-message:
       prefix: "chore(docker)"
 
@@ -41,6 +70,12 @@ updates:
     schedule:
       interval: weekly
       day: monday
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 1
+    # Actions 的大版本通常只是 runner Node 版本变化，风险低，故不 ignore；
+    # 但合并成一个 PR，避免每个 action 各开一条
+    groups:
+      actions:
+        patterns:
+          - "*"
     commit-message:
       prefix: "ci"

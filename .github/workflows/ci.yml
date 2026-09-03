@@ -132,10 +132,13 @@ jobs:
         with:
           version: ${{ env.PNPM_VERSION }}
 
+      # 这里刻意**不开** `cache: pnpm`：本作业只读 lockfile、不装依赖，pnpm store 因此不存在，
+      # post 步骤保存缓存时会报「Path Validation Error: Path(s) ... do(es) not exist」
+      # 并把整个作业判红——而 audit 命令本身明明是通过的。这种「命令成功、作业失败」
+      # 最难排查，因为日志里根本没有失败的命令。
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
 
       # 只看 --prod：devDependencies 的告警不会进生产镜像，把它们也做成门禁
       # 只会让 CI 常年飘红，然后所有人学会忽略它——那比没有门禁更糟。
