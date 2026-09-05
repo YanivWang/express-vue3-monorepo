@@ -11,6 +11,7 @@
   },
   "scripts": {
     "preinstall": "npx only-allow pnpm",
+    "postinstall": "node scripts/check-private-registry.mjs",
     "prepare": "node scripts/prepare-husky.mjs",
     "build": "pnpm --filter \"@express-vue3-monorepo/rest-api...\" run --if-present build",
     "build:packages": "pnpm --filter \"./packages/**\" run --if-present build",
@@ -29,13 +30,14 @@
     "typecheck": "pnpm -r --parallel run --if-present typecheck",
     "typecheck:solution": "tsc -b --pretty",
     "typecheck:packages": "pnpm -r --parallel --filter './packages/**' run --if-present typecheck",
+    "check:registry": "node scripts/check-private-registry.mjs",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",
     "lint:style": "stylelint '{apps/frontend,packages}/**/*.{css,scss,vue}'",
     "lint:style:fix": "stylelint '{apps/frontend,packages}/**/*.{css,scss,vue}' --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify": "pnpm run build:packages && pnpm run typecheck && pnpm run lint && pnpm run lint:style && pnpm run format:check && pnpm run test:all && pnpm run build:frontend",
+    "verify": "pnpm run check:registry && pnpm run build:packages && pnpm run typecheck && pnpm run lint && pnpm run lint:style && pnpm run format:check && pnpm run test:all && pnpm run build:frontend",
     "docker:install": "cross-env APP_ENV=development docker compose --env-file .env.development -f docker/docker-compose.base.yaml -f docker/docker-compose.dev.yaml exec -e CI=true -T rest-api pnpm install --frozen-lockfile",
     "docker:pnpm": "cross-env APP_ENV=development docker compose --env-file .env.development -f docker/docker-compose.base.yaml -f docker/docker-compose.dev.yaml exec -e CI=true -T rest-api pnpm",
     "docker:dev:debug": "bash scripts/docker-dev.sh --debug",
@@ -105,5 +107,10 @@
       "nanoid@<3.3.18": ">=3.3.18",
       "nanoid@>=4.0.0 <5.1.16": ">=5.1.16"
     }
+  },
+  "privateRegistry": {
+    "allow": [
+      "@yanivjs/yaniv-editor@0.3.2"
+    ]
   }
 }
