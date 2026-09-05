@@ -43,7 +43,7 @@
     "@tiptap/starter-kit": "^3.31.0",
     "@tiptap/vue-3": "^3.31.0",
     "@vueuse/core": "catalog:",
-    "@yanivjs/yaniv-editor": "^0.3.0",
+    "@yanivjs/yaniv-editor": "^0.3.1",
     "ant-design-vue": "^4.2.6",
     "docx": "^9.7.1",
     "dompurify": "^3.4.14",
